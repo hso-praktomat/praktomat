@@ -1,5 +1,8 @@
 This is the source distribution of Praktomat, a programming course manager.
 
+**Note:** *This is a fork of the original Praktomat repository (https://github.com/KITPraktomatTeam/Praktomat/). It contains the version of Praktomat as used at the University of Applied Sciences Offenburg, Germany.
+We created the fork because maintainers of the original repository were not responsive in merging pull requests and/or giving us commit rights.*
+
 Resources
 =========
 
