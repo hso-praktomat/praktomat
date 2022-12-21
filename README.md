@@ -5,9 +5,10 @@ This is the source distribution of Praktomat, a programming course manager.
 Resources
 =========
 
-In case of bugs or feature requests, please use the [Bug tracker]. There is
-also a moderated [mailing list] for Praktomat administrators:
-praktomat-users@lists.kit.edu.
+* Bug tracker: https://github.com/hso-praktomat/praktomat/issues
+* Running Praktomat under docker: https://github.com/hso-praktomat/praktomat-docker
+* Running Checkers for Praktomat with docker: https://github.com/hso-praktomat/praktomat-checkers
+* Moderated [mailing list] for Praktomat administrators: praktomat-users@lists.kit.edu.
 
 A note about Python 2
 =============
