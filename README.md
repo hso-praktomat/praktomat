@@ -502,5 +502,4 @@ CUnit CPPUnit Checker
 For configuration please have a look into README_feature_CUnitCppUnit_Checker.txt.
 
 
-[Bug tracker]: https://github.com/KITPraktomatTeam/Praktomat/issues
 [mailing list]: https://www.lists.kit.edu/wws/info/praktomat-users
