@@ -5,9 +5,6 @@ from os.path import *
 import time
 import subprocess
 import signal
-from six import PY2
-if PY2:
-    import subprocess32 as subprocess
 import resource
 import psutil
 

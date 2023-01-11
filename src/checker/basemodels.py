@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from django.utils.encoding import python_2_unicode_compatible
 
 import os.path
 import shutil
@@ -50,7 +49,6 @@ class CheckerFileField(DeletingFileField):
         kwargs['max_length'] = kwargs.get('max_length', 500)
         super(CheckerFileField, self).__init__(verbose_name, name, upload_to, storage, **kwargs)
 
-@python_2_unicode_compatible
 class Checker(models.Model):
     """ A Checker implements some quality assurance.
 
@@ -160,17 +158,8 @@ class CheckerEnvironment:
     def string_sources(self):
         """ Returns the list of string-like source files,
             so it excludes byte-like content. [(name, content)...] """
-        # stay python 2 and python 3 compatible , we could use six.text_type too
-        # sys has been imported at top of file.
-        PY2 = sys.version_info[0] == 2
-        PY3 = sys.version_info[0] == 3
-
-        if PY3:
-                string_types = str
-        else:
-                string_types = basestring
         return [(name, content) for (name, content) in self._sources
-                                if isinstance(content, string_types)]
+                                if isinstance(content, str)]
 
     def add_source(self, path, content):
         """ Add source to the list of source files. [(name, content)...] """
@@ -288,7 +277,6 @@ def get_checkerresultartefact_upload_path(instance, filename):
         'Result_' + str(result.id),
         filename)
 
-@python_2_unicode_compatible
 class CheckerResultArtefact(models.Model):
 
     result = models.ForeignKey(CheckerResult, related_name='artefacts', on_delete=models.CASCADE)
