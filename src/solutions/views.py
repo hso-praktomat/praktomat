@@ -147,15 +147,8 @@ def solution_list(request, task_id, user_id=None):
                         tmp.write("Content-Type: text/plain; charset=utf-8\n")
                         tmp.write("Content-Transfer-Encoding: quoted-printable\n\n")
 
-                        import sys
-                        PY2 = sys.version_info[0] == 2
-                        PY3 = sys.version_info[0] == 3
-                        if PY3:
-                            tmp.write(t.render(c))
-                            tmp.flush()
-                        else:
-                            tmp.write(t.render(c).encode('utf-8'))
-                            tmp.flush()
+                        tmp.write(t.render(c))
+                        tmp.flush()
                         tmp.seek(0)
                         environ = {}
                         environ['LANG'] = settings.LANG

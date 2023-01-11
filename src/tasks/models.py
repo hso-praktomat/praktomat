@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from django.utils.encoding import python_2_unicode_compatible
 
 from datetime import date, datetime, timedelta
 import tempfile
@@ -24,7 +23,6 @@ from configuration import get_settings
 from utilities.deleting_file_field import DeletingFileField
 from utilities.safeexec import execute_arglist
 
-@python_2_unicode_compatible
 class Task(models.Model):
     title = models.CharField(max_length=100, help_text = _("The name of the task"))
     description = models.TextField(help_text = _("Description of the assignment."))
@@ -239,14 +237,7 @@ class Task(models.Model):
 
         zip = zipfile.ZipFile(zip_file, 'r')
 
-        import sys
-        PY2 = sys.version_info[0] == 2
-        PY3 = sys.version_info[0] == 3
-        data = ""
-        if PY3:
-            data = zip.read('data.xml').decode('utf-8') #py3
-        else:
-            data = zip.read('data.xml') #Py2
+        data = zip.read('data.xml').decode('utf-8')
 
         task_id_map = {}
         scale_map = {}

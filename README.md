@@ -10,12 +10,6 @@ Resources
 * Running Checkers for Praktomat with docker: https://github.com/hso-praktomat/praktomat-checkers
 * Moderated [mailing list] for Praktomat administrators: praktomat-users@lists.kit.edu.
 
-A note about Python 2
-=============
-Since `pip` will drop support for Python 2 in January 2020,
-we don't support Python 2 any more. But at time of writing that note, you can use
-Praktomat with Python 2.
-
 Python 3.5
 ==========
   The Praktomat currently requires Python 3.5
@@ -62,8 +56,7 @@ Prerequisites: Database and Webserver
     apache2-mpm-worker         (<= Ubuntu 14)
     apache2
     libapache2-mod-macro       (<= Ubuntu 14, removed in Ubuntu 16)
-    libapache2-mod-wsgi        (for using with Python2)
-    libapache2-mod-wsgi-py3    (for using with Python3)
+    libapache2-mod-wsgi-py3
     libapache2-mod-xsendfile   (version 0.12; or install version 1.0 manually)
     apache2-dev                (used by pip while installing mod_wsgi)
 
@@ -148,8 +141,7 @@ A note about Python and dependencies to Tcl/Tk
  If `_tkinter` failed to load, then perhaps on your system the `_tkinter` module can be installed for your Python on a separate way.
  In example, on Debian you install the tkinter-support via system package manager:
 
-    apt install python-tk -y -q (that is for Python 2)
-    apt install python3-tk -y -q (that is for Python 3)
+    apt install python3-tk -y -q
 
  And of course you need tcl/tk on the system:
 

@@ -4,15 +4,10 @@ import chardet
 import re
 
 def get_unicode(bytestring):
-    from six import PY2
     if bytestring:
         """ Returns guessed unicode representation of file content. """
-        if PY2:
-            if isinstance(bytestring, unicode):
-                return bytestring
-        else:
-            if isinstance(bytestring, str):
-                return bytestring
+        if isinstance(bytestring, str):
+            return bytestring
 
 
         # Treat any 8-bit ASCII extension as latin1/western european
@@ -32,10 +27,7 @@ def get_unicode(bytestring):
                     pass
         raise UnicodeDecodeError("Unable to detect proper characterset")
     else:
-        if PY2:
-            return u''
-        else:
-            return ''
+        return ''
 
 def get_utf8(unicodestring):
     return unicodestring.encode("utf-8")

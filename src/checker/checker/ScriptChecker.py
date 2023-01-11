@@ -122,16 +122,10 @@ class WarningScriptCheckerFormSet(forms.BaseInlineFormSet):
             script.close()
             script.file.close()
 
-            # In Universal Newline mode, python will collect encountered newlines
-
-            PY2 = sys.version_info[0] == 2
-            PY3 = sys.version_info[0] == 3
-            if PY3:
-                #because Djangos FileField open do not know to handle a newline parameter, we call open from io directly
-                from io import open as alias_open
-                script.file = alias_open(script.path,mode="r",newline=None)
-            else:
-                script.open(mode="rU")
+            # In universal newline mode, Python will interpret '\r', '\n' and '\r\n' as line endings.
+            # Because Djangos FileField.open does not know how to handle a newline parameter, we call open from io directly.
+            from io import open as alias_open
+            script.file = alias_open(script.path,mode="r",newline=None)
 
             # make sure self.newlines is populated
             script.readline()
