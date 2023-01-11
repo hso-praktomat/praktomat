@@ -5,7 +5,7 @@
 
 # Set timeout, prompt, etc. 
 # Please adapt this.
-set standard_timeout 1
+set standard_timeout 2
 set startup_timeout 10
 set prompt "ggT> "
 set answer ""
