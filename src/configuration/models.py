@@ -138,7 +138,7 @@ class Settings(models.Model):
 
     deadline_tolerance = \
             models.DurationField(
-                default=timedelta(hours=1),
+                default=timedelta(hours=0),
                 help_text="The duration by which the submission date for a task will be extended for those who just missed the deadline."
             )
 
