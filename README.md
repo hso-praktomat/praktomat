@@ -28,8 +28,8 @@ Python 3.5
 General setup
 =============
 
-You need the latest version that is compatible with the Python version used.
-We also highly recommend to use virtualenv so your system Python installation remains clean.
+You need the latest version of `pip` that is compatible with the Python version used.
+We also highly recommend to use `virtualenv` so your system Python installation remains clean.
 
 If you are having trouble with
 
