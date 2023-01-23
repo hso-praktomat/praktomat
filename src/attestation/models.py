@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
-from django.utils.encoding import python_2_unicode_compatible
 
 from django.db import models, transaction
 from django.conf import settings
@@ -188,7 +187,6 @@ class Attestation(models.Model):
 
 
 
-@python_2_unicode_compatible
 class AnnotatedSolutionFile(models.Model):
     """"""
     attestation = models.ForeignKey(Attestation, on_delete=models.CASCADE)
@@ -210,7 +208,6 @@ class AnnotatedSolutionFile(models.Model):
     def __str__(self):
         return self.solution_file.__str__()
 
-@python_2_unicode_compatible
 class RatingAspect(models.Model):
     """ describes a review aspect which the reviewer has to evaluate """
     name = models.CharField(max_length=100, help_text = _('The Name of the Aspect to be rated. E.g.: "Readability"'))
@@ -219,7 +216,6 @@ class RatingAspect(models.Model):
     def __str__(self):
         return self.name
 
-@python_2_unicode_compatible
 class RatingScale(models.Model):
     """ describes a scale upon which the reviewer rates the aspect """
     name = models.CharField(max_length=100, help_text = _('The Name of the rating scale for the aspects. E.g.: "School marks"'))
@@ -227,7 +223,6 @@ class RatingScale(models.Model):
     def __str__(self):
         return self.name
 
-@python_2_unicode_compatible
 class RatingScaleItem(models.Model):
     """ lists all items(marks) of an rating scale"""
     scale = models.ForeignKey(RatingScale, on_delete=models.CASCADE)
@@ -240,7 +235,6 @@ class RatingScaleItem(models.Model):
     def __str__(self):
         return self.name
 
-@python_2_unicode_compatible
 class Rating(models.Model):
     """ intermediate model to assign a rating aspect and a rating scale to a task """
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
@@ -250,7 +244,6 @@ class Rating(models.Model):
     def __str__(self):
         return "%s - %s - %s" % (self.task.title, self.aspect.name, self.scale.name)
 
-@python_2_unicode_compatible
 class RatingResult(models.Model):
     """ the rating of particular aspect of a specific solution """
     attestation = models.ForeignKey(Attestation, on_delete=models.CASCADE)

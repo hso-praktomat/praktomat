@@ -42,7 +42,7 @@ def solution_list(request, task_id, user_id=None):
     solutions = task.solution_set.filter(author = author).order_by('-id')
     final_solution = task.final_solution(author)
 
-    if has_extended_rights and not author in request.user.tutored_users():
+    if user_id and request.user.is_tutor and not author in request.user.tutored_users():
         # Tutor not responsible for this user
         return access_denied(request)
 
@@ -147,15 +147,8 @@ def solution_list(request, task_id, user_id=None):
                         tmp.write("Content-Type: text/plain; charset=utf-8\n")
                         tmp.write("Content-Transfer-Encoding: quoted-printable\n\n")
 
-                        import sys
-                        PY2 = sys.version_info[0] == 2
-                        PY3 = sys.version_info[0] == 3
-                        if PY3:
-                            tmp.write(t.render(c))
-                            tmp.flush()
-                        else:
-                            tmp.write(t.render(c).encode('utf-8'))
-                            tmp.flush()
+                        tmp.write(t.render(c))
+                        tmp.flush()
                         tmp.seek(0)
                         environ = {}
                         environ['LANG'] = settings.LANG

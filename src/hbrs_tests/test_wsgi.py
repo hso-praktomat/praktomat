@@ -12,26 +12,18 @@ from django.core.handlers.wsgi import WSGIHandler
 # since praktomat.wsgi is not a module, we simulate that it is a module.
 
 def my_wsgi_loader():
-    import sys
     import os
     from os.path import join, dirname
     MODULE_NAME = "praktomat"
     MODULE_PATH = join(settings.PRAKTOMAT_PATH,"wsgi","praktomat.wsgi")
     #print ("DEBUG: MODULE_PATH=",MODULE_PATH)
-    PY2 = sys.version_info[0] == 2
-    PY3 = sys.version_info[0] == 3
-    if PY2 :
-       import imp
-       mymodule = imp.load_source(MODULE_NAME, MODULE_PATH)
-       return mymodule.application
-    if PY3 :
-       import importlib.machinery
-       import importlib.util
-       loader = importlib.machinery.SourceFileLoader(MODULE_NAME, MODULE_PATH)
-       spec = importlib.util.spec_from_loader(MODULE_NAME, loader)
-       mymodule = importlib.util.module_from_spec(spec)
-       loader.exec_module(mymodule)
-       return mymodule.application
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader(MODULE_NAME, MODULE_PATH)
+    spec = importlib.util.spec_from_loader(MODULE_NAME, loader)
+    mymodule = importlib.util.module_from_spec(spec)
+    loader.exec_module(mymodule)
+    return mymodule.application
 
 
 class PraktomatMyWsgiTest(TestCase):

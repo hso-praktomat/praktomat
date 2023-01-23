@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from django.utils.encoding import python_2_unicode_compatible
 
 import os.path
 import shutil
@@ -50,7 +49,6 @@ class CheckerFileField(DeletingFileField):
         kwargs['max_length'] = kwargs.get('max_length', 500)
         super(CheckerFileField, self).__init__(verbose_name, name, upload_to, storage, **kwargs)
 
-@python_2_unicode_compatible
 class Checker(models.Model):
     """ A Checker implements some quality assurance.
 
@@ -160,17 +158,8 @@ class CheckerEnvironment:
     def string_sources(self):
         """ Returns the list of string-like source files,
             so it excludes byte-like content. [(name, content)...] """
-        # stay python 2 and python 3 compatible , we could use six.text_type too
-        # sys has been imported at top of file.
-        PY2 = sys.version_info[0] == 2
-        PY3 = sys.version_info[0] == 3
-
-        if PY3:
-                string_types = str
-        else:
-                string_types = basestring
         return [(name, content) for (name, content) in self._sources
-                                if isinstance(content, string_types)]
+                                if isinstance(content, str)]
 
     def add_source(self, path, content):
         """ Add source to the list of source files. [(name, content)...] """
@@ -225,6 +214,7 @@ class CheckerResult(models.Model):
     checker = GenericForeignKey('content_type', 'object_id')
 
     passed = models.BooleanField(default=True,  help_text=_('Indicates whether the test has been passed'))
+    passed_with_warning = models.BooleanField(default=False, help_text=_('Indicates whether the test has been passed with a warning'))
     log = models.TextField(help_text=_('Text result of the checker'))
     creation_date = models.DateTimeField(auto_now_add=True)
     runtime = models.IntegerField(default=0, help_text=_('Runtime in milliseconds'))
@@ -252,7 +242,7 @@ class CheckerResult(models.Model):
     def set_log(self, log,timed_out=False,truncated=False,oom_ed=False):
         """ Sets the log of the Checker run. timed_out and truncated indicated if appropriate error messages shall be appended  """
         if timed_out:
-            log = '<div class="error">Timeout occured!</div>' + log
+            log = '<div class="error">Timeout occurred!</div>' + log
         if truncated:
             log = '<div class="error">Output too long, truncated</div>' + log
         if oom_ed:
@@ -264,6 +254,11 @@ class CheckerResult(models.Model):
         """ Sets the passing state of the Checker. """
         assert isinstance(passed, int)
         self.passed = passed
+
+    def set_passed_with_warning(self, passed_with_warning):
+        """ Sets the passed with warning flag of the Checker. """
+        assert isinstance(passed_with_warning, bool)
+        self.passed_with_warning = passed_with_warning
 
     def add_artefact(self, filename, path):
         assert os.path.isfile(path)
@@ -282,7 +277,6 @@ def get_checkerresultartefact_upload_path(instance, filename):
         'Result_' + str(result.id),
         filename)
 
-@python_2_unicode_compatible
 class CheckerResultArtefact(models.Model):
 
     result = models.ForeignKey(CheckerResult, related_name='artefacts', on_delete=models.CASCADE)
@@ -420,8 +414,10 @@ def run_checks(solution, env, run_all):
             else:
                 # make non passed result
                 # this as well as the dependency check should propably go into checker class
+                # TODO: Move code to checker class ?
                 result = checker.create_result(env)
-                result.set_log("Checker konnte nicht ausgeführt werden, da benötigte Checker nicht bestanden wurden.")
+                #result.set_log("Checker konnte nicht ausgeführt werden, da benötigte Checker nicht bestanden wurden.")
+                result.set_log("Checker failed to run because required checkers failed.")
                 result.set_passed(False)
 
             elapsed_time = time.time() - start_time
@@ -437,5 +433,7 @@ def run_checks(solution, env, run_all):
 
             if result.passed:
                 passed_checkers.add(checker.__class__)
+                if result.passed_with_warning and checker.show_publicly(result.passed):
+                    solution.warnings = True
     solution.accepted = solution_accepted
     solution.save()

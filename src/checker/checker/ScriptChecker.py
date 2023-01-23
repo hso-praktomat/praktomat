@@ -13,6 +13,8 @@ from checker.admin import    CheckerInline, AlwaysChangedModelForm
 from utilities.safeexec import execute_arglist
 from utilities.file_operations import *
 
+EXIT_CODE_PASSED_WITH_WARNING = 121
+
 class ScriptChecker(Checker):
 
     name = models.CharField(max_length=100, default="Externen Tutor ausführen", help_text=_("Name to be displayed on the solution detail page."))
@@ -29,7 +31,7 @@ class ScriptChecker(Checker):
     @staticmethod
     def description():
         """ Returns a description for this Checker. """
-        return "Diese Prüfung wird bestanden, wenn das externe Programm keinen Fehlercode liefert."
+        return "This checker succeeds if the external program doesn't return an error code (exit code is 0). Exit code 121 means that the checker passed with a warning. Everything else means that the checker failed."
 
 
     def path_relative_to_sandbox(self):
@@ -96,7 +98,10 @@ class ScriptChecker(Checker):
         output = output.replace("WARNING: The Security Manager is deprecated and will be removed in a future release\n","")
 
         result.set_log(output, timed_out=timed_out, truncated=truncated, oom_ed=oom_ed)
-        result.set_passed(not exitcode and not timed_out and not oom_ed and not truncated)
+
+        exitcode_ok = exitcode == 0 or exitcode == EXIT_CODE_PASSED_WITH_WARNING
+        result.set_passed(exitcode_ok and not timed_out and not oom_ed and not truncated)
+        result.set_passed_with_warning(result.passed and exitcode == EXIT_CODE_PASSED_WITH_WARNING)
 
         return result
 
@@ -124,16 +129,10 @@ class WarningScriptCheckerFormSet(forms.BaseInlineFormSet):
             script.close()
             script.file.close()
 
-            # In Universal Newline mode, python will collect encountered newlines
-
-            PY2 = sys.version_info[0] == 2
-            PY3 = sys.version_info[0] == 3
-            if PY3:
-                #because Djangos FileField open do not know to handle a newline parameter, we call open from io directly
-                from io import open as alias_open
-                script.file = alias_open(script.path,mode="r",newline=None)
-            else:
-                script.open(mode="rU")
+            # In universal newline mode, Python will interpret '\r', '\n' and '\r\n' as line endings.
+            # Because Djangos FileField.open does not know how to handle a newline parameter, we call open from io directly.
+            from io import open as alias_open
+            script.file = alias_open(script.path,mode="r",newline=None)
 
             # make sure self.newlines is populated
             script.readline()

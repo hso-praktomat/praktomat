@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-from django.utils.encoding import python_2_unicode_compatible
 
 from django.db import models
 from datetime import date, timedelta
@@ -61,7 +60,7 @@ class Settings(models.Model):
     accept_all_solutions = \
             models.BooleanField(
                 default=False,
-                help_text="If enabled, solutions can become the final soution even if not all required checkers are passed."
+                help_text="If enabled, solutions can become the final solution even if not all required checkers are passed."
             )
 
     anonymous_attestation = \
@@ -139,7 +138,7 @@ class Settings(models.Model):
 
     deadline_tolerance = \
             models.DurationField(
-                default=timedelta(hours=1),
+                default=timedelta(hours=0),
                 help_text="The duration by which the submission date for a task will be extended for those who just missed the deadline."
             )
 
@@ -149,7 +148,6 @@ class Settings(models.Model):
                 help_text="If enabled, tutors can also upload solutions for students in their tutorial."
             )
 
-@python_2_unicode_compatible
 class Chunk(models.Model):
     """ A Chunk is a piece of content associated with a unique key that can be inserted into any template with the use of a special template tag """
     settings = models.ForeignKey(

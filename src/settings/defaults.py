@@ -20,11 +20,7 @@ def load_defaults(settings):
 
     # import settings so that we can conveniently use the settings here
     for k, v in settings.items():
-        try:
-            from collections.abc import Callable  # noqa
-        except ImportError:
-            from collections import Callable  # noqa
-        if not isinstance(v, Callable) and not k.startswith('__'):
+        if not isinstance(v, collections.abc.Callable) and not k.startswith('__'):
             globals()[k] = v
 
     class D(object):
@@ -309,6 +305,28 @@ def load_defaults(settings):
     # "praktomat	ALL= NOPASSWD: /usr/local/bin/safe-docker"
 
     d.USESAFEDOCKER = False
+
+    # The path where the safe-docker script is located
+    # By default, it is assumed to be accessible through your PATH.
+    d.SAFE_DOCKER_PATH = "safe-docker"
+
+    # The name of the Docker image to use for executing checkers
+    d.DOCKER_IMAGE_NAME = "safe-docker"
+
+    # If the file system of the Docker container should be writable or read-only
+    d.DOCKER_CONTAINER_WRITABLE = False
+
+    # If the UID and GID of the user in a Docker container should be set to the one running Praktomat
+    # When this is set to false, checkers may run as root (depending on the image).
+    d.DOCKER_UID_MOD = True
+
+    # The path which to additionally mount into the checker container
+    # If this is set to none, no additional directory will get mounted.
+    d.DOCKER_CONTAINER_EXTERNAL_DIR = None
+
+    # If the Docker container should be able to access the host's network
+    # When this is set to false, the container does not have any access to the network.
+    d.DOCKER_CONTAINER_HOST_NET = False
 
 
     # be sure that you change file permission

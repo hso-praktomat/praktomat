@@ -20,8 +20,8 @@ class TestSuiteRunner(DiscoverRunner):
 
     def setup_databases(self, **kwargs):
         """ Prefill database with some testdata. Rollbacks ensure that the database is in the state after create_test_data().
-        Rollbacks need to be suported by the database otherwise the db will be flushed after every test.
-        This is much quicker than creating everything in setUp() and more flexeble than fixtures as u can use files. """
+        Rollbacks need to be supported by the database otherwise the db will be flushed after every test.
+        This is much quicker than creating everything in setUp() and more flexible than fixtures as you can use files. """
         x = super(TestSuiteRunner, self).setup_databases(**kwargs)
         create_test_data()
         return x
@@ -38,12 +38,8 @@ class TestSuiteRunner(DiscoverRunner):
 class TestCase(DjangoTestCase):
 
     def assertRedirectsToView(self, response, view):
-        """ Asserts whether the request was redirected to a specifivc view function. """
-        from six import PY2
-        if PY2:
-            from urlparse import urlparse
-        else:
-            from urllib.parse import urlparse
+        """ Asserts whether the request was redirected to a specific view function. """
+        from urllib.parse import urlparse
         from django.urls import resolve
         self.assertTrue(hasattr(response, 'redirect_chain'),
                         msg="Please use client.get(...,follow=True) with assertRedirectsToView")
@@ -108,6 +104,6 @@ def create_test_data():
     attestation = Attestation.objects.create(solution = solution, author=tutor) # final, published
 
 def dump(obj):
-    """ Kinda like obj.__meta__ but shows more, very usefull for testcase debuging. """
+    """ Kinda like obj.__meta__ but shows more, very usefull for testcase debugging. """
     for attr in dir(obj):
         print("obj.%s = %s" % (attr, getattr(obj, attr)))

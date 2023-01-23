@@ -5,9 +5,6 @@ from os.path import *
 import time
 import subprocess
 import signal
-from six import PY2
-if PY2:
-    import subprocess32 as subprocess
 import resource
 import psutil
 
@@ -41,7 +38,7 @@ def kill_proc_tree(pid, including_parent=False):
 		parent.wait(5)
 
 def execute_arglist(args, working_directory, environment_variables={}, timeout=None, maxmem=None, fileseeklimit=None, extradirs=[], unsafe=False, error_to_output=True, filenumberlimit=128):
-    """ Wrapper to execute Commands with the praktomat testuser. Excpects Command as list of arguments, the first being the execeutable to run. """
+    """ Wrapper to execute Commands with the praktomat testuser. Expects Command as list of arguments, the first being the executable to run. """
     assert isinstance(args, list)
 
     command = args[:]
@@ -70,7 +67,8 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
         #fixed: 22.11.2016, Robert Hartmann , H-BRS
         command += deepcopy(sudo_prefix)
     elif settings.USESAFEDOCKER:
-        command += ["sudo", "safe-docker"]
+        command += ["sudo", settings.SAFE_DOCKER_PATH]
+        command += ["--image", settings.DOCKER_IMAGE_NAME]
         # for safe-docker, we cannot kill it ourselves, due to sudo, so
         # rely on the timeout provided by safe-docker
         if timeout is not None:
@@ -79,13 +77,23 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
             timeout += 5
         if maxmem is not None:
             command += ["--memory", "%sm" % maxmem]
+        if settings.DOCKER_CONTAINER_WRITABLE:
+            command += ["--writable"]
+        if not settings.DOCKER_UID_MOD:
+            command += ["--no-uid-mod"]
+        if settings.DOCKER_CONTAINER_HOST_NET:
+            # Allow accessing the host network
+            command += ["--host-net"]
+        # ensure ulimit
+        command += ["--ulimit", "nofile=%d" % filenumberlimit]
+        if fileseeklimit:
+            command += ["--ulimit", "fsize=%d" % fileseeklimitbytes]
         for d in extradirs:
             command += ["--dir", d]
+        # Add specified external directory
+        if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
+            command += ["--external", settings.DOCKER_CONTAINER_EXTERNAL_DIR]
         command += ["--"]
-        # ensure ulimit
-        if fileseeklimit:
-            # Doesn’t work yet: http://stackoverflow.com/questions/25789425
-            command += ["bash", "-c", 'ulimit -f %d; exec \"$@\"' % fileseeklimit, "ulimit-helper"]
         # add environment
         command += ["env"]
         for k, v in environment_variables.items():
