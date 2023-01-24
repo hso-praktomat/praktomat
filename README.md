@@ -1,6 +1,6 @@
 This is the source distribution of Praktomat, a programming course manager.
 
-**Note:** *This is a fork of the original Praktomat repository (https://github.com/KITPraktomatTeam/Praktomat/). We created the fork because maintainers of the original repository were not responsive in merging pull requests and/or giving us commit rights. The repository contains the version of Praktomat as used at the University of Applied Sciences Offenburg, Germany. We believe that our changes are of general interest and not specific to our setup.*
+**Note:** *This is a fork of the original Praktomat repository (https://github.com/KITPraktomatTeam/Praktomat/) which itself originated in https://sourceforge.net/projects/praktomat/. We created the fork because maintainers of the original repository were not responsive in merging pull requests and/or giving us commit rights. The repository contains the version of Praktomat as used at the University of Applied Sciences Offenburg, Germany. We believe that our changes are of general interest and not specific to our setup.*
 
 Resources
 =========
@@ -493,7 +493,4 @@ CUnit CPPUnit Checker
 
 For configuration please have a look into README_feature_CUnitCppUnit_Checker.txt.
 
-
-[Bug tracker, KIT]: https://github.com/KITPraktomatTeam/Praktomat/issues
-[Bug tracker, HSO]: https://github.com/hso-praktomat/praktomat/issues
 [mailing list]: https://www.lists.kit.edu/wws/info/praktomat-users
