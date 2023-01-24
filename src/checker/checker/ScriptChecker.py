@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 
 
 import os, re, string, sys
+import shlex
 
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
@@ -22,6 +23,7 @@ class ScriptChecker(Checker):
     shell_script = CheckerFileField(help_text=_("A script (e.g. a shell script) to run. Its output will be displayed to the user (if public), the checker will succeed if it returns an exit code of 0. The environment will contain the variables JAVA and PROGRAM."))
     remove = models.CharField(max_length=5000, blank=True, help_text=_("Regular expression describing passages to be removed from the output."))
     returns_html = models.BooleanField(default= False, help_text=_("If the script doesn't return HTML it will be enclosed in &lt; pre &gt; tags."))
+    arguments = models.CharField(max_length=5000, blank=True, help_text=_("Additional arguments to pass to the script. Shell-like escaping and quoting is supported."))
 
 
     def title(self):
@@ -51,7 +53,8 @@ class ScriptChecker(Checker):
         # Run the tests -- execute dumped shell script 'script.sh'
 
         filenames = [name for (name, content) in env.sources()]
-        args = [path] + filenames
+        script_args = shlex.split(self.arguments)
+        args = [path] + script_args + filenames
 
         environ = {}
         environ['TASK_ID'] = str(env.task().id)
