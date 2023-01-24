@@ -17,7 +17,7 @@ grant {
 };
 
 // Settings for own java-based TestFrameworks started via ScriptChecker ... perhaps switch to use JavaChecker and junit.policy
-// The following block can be seen as an example how to configure an onw java based Testframework.
+// The following block can be seen as an example how to configure an own java based Testframework.
 /*
 
 grant codeBase "file:TestRunner.jar" {
