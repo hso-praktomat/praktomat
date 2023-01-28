@@ -1,6 +1,6 @@
 This is the source distribution of Praktomat, a programming course manager.
 
-**Note:** *This is a fork of the original Praktomat repository (https://github.com/KITPraktomatTeam/Praktomat/). We created the fork because maintainers of the original repository were not responsive in merging pull requests and/or giving us commit rights. The repository contains the version of Praktomat as used at the University of Applied Sciences Offenburg, Germany. We believe that our changes are of general interest and not specific to our setup.*
+**Note:** *This is a fork of the original Praktomat repository (https://github.com/KITPraktomatTeam/Praktomat/) which itself originated in https://sourceforge.net/projects/praktomat/. We created the fork because maintainers of the original repository were not responsive in merging pull requests and/or giving us commit rights. The repository contains the version of Praktomat as used at the University of Applied Sciences Offenburg, Germany. We believe that our changes are of general interest and not specific to our setup.*
 
 Resources
 =========
@@ -25,7 +25,7 @@ Python 3.8
 General setup
 =============
 
-You need the latest version of `pip`that is compatible with the Python version used.
+You need the latest version of `pip` that is compatible with the Python version used.
 We also highly recommend to use `virtualenv` so your system Python installation remains clean.
 
 If you are having trouble with
@@ -421,7 +421,7 @@ Security
 ========
 
 Besides the security provided by Java (via the Security Manager Profiles found
-in `src/checker/scripts/`), the praktomat supports two way to insulate student
+in `src/checker/scripts/`, which you could change to your needs), the praktomat supports two way to insulate student
 submissions from the system:
 
  * With `USEPRAKTOMATTESTER = True` in the settings, external commands are
@@ -492,6 +492,5 @@ CUnit CPPUnit Checker
 =================
 
 For configuration please have a look into README_feature_CUnitCppUnit_Checker.txt.
-
 
 [mailing list]: https://www.lists.kit.edu/wws/info/praktomat-users
