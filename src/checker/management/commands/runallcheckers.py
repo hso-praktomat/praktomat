@@ -5,7 +5,7 @@ class Command(BaseCommand):
     help = 'Run all checkers for expired tasks where not all checkers are finished.'
 
     def handle(self, *args, **options):
-        for task in Task.objects:
+        for task in Task.objects.all():
             if not task.expired():
                 continue
             if not task.all_checker_finished:
