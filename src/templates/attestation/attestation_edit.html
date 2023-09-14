@@ -114,6 +114,15 @@
 		<div id="task">
 			<h1 class="heading">Task</h1>
 			{{solution.task.description|safe}}
+
+			{% if solution.task.media_files|length > 0 %}
+			<h3>Files</h3>
+			<ul>
+			{% for file in solution.task.media_files %}
+				<li><a href="{{ file.media_file.url }}">{{ file.basename }}</a></li>
+			{% endfor %}
+			</ul>
+			{% endif %}
 		</div>
 
 		{% if model_solution %}
