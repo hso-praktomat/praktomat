@@ -140,6 +140,9 @@ class Task(models.Model):
             self.jplag_up_to_date = False
             self.save()
 
+    def media_files(self):
+        return MediaFile.objects.filter(task=self)
+
     @staticmethod
     def jplag_languages():
         return { 'Java':     { 'param': 'java19', 'files': '.java,.JAVA' },
@@ -367,6 +370,11 @@ class MediaFile(models.Model):
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     media_file = DeletingFileField(upload_to=get_mediafile_storage_path, max_length=500)
+
+    def basename(self):
+        name = self.media_file.name
+        i = name.rfind("/") + 1
+        return name[i:]
 
 
 class HtmlInjector(models.Model):
