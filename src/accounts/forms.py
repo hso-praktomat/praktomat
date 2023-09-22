@@ -164,12 +164,19 @@ class ImportLDAPForm(forms.Form):
     uids = forms.CharField(label='UIDs', required=False, widget=forms.Textarea, initial = '', help_text = "List of UIDs to be imported, delimited by whitespace. Already existing accounts will be ignored.")
 
 
+IMPORT_TUTORIAL_ASSIGNMENT_TYPES = (
+    ("mat_number", "Matriculation number"),
+    ("username", "Username"),
+)
+
+
 class ImportTutorialAssignmentForm(forms.Form):
-    csv_file = forms.FileField(required=True, help_text = "The csv file containing the tutorial name and the students' mat number.")
+    csv_file = forms.FileField(required=True, help_text = "The csv file containing the tutorial name and the students' mat number or username.")
     delimiter = forms.CharField(required=True, max_length = 1, initial = ";", help_text = "A one-character string used to separate fields.")
     quotechar = forms.CharField(required=True, max_length = 1, initial = "|", help_text = "A one-character string used to quote fields.")
-    name_coloum = forms.IntegerField(required=True, initial = 0, help_text = "The index of the field containing the name of the tutorial.")
-    mat_coloum = forms.IntegerField(required=True, initial = 1, help_text = "The index of the field containing the mat number of the user.")
+    name_column = forms.IntegerField(required=True, initial = 0, help_text = "The index of the field containing the name of the tutorial.")
+    user_id_column = forms.IntegerField(required=True, initial = 1, help_text = "The index of the field containing the mat number or username of the user.")
+    user_id_type = forms.ChoiceField(required=True, choices = IMPORT_TUTORIAL_ASSIGNMENT_TYPES, initial = "mat_number", help_text = "The type of user identification.")
 
 class ImportUserTextsForm(forms.Form):
     csv_file = forms.FileField(required=True, help_text = "The csv file containing the tutorial name and the students' mat number.")
