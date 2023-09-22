@@ -31,11 +31,8 @@ class SolutionFileForm(ModelForm):
         task = self.cleaned_data['solution'].task
         max_file_size_kib = task.max_file_size
         max_file_size = 1024 * max_file_size_kib
-        supported_types_re = re.compile(task.supported_file_types)
         if data:
             contenttype = mimetypes.guess_type(data.name)[0] # don't rely on the browser: data.content_type could be wrong or empty
-            if (contenttype is None) or (not (supported_types_re.match(contenttype) or ziptype_re.match(contenttype) or tartype_re.match(contenttype))):
-                raise forms.ValidationError(_('The file of type %s is not supported.' %contenttype))
             if contenttype.startswith("text"):
                 content = data.read()
                 # undo the consuming the read method has done
@@ -54,10 +51,7 @@ class SolutionFileForm(ModelForm):
                         filename = fileinfo.filename
                         (type, encoding) = mimetypes.guess_type(filename)
                         ignorred = SolutionFile.ignorred_file_names_re.search(filename)
-                        supported = type and supported_types_re.match(type)
                         is_text_file = not ignorred and type and type.startswith("text")
-                        if not ignorred and not supported:
-                            raise forms.ValidationError(_("The file '%(file)s' of guessed mime type '%(type)s' in this zip file is not supported." %{'file':filename, 'type':type}))
                         if is_text_file and contains_NUL_char(zip.read(filename)):
                             raise forms.ValidationError(_("The plain text file '%(file)s' in this zip file contains a NUL character, which is not supported." %{'file':filename}))
                         # check whole zip instead of contained files
