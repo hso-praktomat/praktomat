@@ -189,11 +189,6 @@ Prerequisites: 3rd-Party libraries and programms
 
   Documentation for checkstyle please see: https://checkstyle.org/
 
- If you want your users to submit Isabelle theories, add the following line to
- /etc/mime.types:
-
-    text/x-isabelle thy
-
 
 Some words of folder layout to Developer, Testing and Deployment-Setup
 =====================================================
