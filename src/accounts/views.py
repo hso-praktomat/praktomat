@@ -170,14 +170,20 @@ def import_tutorial_assignment(request):
                 messages.error(request, "Import failed: %s" % str(e))
                 return render(request, 'admin/accounts/user/import_tutorial_assignment.html', {'form': form, 'title':"Import tutorial assignment"  })
             succeeded = not_present = failed = 0
+            user_id_column = form.cleaned_data['user_id_column']
             for row in reader:
                 try:
-                    matching_users = User.objects.filter(mat_number = row[form.cleaned_data['mat_coloum']])
+                    user_id_type = form.cleaned_data['user_id_type']
+                    user_id_value = row[user_id_column]
+                    if user_id_type == 'mat_number':
+                        matching_users = User.objects.filter(mat_number = user_id_value)
+                    elif user_id_type == 'username':
+                        matching_users = User.objects.filter(username = user_id_value)
                     if not matching_users.exists():
                         not_present += 1
                         continue
                     user = matching_users.get()
-                    tutorial = Tutorial.objects.get(name = row[form.cleaned_data['name_coloum']])
+                    tutorial = Tutorial.objects.get(name = row[form.cleaned_data['name_column']])
                     user.tutorial = tutorial
                     user.save()
                     succeeded += 1
