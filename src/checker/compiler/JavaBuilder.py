@@ -53,11 +53,6 @@ class JavaBuilder(ClassFileGeneratingBuilder):
     _env['JAVAP'] = settings.JAVAP
 
     def libs(self):
-        def toPath(lib):
-            if lib=="junit3":
-                return settings.JUNIT38_JAR
-            return lib
-
         required_libs = super(JavaBuilder, self).libs()
 
         return ["-cp", ".:"+(":".join([ settings.JAVA_LIBS[lib] for lib in required_libs if lib in settings.JAVA_LIBS ]))]
