@@ -3,7 +3,6 @@ from __future__ import unicode_literals
 
 import zipfile
 import tempfile
-import mimetypes
 import shutil
 import os, re
 
@@ -22,11 +21,8 @@ from django.core.mail import EmailMessage
 
 from accounts.models import User
 from utilities import encoding, file_operations
+from utilities.mimetypes import guess_mime_type_with_fallback as guess_mime_type
 from configuration import get_settings
-
-# TODO: This is duplicated from solutions/forms.py. Where should this go?
-for (mimetype, extension) in settings.MIMETYPE_ADDITIONAL_EXTENSIONS:
-    mimetypes.add_type(mimetype, extension, strict=True)
 
 class Solution(models.Model):
     """ """
@@ -149,7 +145,7 @@ class SolutionFile(models.Model):
                     zip_file_name = zip_file_name  if isinstance(zip_file_name, str) else str(zip_file_name, errors='replace')
                     new_solution_file.file.save(zip_file_name, File(temp_file), save=True)        # need to check for filenames begining with / or ..?
         else:
-            self.mime_type = mimetypes.guess_type(self.file.name)[0]
+            self.mime_type = guess_mime_type(self.file.name)
             models.Model.save(self, force_insert, force_update, using)
 
     def __str__(self):
