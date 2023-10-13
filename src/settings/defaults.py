@@ -274,7 +274,6 @@ def load_defaults(settings):
     d.ISABELLE_BINARY = 'isabelle' # Isabelle should be in PATH
     d.DEJAGNU_RUNTEST = '/usr/bin/runtest'
     d.CHECKSTYLEALLJAR = '/home/praktomat/contrib/checkstyle-8.14-all.jar'
-    d.JUNIT38='junit'
     d.JAVA_LIBS = { 'jun' : '/usr/share/java/junit.jar', 'junit4' : '/usr/share/java/junit4.jar' }
     d.JAVA_CUSTOM_LIBS = PRAKTOMAT_ROOT + '/lib/java/*'
     d.JCFDUMP='jcf-dump'
