@@ -41,6 +41,7 @@ class Task(models.Model):
     warning_threshold = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text = _("If the student has less points in his tasks than the sum of their warning thresholds, display a warning."))
     only_trainers_publish = models.BooleanField(default=False, help_text = _("Indicates that only trainers may publish attestations. Otherwise, tutors may publish final attestations within their tutorials."))
     jplag_up_to_date = models.BooleanField(default=False, help_text = _("No new solution uploads since the last jPlag run"))
+    hide_solutions_of_expired_tasks = models.BooleanField(default=False, help_text = _("If enabled, solutions (incl. attestations) of expired tasks are not accessible for students while this task is accepting submissions."))
 
     class Meta:
         ordering = ['submission_date', 'title']
@@ -363,6 +364,23 @@ def get_mediafile_storage_path(instance, filename):
 
 def get_htmlinjectorfile_storage_path(instance, filename):
     return 'TaskHtmlInjectorFiles/Task_%s/%s' % (instance.task.pk, filename)
+
+def should_hide_solutions_of_expired_tasks(user):
+    if get_settings().hide_solutions_of_expired_tasks:
+        return True
+    hide_solutions_of_expired_tasks = False
+    for task in Task.objects.all():
+        # Extend the "runtime" of a task by 15 minutes in each direction for
+        # this calculation. This ensures that students can't access earlier
+        # solutions right before an exam/test starts.
+        publication_date = task.publication_date - timedelta(minutes=15)
+        submission_date = task.submission_date_for_user(user) + get_settings().deadline_tolerance + timedelta(minutes=15)
+        now = datetime.now()
+        is_active = publication_date < now and submission_date > now
+        if is_active and task.hide_solutions_of_expired_tasks:
+            hide_solutions_of_expired_tasks = True
+            break
+    return hide_solutions_of_expired_tasks
 
 
 class MediaFile(models.Model):

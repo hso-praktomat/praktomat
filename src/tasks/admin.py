@@ -39,7 +39,7 @@ class TaskAdmin(admin.ModelAdmin):
         (None, {
             'fields': (
                             'title',
-                            ('publication_date', 'submission_date'),
+                            ('publication_date', 'submission_date', 'hide_solutions_of_expired_tasks'),
                             'description',
                             'max_file_size',
                             ('submission_free_uploads', 'submission_waitdelta', 'submission_maxpossible'),
