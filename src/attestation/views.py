@@ -351,11 +351,20 @@ def edit_attestation(request, attestation_id):
             attestFileFormSet = AnnotatedFileFormSet(request.POST, instance=attest, prefix='attestfiles')
             ratingResultFormSet = RatingResultFormSet(request.POST, instance=attest, prefix='ratingresult')
             if attestForm.is_valid() and attestFileFormSet.is_valid() and ratingResultFormSet.is_valid():
+                publish = 'publish' in request.POST
                 attestForm.save()
-                attest.final = False
+                attest.final = publish
                 attest.save()
                 attestFileFormSet.save()
                 ratingResultFormSet.save()
+
+                if publish:
+                    if attest.solution.task.only_trainers_publish and not request.user.is_trainer:
+                        return access_denied(request)
+
+                    attest.publish(request, by = request.user)
+                    return HttpResponseRedirect(reverse('attestation_list', args=[attest.solution.task.id]))
+
                 return HttpResponseRedirect(reverse('view_attestation', args=[attestation_id]))
     else:
         attestForm = AttestationForm(instance=attest, prefix='attest')
