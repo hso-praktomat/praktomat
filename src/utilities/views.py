@@ -9,8 +9,8 @@ from django.views.static import serve
 from django.utils.encoding import smart_str
 
 from accounts.views import access_denied
-from configuration import get_settings
 from solutions.models import Solution
+from tasks.models import should_hide_solutions_of_expired_tasks
 
 def serve_unrestricted(request, path):
     return sendfile(request, path)
@@ -27,7 +27,7 @@ def serve_access_denied(request, path):
 @login_required
 def serve_solution_file(request, path, solution_id):
     solution = get_object_or_404(Solution, pk=solution_id)
-    hide = request.user.is_user and get_settings().hide_solutions_of_expired_tasks and solution.task.expired()
+    hide = request.user.is_user and should_hide_solutions_of_expired_tasks(request.user) and solution.task.expired()
     if (solution.author == request.user and not hide) or request.user.is_staff or (solution.author.tutorial is not None and request.user.tutored_tutorials.filter(id=solution.author.tutorial.id)):
         return sendfile(request, path)
     return forbidden(request, path)

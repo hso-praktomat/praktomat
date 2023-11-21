@@ -15,7 +15,7 @@ from django.template import loader
 from django import forms
 import datetime
 
-from tasks.models import Task, HtmlInjector
+from tasks.models import Task, HtmlInjector, should_hide_solutions_of_expired_tasks
 from solutions.models import Solution
 from checker.basemodels import check_solution
 from attestation.models import Attestation, AnnotatedSolutionFile, RatingResult, RatingScale, RatingScaleItem
@@ -395,7 +395,7 @@ def view_attestation(request, attestation_id):
     attest = get_object_or_404(Attestation, pk=attestation_id)
     # Whether to hide solutions of expired tasks
     # Deadline extensions are not taken into account here as this setting is meant to be enabled during a test or an exam.
-    hide = request.user.is_user and get_settings().hide_solutions_of_expired_tasks and attest.solution.task.expired()
+    hide = request.user.is_user and should_hide_solutions_of_expired_tasks(request.user) and attest.solution.task.expired()
     may_modify = attest.author == request.user or request.user.is_trainer
     may_view = (attest.solution.author == request.user and not hide) or request.user.is_tutor or may_modify
     if not may_view:
