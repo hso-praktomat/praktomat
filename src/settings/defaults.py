@@ -327,6 +327,10 @@ def load_defaults(settings):
     # When this is set to false, the container does not have any access to the network.
     d.DOCKER_CONTAINER_HOST_NET = False
 
+    # If the altered files should not be copied back into the sandbox directory
+    # after running a check with safe-docker.
+    d.DOCKER_DISCARD_ARTEFACTS = False
+
 
     # be sure that you change file permission
     # sudo chown praktomat:tester praktomat/src/checker/scripts/java

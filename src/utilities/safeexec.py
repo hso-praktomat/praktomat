@@ -93,6 +93,8 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
         # Add specified external directory
         if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
             command += ["--external", settings.DOCKER_CONTAINER_EXTERNAL_DIR]
+        if settings.DOCKER_DISCARD_ARTEFACTS:
+            command += ["--discard-artefacts"]
         command += ["--"]
         # add environment
         command += ["env"]

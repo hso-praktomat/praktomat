@@ -17,6 +17,7 @@ my $writable = "";
 my $no_uid_mod = "";
 my $external_dir = "";
 my $host_net = "";
+my $discard_artefacts = "";
 
 GetOptions (
 	"image=s" => \$image,
@@ -28,6 +29,7 @@ GetOptions (
 	"no-uid-mod" => \$no_uid_mod,
 	"external=s" => \$external_dir,
 	"host-net" => \$host_net,
+	"discard-artefacts" => \$discard_artefacts,
 )
 or die("Error in command line arguments\n");
 
@@ -109,7 +111,9 @@ sub clean_and_exit {
 		my $helpername = %$volume_entry{"container"};
 		my $dir = %$volume_entry{"dir"};
 		my $volumename = %$volume_entry{"volume"};
-		run ["docker", "cp", "${helpername}:${dir}.", $dir], \undef, '>/dev/null';
+		if ($discard_artefacts ne "1") {
+			run ["docker", "cp", "${helpername}:${dir}.", $dir], \undef, '>/dev/null';
+		}
 		run ["docker", "container", "rm", $helpername], \undef, '>/dev/null';
 		run ["docker", "volume", "rm", $volumename], \undef, '>/dev/null';
 	}
