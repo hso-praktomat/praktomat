@@ -10,7 +10,7 @@ from django.utils.encoding import smart_str
 
 from accounts.views import access_denied
 from solutions.models import Solution
-from tasks.models import should_hide_solutions_of_expired_tasks
+from tasks.models import Task
 
 def serve_unrestricted(request, path):
     return sendfile(request, path)
@@ -27,10 +27,18 @@ def serve_access_denied(request, path):
 @login_required
 def serve_solution_file(request, path, solution_id):
     solution = get_object_or_404(Solution, pk=solution_id)
-    hide = request.user.is_user and should_hide_solutions_of_expired_tasks(request.user) and solution.task.expired()
+    hide = request.user.is_user and solution.task.should_hide(request.user)
     if (solution.author == request.user and not hide) or request.user.is_staff or (solution.author.tutorial is not None and request.user.tutored_tutorials.filter(id=solution.author.tutorial.id)):
         return sendfile(request, path)
     return forbidden(request, path)
+
+@login_required
+def serve_media_file(request, path, task_id):
+    task = get_object_or_404(Task, pk=task_id)
+    hide = request.user.is_user and task.should_hide_media(request.user)
+    if hide:
+        return forbidden(request, path)
+    return sendfile(request, path)
 
 def sendfile(request, path):
     """ Serve files with mod_xsendfile (http://tn123.ath.cx/mod_xsendfile/)"""

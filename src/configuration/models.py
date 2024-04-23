@@ -130,12 +130,6 @@ class Settings(models.Model):
                 help_text="Default settings for jPlag"
             )
 
-    hide_solutions_of_expired_tasks = \
-            models.BooleanField(
-                default=False,
-                help_text="If enabled, solutions (incl. attestations) of expired tasks are not accessible for students."
-            )
-
     deadline_tolerance = \
             models.DurationField(
                 default=timedelta(hours=0),
