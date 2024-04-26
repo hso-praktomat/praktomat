@@ -41,7 +41,7 @@ class Task(models.Model):
     warning_threshold = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text = _("If the student has less points in his tasks than the sum of their warning thresholds, display a warning."))
     only_trainers_publish = models.BooleanField(default=False, help_text = _("Indicates that only trainers may publish attestations. Otherwise, tutors may publish final attestations within their tutorials."))
     jplag_up_to_date = models.BooleanField(default=False, help_text = _("No new solution uploads since the last jPlag run"))
-    hide_solutions_of_expired_tasks = models.BooleanField(default=False, help_text = _("If enabled, solutions (incl. attestations) of expired tasks are not accessible for students while this task is accepting submissions."))
+    exam = models.BooleanField(default=False, help_text = _("If enabled, solutions (incl. attestations) of expired tasks and active tasks that are not exams are not accessible for students while this task is accepting submissions. Media files will only be visible while the task is active. After the deadline passed, solutions for this task won't be visible until they got attested."))
 
     class Meta:
         ordering = ['submission_date', 'title']
@@ -142,6 +142,16 @@ class Task(models.Model):
 
     def media_files(self):
         return MediaFile.objects.filter(task=self)
+
+    def should_hide_media(self, user):
+        started = self.publication_date < datetime.now()
+        return (self.exam and (not started or self.expired_for_user(user))) or (not self.exam and exam_is_active(user))
+
+    def should_hide(self, user):
+        from attestation.models import Attestation
+        exam_active = exam_is_active(user)
+        attestations = Attestation.objects.filter(final = True, published = True, solution__task = self, solution__final = True, solution__author = user)
+        return (exam_active and (not self.exam or self.expired_for_user(user))) or (not exam_active and self.exam and not attestations.exists())
 
     @staticmethod
     def jplag_languages():
@@ -365,10 +375,7 @@ def get_mediafile_storage_path(instance, filename):
 def get_htmlinjectorfile_storage_path(instance, filename):
     return 'TaskHtmlInjectorFiles/Task_%s/%s' % (instance.task.pk, filename)
 
-def should_hide_solutions_of_expired_tasks(user):
-    if get_settings().hide_solutions_of_expired_tasks:
-        return True
-    hide_solutions_of_expired_tasks = False
+def exam_is_active(user):
     for task in Task.objects.all():
         # Extend the "runtime" of a task by 15 minutes in each direction for
         # this calculation. This ensures that students can't access earlier
@@ -377,10 +384,9 @@ def should_hide_solutions_of_expired_tasks(user):
         submission_date = task.submission_date_for_user(user) + get_settings().deadline_tolerance + timedelta(minutes=15)
         now = datetime.now()
         is_active = publication_date < now and submission_date > now
-        if is_active and task.hide_solutions_of_expired_tasks:
-            hide_solutions_of_expired_tasks = True
-            break
-    return hide_solutions_of_expired_tasks
+        if is_active and task.exam:
+            return True
+    return False
 
 
 class MediaFile(models.Model):
