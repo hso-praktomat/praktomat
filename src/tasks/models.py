@@ -41,7 +41,7 @@ class Task(models.Model):
     warning_threshold = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text = _("If the student has less points in his tasks than the sum of their warning thresholds, display a warning."))
     only_trainers_publish = models.BooleanField(default=False, help_text = _("Indicates that only trainers may publish attestations. Otherwise, tutors may publish final attestations within their tutorials."))
     jplag_up_to_date = models.BooleanField(default=False, help_text = _("No new solution uploads since the last jPlag run"))
-    exam = models.BooleanField(default=False, help_text = _("If enabled, solutions (incl. attestations) of expired tasks and active tasks that are not exams are not accessible for students while this task is accepting submissions. Media files will only be visible while the task is active. After the deadline passed, solutions for this task won't be visible until they got attested."))
+    exam = models.BooleanField(default=False, help_text = _("If enabled, solutions (incl. attestations) of expired tasks and active tasks that are not exams are not accessible for students starting 60 minutes before the publication date until 15 minutes after the deadline. Media files will only be visible while the task is active. After the deadline passed, solutions for this task won't be visible until they got attested."))
 
     class Meta:
         ordering = ['submission_date', 'title']
@@ -377,10 +377,10 @@ def get_htmlinjectorfile_storage_path(instance, filename):
 
 def exam_is_active(user):
     for task in Task.objects.all():
-        # Extend the "runtime" of a task by 15 minutes in each direction for
+        # Extend the "runtime" of a task in each direction for
         # this calculation. This ensures that students can't access earlier
         # solutions right before an exam/test starts.
-        publication_date = task.publication_date - timedelta(minutes=15)
+        publication_date = task.publication_date - timedelta(minutes=60)
         submission_date = task.submission_date_for_user(user) + get_settings().deadline_tolerance + timedelta(minutes=15)
         now = datetime.now()
         is_active = publication_date < now and submission_date > now
