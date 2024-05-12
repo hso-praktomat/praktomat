@@ -393,6 +393,7 @@ class MediaFile(models.Model):
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     media_file = DeletingFileField(upload_to=get_mediafile_storage_path, max_length=500)
+    description = models.CharField(null=False, blank=True, max_length=255, default="", help_text = _("A short description of this file"))
 
     def basename(self):
         name = self.media_file.name
