@@ -31,7 +31,15 @@
 <h3>Files</h3>
 <ul>
 {% for file in task.media_files %}
-	<li><a href="{{ file.media_file.url }}">{{ file.basename }}</a></li>
+	<li>
+		<a href="{{ file.media_file.url }}">
+		{% if file.description|length > 0 %}
+			{{ file.description }} ({{ file.basename }})
+		{% else %}
+			{{ file.basename }}
+		{% endif %}
+		</a>
+	</li>
 {% endfor %}
 </ul>
 {% endif %}
