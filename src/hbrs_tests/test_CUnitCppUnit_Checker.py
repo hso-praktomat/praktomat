@@ -74,8 +74,8 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
             ratingScaleItem.save()
             # modify publication and submission date
             task = Task.objects.get(pk=taskID)
-            from datetime import datetime
-            task.submission_date=datetime.now()
+            from datetime import datetime, timedelta
+            task.submission_date=datetime.now() + timedelta(minutes=60)
             task.publication_date=datetime.now()
             task.final_grade_rating_scale=ratingScale
             task.save()
