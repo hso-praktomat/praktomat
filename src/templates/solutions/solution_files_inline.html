@@ -6,14 +6,15 @@
 
 
 {% load highlight %}
+{% load tasks_extras %}
 <div class="filetabs">
 	<ul>
-		{% for solutionfile in solutionfiles %}
+		{% for solutionfile in solutionfiles|basenamedictsort:"file.name" %}
 			<li><a href="#file{{forloop.counter}}">{{solutionfile}}</a></li>
 		{%endfor%}
 	</ul>
 
-	{% for solutionfile in solutionfiles%}
+	{% for solutionfile in solutionfiles|basenamedictsort:"file.name" %}
 		<div class="file" id="file{{forloop.counter}}">
       <h3>{{solutionfile}}</h3>
       <div class="download">
