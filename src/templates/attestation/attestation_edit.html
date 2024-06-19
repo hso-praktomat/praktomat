@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load tasks_extras %}
 {% block extrahead %}{{ block.super }}
 	<script type="text/javascript" src="{{STATIC_URL}}frameworks/jquery/jquery.Storage.js"></script>
 	<script type="text/javascript" src="{{STATIC_URL}}script/solution_inlines.js"></script>
@@ -185,7 +186,7 @@
 			{% with attestFileFormSet.get_queryset.all as solutionfiles %}
 				<div class="anntabs">
 					<ul>
-						{% for solutionfile in solutionfiles %}
+						{% for solutionfile in solutionfiles|basenamedictsort:"solution_file.file.name" %}
 							<li><a href="#editor" data-solutionfileid="{{solutionfile.pk}}">{{solutionfile}}</a></li>
 						{%endfor%}
 					</ul>

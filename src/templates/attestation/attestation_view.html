@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load highlight %}{% load i18n  %}
+{% load tasks_extras %}
 {% block extrahead %}{{ block.super }}
 	<script type="text/javascript" src="{{STATIC_URL}}/frameworks/jquery.easy-confirm-dialog/jquery.easy-confirm-dialog.js"></script>
 	<script type="text/javascript" src="{{STATIC_URL}}script/solution_inlines.js"></script>
@@ -93,12 +94,12 @@
 <h2>{% trans "Annotated Files" %}</h2>
 <div class="filetabs">
 	<ul>
-		{% for anotfile in attest.annotatedsolutionfile_set.all%}
+		{% for anotfile in attest.annotatedsolutionfile_set.all|basenamedictsort:"solution_file.file.name" %}
 			<li><a href="#file{{forloop.counter}}">{{anotfile}}{% if anotfile.has_anotations%}<span class="has_anotations">*</span>{% endif %}</a></li>
 		{%endfor%}
 	</ul>
 
-	{% for anotfile in attest.annotatedsolutionfile_set.all%}
+	{% for anotfile in attest.annotatedsolutionfile_set.all|basenamedictsort:"solution_file.file.name" %}
 		<div class="file" id="file{{forloop.counter}}">
 			<h3>{{solutionfile}}</h3>
 			<div class="content">{{anotfile.content_diff|highlight_table:anotfile.solution_file.file.name|highlight_diff}}</div>
