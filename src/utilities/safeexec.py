@@ -5,6 +5,7 @@ from os.path import *
 import time
 import subprocess
 import signal
+import string
 import resource
 import psutil
 
@@ -92,7 +93,11 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
             command += ["--dir", d]
         # Add specified external directory
         if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
-            command += ["--external", settings.DOCKER_CONTAINER_EXTERNAL_DIR]
+            external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
+            task_id_custom = environment_variables.get('TASK_ID_CUSTOM')
+            if task_id_custom is not None and task_id_custom != "":
+                external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=environment_variables.get('TASK_ID_CUSTOM'))
+            command += ["--external", external_dir]
         if settings.DOCKER_DISCARD_ARTEFACTS:
             command += ["--discard-artefacts"]
         command += ["--"]

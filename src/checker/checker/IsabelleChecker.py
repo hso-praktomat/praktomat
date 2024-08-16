@@ -57,6 +57,7 @@ class IsabelleChecker(Checker):
         environ={}
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
         (output, error, exitcode, timed_out, oom_ed) = execute_arglist(args, working_directory=env.tmpdir(), environment_variables=environ, timeout=settings.TEST_TIMEOUT, error_to_output=False)
 
         if timed_out:

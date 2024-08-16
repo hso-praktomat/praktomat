@@ -321,6 +321,8 @@ def load_defaults(settings):
 
     # The path which to additionally mount into the checker container
     # If this is set to none, no additional directory will get mounted.
+    # Otherwise, this is treated as a template string. ${TASK_ID_CUSTOM} will be
+    # replaced with the specified custom ID in the task.
     d.DOCKER_CONTAINER_EXTERNAL_DIR = None
 
     # If the Docker container should be able to access the host's network
