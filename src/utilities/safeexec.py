@@ -8,6 +8,7 @@ import signal
 import string
 import resource
 import psutil
+import uuid
 
 from copy import deepcopy
 
@@ -68,43 +69,18 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
         #fixed: 22.11.2016, Robert Hartmann , H-BRS
         command += deepcopy(sudo_prefix)
     elif settings.USESAFEDOCKER:
-        command += ["sudo", settings.SAFE_DOCKER_PATH]
-        command += ["--image", settings.DOCKER_IMAGE_NAME]
-        # for safe-docker, we cannot kill it ourselves, due to sudo, so
-        # rely on the timeout provided by safe-docker
-        if timeout is not None:
-            command += ["--timeout", "%d" % timeout]
-            # give the time out mechanism below some extra time
-            timeout += 5
-        if maxmem is not None:
-            command += ["--memory", "%sm" % maxmem]
-        if settings.DOCKER_CONTAINER_WRITABLE:
-            command += ["--writable"]
-        if not settings.DOCKER_UID_MOD:
-            command += ["--no-uid-mod"]
-        if settings.DOCKER_CONTAINER_HOST_NET:
-            # Allow accessing the host network
-            command += ["--host-net"]
-        # ensure ulimit
-        command += ["--ulimit", "nofile=%d" % filenumberlimit]
-        if fileseeklimit:
-            command += ["--ulimit", "fsize=%d" % fileseeklimitbytes]
-        for d in extradirs:
-            command += ["--dir", d]
-        # Add specified external directory
-        if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
-            external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
-            task_id_custom = environment_variables.get('TASK_ID_CUSTOM')
-            if task_id_custom is not None and task_id_custom != "":
-                external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=environment_variables.get('TASK_ID_CUSTOM'))
-            command += ["--external", external_dir]
-        if settings.DOCKER_DISCARD_ARTEFACTS:
-            command += ["--discard-artefacts"]
-        command += ["--"]
-        # add environment
-        command += ["env"]
-        for k, v in environment_variables.items():
-            command += ["%s=%s" % (k, v)]
+        docker_ulimits = [f"nofile={filenumberlimit}"]
+        if fileseeklimit is not None:
+            docker_ulimits += [f"fsize={fileseeklimitbytes}"]
+
+        safe_docker_cmd, container_name, volumes = safe_docker(
+            environment_variables=environment_variables,
+            extra_dirs=extradirs,
+            maxmem=maxmem,
+            ulimits=docker_ulimits,
+            working_directory=abspath(working_directory),
+        )
+        command += safe_docker_cmd
 
     command += args[:]
 
@@ -134,26 +110,166 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
             int_cmd = sudo_prefix + int_cmd
             hup_cmd = sudo_prefix + hup_cmd
             kill_cmd = sudo_prefix + kill_cmd
-        subprocess.call(term_cmd)
-        time.sleep(5)
-        subprocess.call(int_cmd)
-        time.sleep(9)
-        subprocess.call(hup_cmd)
-        time.sleep(5)
-        subprocess.call(kill_cmd)
-        time.sleep(5)
-        if process.poll() is None:
-            #if we are here, than we retry to kill the subprocesses in an other way
-            kill_proc_tree(pid=process.pid)
+        if settings.USESAFEDOCKER:
+            docker_kill_cmd = ["sudo", "docker", "kill", container_name]
+            subprocess.call(docker_kill_cmd)
+        if not settings.USESAFEDOCKER or process.poll() is None:
+            # For Docker: in case the "docker kill didn't help"
+            subprocess.call(term_cmd)
             time.sleep(5)
-            process.kill()
+            subprocess.call(int_cmd)
+            time.sleep(9)
+            subprocess.call(hup_cmd)
+            time.sleep(5)
+            subprocess.call(kill_cmd)
+            time.sleep(5)
+            if process.poll() is None:
+                #if we are here, than we retry to kill the subprocesses in an other way
+                kill_proc_tree(pid=process.pid)
+                time.sleep(5)
+                process.kill()
         [output, error] = process.communicate()
         #killpg(process.pid, signal.SIGKILL)
 
-    if settings.USESAFEDOCKER and process.returncode == 23: #magic value
-        timed_out = True
-
-    if settings.USESAFEDOCKER and process.returncode == 24: #magic value
+    # These exit codes originate from the original safe-docker script
+    if settings.USESAFEDOCKER and not timed_out and (process.returncode == 255 or process.returncode == 137):
         oom_ed = True
 
+    if settings.USESAFEDOCKER:
+        safe_docker_cleanup(volumes)
+
     return [output.decode('utf-8'), error, process.returncode, timed_out, oom_ed]
+
+
+def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_directory):
+    cmd = ["sudo", "docker", "run", "--rm", "--sig-proxy",
+        "--tmpfs", "/tmp", "--tmpfs", "/run", "--tmpfs", "/home"]
+
+    uid = os.getuid()
+    gid = os.getgid()
+
+    if ":" in working_directory:
+        raise Exception("working directory contains a ':'")
+    for d in extra_dirs:
+        if ":" in d:
+            raise Exception(f"extra directory 'f{d}' contains a ':'")
+
+    volumes = []
+    def add_dir(path, read_only, volumes):
+        ro_flag = ""
+        if read_only:
+            ro_flag = ":ro"
+
+        if not exists("/.dockerenv"):
+            # Praktomat is not running in a dockerized environment
+            return [f"--volume={path}:{path}{ro_flag}"]
+
+        # Praktomat is running in a dockerized environment
+
+        if not path.endswith("/"):
+            # Add trailing slash to path
+            path += "/"
+
+        volume_name = f"tmp-{uuid.uuid4()}"
+        helper_name = f"tmp-helper-{uuid.uuid4()}"
+        subprocess.run(
+            ["sudo", "docker", "volume", "create", volume_name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["sudo", "docker", "run", "-d", f"--volume={volume_name}:{path}", "--name",
+                helper_name, "busybox", "sleep", "infinity"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["sudo", "docker", "cp", f"{path}.", f"{helper_name}:{path}"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["sudo", "docker", "exec", helper_name, "chown", "-R", f"{uid}:{gid}", path],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["sudo", "docker", "kill", helper_name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        volumes += [{"container": helper_name, "dir": path, "volume": volume_name}]
+        return [f"--volume={volume_name}:{path}{ro_flag}"]
+
+    if settings.DOCKER_CONTAINER_HOST_NET:
+        # Allow accessing the host network
+        cmd += ["--net=host"]
+    else:
+        cmd += ["--net=none"]
+
+    if not settings.DOCKER_CONTAINER_WRITABLE:
+        cmd += ["--read-only"]
+
+    if maxmem is None:
+        maxmem = 1024
+    cmd += [f"--memory={maxmem}m"]
+    for ulimit in ulimits:
+        cmd += [f"--ulimit={ulimit}"]
+    
+    if settings.DOCKER_UID_MOD:
+        cmd += [f"--user={uid}:{gid}"]
+
+    for d in extra_dirs:
+        cmd += add_dir(d, True, volumes)
+
+    if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
+        external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
+        task_id_custom = environment_variables.get('TASK_ID_CUSTOM')
+        if task_id_custom is not None and task_id_custom != "":
+            external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=environment_variables.get('TASK_ID_CUSTOM'))
+        cmd += [f"--volume={external_dir}:/external:ro"]
+    
+    cmd += add_dir(working_directory, False, volumes)
+    cmd += [f"--workdir={working_directory}"]
+
+    container_name = f"secure-tmp-{uuid.uuid4()}"
+    cmd += ["--name", container_name]
+    cmd += [settings.DOCKER_IMAGE_NAME]
+
+    # add environment
+    cmd += ["env"]
+    for k, v in environment_variables.items():
+        cmd += ["%s=%s" % (k, v)]
+
+    return cmd, container_name, volumes
+
+
+def safe_docker_cleanup(volumes):
+    for volume in volumes:
+        helper_name = volume["container"]
+        volume_name = volume["volume"]
+        path = volume["dir"]
+        if not settings.DOCKER_DISCARD_ARTEFACTS:
+            subprocess.run(
+                ["sudo", "docker", "cp", f"{helper_name}:{path}.", path],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        subprocess.run(
+            ["sudo", "docker", "container", "rm", helper_name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["sudo", "docker", "volume", "rm", volume_name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
