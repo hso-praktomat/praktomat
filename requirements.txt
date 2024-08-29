@@ -1,7 +1,7 @@
 urllib3[secure]
 # workaround for debug-toolbar/sqlparse incompatibility, see http://stackoverflow.com/questions/38479063/django-debug-toolbar-breaking-on-admin-while-getting-sql-stats
 sqlparse
-Django~=2.2;python_version>="3.5"
+Django~=3.2
 # M2Crypto # has been removed by commit "use hashlib+smime for upload verification mails instead of M2Crypto" (19.1.2018)
 Markdown
 # Warning: updating Pygments currently breaks the syntax highlighting for annotated solution files.
