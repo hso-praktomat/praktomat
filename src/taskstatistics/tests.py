@@ -31,6 +31,8 @@ from tasks.models import Task
 
 from collections import OrderedDict
 
+nop = lambda *a, **k: None
+
 class TasksStatisticTest(TestCase):
 
     def get_table_description(self, table):
@@ -69,12 +71,12 @@ class TasksStatisticTest(TestCase):
         request = HttpRequest()
 
         """Annotate a request object with a session"""
-        middleware = SessionMiddleware()
+        middleware = SessionMiddleware(nop)
         middleware.process_request(request)
         request.session.save()
 
         """Annotate a request object with a messages"""
-        middleware = MessageMiddleware()
+        middleware = MessageMiddleware(nop)
         middleware.process_request(request)
         request.session.save()
 
@@ -96,12 +98,12 @@ class TasksStatisticTest(TestCase):
         request = HttpRequest()
 
         """Annotate a request object with a session"""
-        middleware = SessionMiddleware()
+        middleware = SessionMiddleware(nop)
         middleware.process_request(request)
         request.session.save()
 
         """Annotate a request object with a messages"""
-        middleware = MessageMiddleware()
+        middleware = MessageMiddleware(nop)
         middleware.process_request(request)
         request.session.save()
 
@@ -158,12 +160,12 @@ class TasksStatisticTest(TestCase):
         request = HttpRequest()
 
         """Annotate a request object with a session"""
-        middleware = SessionMiddleware()
+        middleware = SessionMiddleware(nop)
         middleware.process_request(request)
         request.session.save()
 
         """Annotate a request object with a messages"""
-        middleware = MessageMiddleware()
+        middleware = MessageMiddleware(nop)
         middleware.process_request(request)
         request.session.save()
 
