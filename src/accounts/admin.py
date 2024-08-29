@@ -105,11 +105,11 @@ class UserAdmin(UserBaseAdmin):
     def get_urls(self):
         """ Add URL to user import """
         urls = super(UserAdmin, self).get_urls()
-        from django.conf.urls import url
-        my_urls = [url(r'^import/$', accounts.views.import_user, name='user_import')]
-        my_urls += [url(r'^import_ldap/$', accounts.views.import_ldap_user, name='ldap_user_import')] 
-        my_urls += [url(r'^import_tutorial_assignment/$', accounts.views.import_tutorial_assignment, name='import_tutorial_assignment')]
-        my_urls += [url(r'^import_user_texts/$', accounts.views.import_user_texts, name='import_user_texts')]
+        from django.urls import re_path
+        my_urls = [re_path(r'^import/$', accounts.views.import_user, name='user_import')]
+        my_urls += [re_path(r'^import_ldap/$', accounts.views.import_ldap_user, name='ldap_user_import')] 
+        my_urls += [re_path(r'^import_tutorial_assignment/$', accounts.views.import_tutorial_assignment, name='import_tutorial_assignment')]
+        my_urls += [re_path(r'^import_user_texts/$', accounts.views.import_user_texts, name='import_user_texts')]
         return my_urls + urls
 
     def useful_links(self, instance):
@@ -165,8 +165,8 @@ class GroupAdmin(GroupBaseAdmin):
     def get_urls(self):
         """ Add URL to user import """
         urls = super(GroupAdmin, self).get_urls()
-        from django.conf.urls import url
-        my_urls = [url(r'^(\d+)/import_matriculation_list/$', accounts.views.import_matriculation_list, name='import_matriculation_list')]
+        from django.urls import re_path
+        my_urls = [re_path(r'^(\d+)/import_matriculation_list/$', accounts.views.import_matriculation_list, name='import_matriculation_list')]
         return my_urls + urls
 
 admin.site.unregister(Group)

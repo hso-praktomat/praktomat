@@ -229,8 +229,8 @@ class TaskAdmin(admin.ModelAdmin):
     def get_urls(self):
         """ Add URL to task import """
         urls = super(TaskAdmin, self).get_urls()
-        from django.conf.urls import url
-        my_urls = [url(r'^import/$', tasks.views.import_tasks, name='task_import')]
+        from django.urls import re_path
+        my_urls = [re_path(r'^import/$', tasks.views.import_tasks, name='task_import')]
         return my_urls + urls
 
     def attestations_url(self, task):
