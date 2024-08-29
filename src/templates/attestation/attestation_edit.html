@@ -90,8 +90,8 @@
 <form enctype="multipart/form-data" method="post" action="">{% csrf_token %}
 
 <div id="form_actions">
-	<input type="submit" value="Save/Publish" name="publish">
-	<input type="submit" value="Save/Preview" name="save" id="id_save">
+	<input type="submit" value="Save/Publish" name="publish" class="save_btn">
+	<input type="submit" value="Save/Preview" name="save" class="save_btn">
 	<input type="button" value="Discard/Back" onClick="parent.location='{% url "attestation_list" solution.task_id %}'">
 </div>
 

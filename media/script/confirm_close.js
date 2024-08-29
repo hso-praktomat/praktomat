@@ -7,6 +7,6 @@ $(window).load(function () {
 	$('#id_attest-public_comment').change(function(){somethingWasChanged=true;});
 	$('#id_attest-private_comment').change(function(){somethingWasChanged=true;});
 	$('#id_attest-final_grade').change(function(){somethingWasChanged=true;});
-	$('#id_save').click(function(){somethingWasChanged=false;});
+	$('.save_btn').click(function(){somethingWasChanged=false;});
 });
 
