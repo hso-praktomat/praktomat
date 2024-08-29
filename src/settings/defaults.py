@@ -468,7 +468,7 @@ def load_defaults(settings):
 
 # Always show toolbar (if DEBUG is true)
 def show_toolbar(request):
-    if request.is_ajax():
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return False
 
     # return True here to enable the debug toolbar
