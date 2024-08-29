@@ -5,7 +5,7 @@ import shutil, os, re, subprocess
 from django.conf import settings
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from checker.basemodels import Checker, CheckerFileField
 from utilities.safeexec import execute_arglist
@@ -13,8 +13,8 @@ from utilities.file_operations import *
 
 class CheckStyleChecker(Checker):
 
-    name = models.CharField(max_length=100, default="CheckStyle", help_text=_("Name to be displayed on the solution detail page."))
-    configuration = CheckerFileField(help_text=_("XML configuration of CheckStyle. See http://checkstyle.sourceforge.net/"))
+    name = models.CharField(max_length=100, default="CheckStyle", help_text=gettext_lazy("Name to be displayed on the solution detail page."))
+    configuration = CheckerFileField(help_text=gettext_lazy("XML configuration of CheckStyle. See http://checkstyle.sourceforge.net/"))
 
     def title(self):
         """ Returns the title for this checker category. """

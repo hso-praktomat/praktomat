@@ -8,7 +8,6 @@ A C compiler for construction.
 
 from django.conf import settings
 from checker.compiler.Builder import Compiler
-from django.utils.translation import ugettext_lazy as _
 
 class CBuilder(Compiler):
     """ A C compiler for construction. """

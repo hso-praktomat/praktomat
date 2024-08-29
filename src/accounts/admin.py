@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from random import randint
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.contrib import admin, messages
 from django.contrib.auth.models import User as UserBase, Group
 from django.contrib.auth.admin import UserAdmin as UserBaseAdmin, GroupAdmin as GroupBaseAdmin
@@ -31,11 +31,11 @@ class UserAdmin(UserBaseAdmin):
     # exclude user_permissions
     fieldsets = (
             (None, {'fields': ('username', 'password', 'useful_links')}),
-            (_('Personal info'), {'fields': ('first_name', 'last_name', 'email', 'mat_number', 'programme')}),
-            (_('Permissions'), {'fields': ('is_active', 'accepted_disclaimer', 'is_staff', 'is_superuser',)}),
-            (_('Groups'), {'fields': ('groups', 'tutorial')}),
-            (_('Important dates'), {'fields': ('last_login', 'date_joined')}),
-            (_('Custom text'), {'fields': ('user_text',)}),
+            (gettext_lazy('Personal info'), {'fields': ('first_name', 'last_name', 'email', 'mat_number', 'programme')}),
+            (gettext_lazy('Permissions'), {'fields': ('is_active', 'accepted_disclaimer', 'is_staff', 'is_superuser',)}),
+            (gettext_lazy('Groups'), {'fields': ('groups', 'tutorial')}),
+            (gettext_lazy('Important dates'), {'fields': ('last_login', 'date_joined')}),
+            (gettext_lazy('Custom text'), {'fields': ('user_text',)}),
         )
 
     form = AdminUserChangeForm
@@ -144,10 +144,10 @@ class UserAdmin(UserBaseAdmin):
 # This should work in Django 1.4 :O
 # from django.contrib.admin import SimpleListFilter
 # class FailedRegistrationAttempts(admin.SimpleListFilter):
-#    title = _('Registration')
+#    title = gettext_lazy('Registration')
 #
 #    def lookups(self,request,model_admin):
-#        return ( (('failed'), _('failed')), (('successfull'), _('sucessfull')) )
+#        return ( (('failed'), gettext_lazy('failed')), (('successfull'), gettext_lazy('sucessfull')) )
 #
 #    def queryset(self,request,users):
 #        failed = User.objects.all().values('mat_number').annotate(failed=Count('mat_number')).filter(failed__gt=1)

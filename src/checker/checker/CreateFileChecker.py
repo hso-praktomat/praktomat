@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 import os
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.core.exceptions import ValidationError
 from checker.basemodels import Checker, CheckerFileField
 from utilities.file_operations import *
@@ -17,12 +17,12 @@ class CheckerWithFile(Checker):
     class Meta:
         abstract = True
 
-    file = CheckerFileField(help_text=_("The file that is copied into the sandbox"))
-    filename = models.CharField(max_length=500, blank=True, help_text=_("What the file will be named in the sandbox. If empty, we try to guess the right filename!"))
-    path = models.CharField(max_length=500, blank=True, help_text=_("Subfolder in the sandbox which shall contain the file."))
-    unpack_zipfile = models.BooleanField(default=False, help_text=_("Unpack the zip file into the given subfolder. (It will be an error if the file is not a zip file; the filename is ignored.)"))
-    is_sourcecode = models.BooleanField(default=False, help_text=_("The file is (or, if it is a zipfile to be unpacked: contains) source code"))
-    include_in_solution_download = models.BooleanField(default=True, help_text=_("The file is (or, if it is a zipfile to be unpacked: its content) is included in \"full\" solution download .zip files"))
+    file = CheckerFileField(help_text=gettext_lazy("The file that is copied into the sandbox"))
+    filename = models.CharField(max_length=500, blank=True, help_text=gettext_lazy("What the file will be named in the sandbox. If empty, we try to guess the right filename!"))
+    path = models.CharField(max_length=500, blank=True, help_text=gettext_lazy("Subfolder in the sandbox which shall contain the file."))
+    unpack_zipfile = models.BooleanField(default=False, help_text=gettext_lazy("Unpack the zip file into the given subfolder. (It will be an error if the file is not a zip file; the filename is ignored.)"))
+    is_sourcecode = models.BooleanField(default=False, help_text=gettext_lazy("The file is (or, if it is a zipfile to be unpacked: contains) source code"))
+    include_in_solution_download = models.BooleanField(default=True, help_text=gettext_lazy("The file is (or, if it is a zipfile to be unpacked: its content) is included in \"full\" solution download .zip files"))
 
 
 

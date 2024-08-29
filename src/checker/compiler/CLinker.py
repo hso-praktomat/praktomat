@@ -13,7 +13,7 @@ from checker.compiler.Builder import MainNeedHelper
 import os, re
 from utilities.safeexec import execute_arglist
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 
 
 class CLinker(Linker, LibraryHelper, MainNeedHelper):
@@ -136,11 +136,11 @@ class CheckerForm(AlwaysChangedModelForm):
         #self.fields["_output_flags"].initial = "-o %s"
         #self.fields["_output_flags"].default = "-o %s"
         #self.fields["_output_flags"].choices = _LINK_CHOICES
-        #self.fields["_output_flags"].help_text = _('\'%s\' will be replaced by the output name.')
+        #self.fields["_output_flags"].help_text = gettext_lazy('\'%s\' will be replaced by the output name.')
         self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^[a-zA-Z0-9_]*\.[oO]$"
-        #self.fields["_main_required"].label = _("link as executable program")
-        #self.fields["_main_required"].help_text = _("if not activated, object files code will be compiled to object file *.o! Compiler uses -c option")
+        #self.fields["_main_required"].label = gettext_lazy("link as executable program")
+        #self.fields["_main_required"].help_text = gettext_lazy("if not activated, object files code will be compiled to object file *.o! Compiler uses -c option")
 
 
 

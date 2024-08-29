@@ -9,16 +9,16 @@ Line width checker
 import re
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from checker.basemodels import Checker
 
 class LineWidthChecker(Checker):
 
-    max_line_length = models.IntegerField(default = 80, help_text=_("The maximum length of a line of code."))
-    tab_width =  models.IntegerField(default = 4, help_text=_("The amount of characters a tab represents."))
-    include = models.CharField(max_length=100, blank = True, default=".*", help_text=_("Regular expression describing the filenames to be checked. Case insensitive. Blank: use all files."))
-    exclude = models.CharField(max_length=100, blank = True, default=".*\.txt$", help_text=_("Regular expression describing included filenames, which shall be excluded. Case insensitive. Blank: use all files."))
+    max_line_length = models.IntegerField(default = 80, help_text=gettext_lazy("The maximum length of a line of code."))
+    tab_width =  models.IntegerField(default = 4, help_text=gettext_lazy("The amount of characters a tab represents."))
+    include = models.CharField(max_length=100, blank = True, default=".*", help_text=gettext_lazy("Regular expression describing the filenames to be checked. Case insensitive. Blank: use all files."))
+    exclude = models.CharField(max_length=100, blank = True, default=".*\.txt$", help_text=gettext_lazy("Regular expression describing included filenames, which shall be excluded. Case insensitive. Blank: use all files."))
 
     def title(self):
         """ Returns the title for this checker category. """

@@ -16,7 +16,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.utils.http import int_to_base36
 from django.core.mail import send_mail
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from configuration import get_settings
 from accounts.forms import ImportLDAPForm
 from accounts.ldap_auth import fetch_ldapuser_dict, create_localuser_from_ldapuser
@@ -60,7 +60,7 @@ def activation_allow(request, user_id):
         'activation_key': user.activation_key,
         'expiration_days': get_settings().acount_activation_days,
     }
-    send_mail(_("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
+    send_mail(gettext_lazy("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
     return render(request, 'registration/registration_activation_allowed.html', { 'new_user': user, })
 
 @local_user_required
@@ -113,7 +113,7 @@ def import_user(request):
                                 'activation_key': user.activation_key,
                                 'expiration_days': get_settings().acount_activation_days,
                             }
-                            send_mail(_("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
+                            send_mail(gettext_lazy("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
                 return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
             except:
                 raise

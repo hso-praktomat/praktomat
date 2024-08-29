@@ -9,20 +9,20 @@ InterfaceChecker.
 import re
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from checker.basemodels import Checker
 
 class InterfaceChecker(Checker):
 
     ## use interface model class instead as soon as nested admin inlines are possible (see below)
-    interface1 = models.CharField(max_length=100, help_text=_("The name of the interface that must be implemented."))
-    interface2 = models.CharField(max_length=100, blank = True, help_text=_("The name of the interface that must be implemented."))
-    interface3 = models.CharField(max_length=100, blank = True, help_text=_("The name of the interface that must be implemented."))
-    interface4 = models.CharField(max_length=100, blank = True, help_text=_("The name of the interface that must be implemented."))
-    interface5 = models.CharField(max_length=100, blank = True, help_text=_("The name of the interface that must be implemented."))
-    interface6 = models.CharField(max_length=100, blank = True, help_text=_("The name of the interface that must be implemented."))
-    interface7 = models.CharField(max_length=100, blank = True, help_text=_("The name of the interface that must be implemented."))
+    interface1 = models.CharField(max_length=100, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface2 = models.CharField(max_length=100, blank = True, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface3 = models.CharField(max_length=100, blank = True, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface4 = models.CharField(max_length=100, blank = True, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface5 = models.CharField(max_length=100, blank = True, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface6 = models.CharField(max_length=100, blank = True, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface7 = models.CharField(max_length=100, blank = True, help_text=gettext_lazy("The name of the interface that must be implemented."))
 
     def title(self):
         """ Returns the title for this checker category. """
@@ -109,7 +109,7 @@ class InterfaceChecker(Checker):
 ## No nested inlines in Django 1.0.2 admin -> fixed amount of interfacenames into interface checker
 ##class Interface(models.Model):
 ##    checker = models.ForeignKey(InterfaceChecker)
-##    name = models.CharField(max_length=100, help_text=_("The name of the interface that must be implemeted."))
+##    name = models.CharField(max_length=100, help_text=gettext_lazy("The name of the interface that must be implemeted."))
 ##
 ##    class Meta:
 ##        # Required for syncdb as of django 1.0.2 - the same as in Checker class!

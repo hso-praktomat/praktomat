@@ -14,7 +14,7 @@ from django.db import models
 from django.db import transaction
 from django import db
 from django.core import serializers
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.conf import settings
 from django.db.models import Max
 
@@ -25,23 +25,23 @@ from utilities.deleting_file_field import DeletingFileField
 from utilities.safeexec import execute_arglist
 
 class Task(models.Model):
-    title = models.CharField(max_length=100, help_text = _("The name of the task"))
-    description = models.TextField(help_text = _("Description of the assignment."))
-    publication_date = models.DateTimeField(help_text = _("The time on which the user will see the task."))
-    submission_date = models.DateTimeField(help_text = _("The time up until the user has time to complete the task. This time will be extended by the duration configured with the deadline tolerance setting for those who just missed the deadline."))
+    title = models.CharField(max_length=100, help_text = gettext_lazy("The name of the task"))
+    description = models.TextField(help_text = gettext_lazy("Description of the assignment."))
+    publication_date = models.DateTimeField(help_text = gettext_lazy("The time on which the user will see the task."))
+    submission_date = models.DateTimeField(help_text = gettext_lazy("The time up until the user has time to complete the task. This time will be extended by the duration configured with the deadline tolerance setting for those who just missed the deadline."))
 
-    submission_free_uploads = models.IntegerField(default=1, help_text =_("Number of submissions a user can make before waitdelta got active"))
-    submission_waitdelta = models.IntegerField(default=0,help_text=_("Timedelta in minutes. The user must wait before submitting the next solution of same task: I removed the linear function: Timedelta multiplied with number of current uploads"))
-    submission_maxpossible = models.IntegerField(default=-1,help_text=_("Number of uploads a user can submit for the same task. Value -1 means unlimited"))
+    submission_free_uploads = models.IntegerField(default=1, help_text =gettext_lazy("Number of submissions a user can make before waitdelta got active"))
+    submission_waitdelta = models.IntegerField(default=0,help_text=gettext_lazy("Timedelta in minutes. The user must wait before submitting the next solution of same task: I removed the linear function: Timedelta multiplied with number of current uploads"))
+    submission_maxpossible = models.IntegerField(default=-1,help_text=gettext_lazy("Number of uploads a user can submit for the same task. Value -1 means unlimited"))
 
-    max_file_size = models.IntegerField(default=1000, help_text = _("The maximum size of an uploaded solution file in kibibyte."))
+    max_file_size = models.IntegerField(default=1000, help_text = gettext_lazy("The maximum size of an uploaded solution file in kibibyte."))
     model_solution = models.ForeignKey('solutions.Solution', on_delete=models.SET_NULL, blank=True, null=True, related_name='model_solution_task')
-    all_checker_finished = models.BooleanField(default=False, editable=False, help_text = _("Indicates whether the checker which don't run immediately on submission have been executed."))
-    final_grade_rating_scale = models.ForeignKey('attestation.RatingScale', on_delete=models.SET_NULL, null=True, help_text = _("The scale used to mark the whole solution."))
-    warning_threshold = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text = _("If the student has less points in his tasks than the sum of their warning thresholds, display a warning."))
-    only_trainers_publish = models.BooleanField(default=False, help_text = _("Indicates that only trainers may publish attestations. Otherwise, tutors may publish final attestations within their tutorials."))
-    jplag_up_to_date = models.BooleanField(default=False, help_text = _("No new solution uploads since the last jPlag run"))
-    exam = models.BooleanField(default=False, help_text = _("If enabled, solutions (incl. attestations) of expired tasks and active tasks that are not exams are not accessible for students starting 60 minutes before the publication date until 15 minutes after the deadline. Media files will only be visible while the task is active. After the deadline passed, solutions for this task won't be visible until they got attested."))
+    all_checker_finished = models.BooleanField(default=False, editable=False, help_text = gettext_lazy("Indicates whether the checker which don't run immediately on submission have been executed."))
+    final_grade_rating_scale = models.ForeignKey('attestation.RatingScale', on_delete=models.SET_NULL, null=True, help_text = gettext_lazy("The scale used to mark the whole solution."))
+    warning_threshold = models.DecimalField(max_digits=8, decimal_places=2, default=0, help_text = gettext_lazy("If the student has less points in his tasks than the sum of their warning thresholds, display a warning."))
+    only_trainers_publish = models.BooleanField(default=False, help_text = gettext_lazy("Indicates that only trainers may publish attestations. Otherwise, tutors may publish final attestations within their tutorials."))
+    jplag_up_to_date = models.BooleanField(default=False, help_text = gettext_lazy("No new solution uploads since the last jPlag run"))
+    exam = models.BooleanField(default=False, help_text = gettext_lazy("If enabled, solutions (incl. attestations) of expired tasks and active tasks that are not exams are not accessible for students starting 60 minutes before the publication date until 15 minutes after the deadline. Media files will only be visible while the task is active. After the deadline passed, solutions for this task won't be visible until they got attested."))
 
     class Meta:
         ordering = ['submission_date', 'title']
@@ -393,7 +393,7 @@ class MediaFile(models.Model):
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     media_file = DeletingFileField(upload_to=get_mediafile_storage_path, max_length=500)
-    description = models.CharField(null=False, blank=True, max_length=255, default="", help_text = _("A short description of this file"))
+    description = models.CharField(null=False, blank=True, max_length=255, default="", help_text = gettext_lazy("A short description of this file"))
 
     def basename(self):
         name = self.media_file.name
@@ -405,19 +405,19 @@ class HtmlInjector(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     inject_in_solution_view      = models.BooleanField(
         default=False,
-        help_text = _("Indicates whether HTML code shall be injected in public  solution views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/solutions/5710/")
+        help_text = gettext_lazy("Indicates whether HTML code shall be injected in public  solution views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/solutions/5710/")
     )
     inject_in_solution_full_view = models.BooleanField(
         default=False,
-        help_text = _("Indicates whether HTML code shall be injected in private solution views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/solutions/5710/full")
+        help_text = gettext_lazy("Indicates whether HTML code shall be injected in private solution views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/solutions/5710/full")
     )
     inject_in_attestation_edit = models.BooleanField(
         default=True,
-        help_text = _("Indicates whether HTML code shall be injected in attestation edits, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/attestation/134/edit")
+        help_text = gettext_lazy("Indicates whether HTML code shall be injected in attestation edits, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/attestation/134/edit")
     )
     inject_in_attestation_view = models.BooleanField(
         default=False,
-        help_text = _("Indicates whether HTML code shall be injected in attestation views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/attestation/134")
+        help_text = gettext_lazy("Indicates whether HTML code shall be injected in attestation views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/attestation/134")
     )
     html_file = DeletingFileField(upload_to=get_htmlinjectorfile_storage_path, max_length=500)
 
@@ -425,4 +425,4 @@ class HtmlInjector(models.Model):
 class DeadlineExtension(models.Model):
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={"groups__name": "User"})
-    timestamp = models.DateTimeField(help_text = _("The time up until the user has time to complete the task. This time will be extended by the duration configured with the deadline tolerance setting in case the student just missed the extended deadline."))
+    timestamp = models.DateTimeField(help_text = gettext_lazy("The time up until the user has time to complete the task. This time will be extended by the duration configured with the deadline tolerance setting in case the student just missed the extended deadline."))

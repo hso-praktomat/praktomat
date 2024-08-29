@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from checker.models import Checker, CheckerResult, execute
 from checker.admin import	CheckerInline, AlwaysChangedModelForm
 from utilities.file_operations import *
@@ -12,7 +12,7 @@ class ExampleChecker(Checker):
 
 	# Add fields to configure checker instances. You can use any of the Django fields. (See online documentation)
 	# The fields created, task, public, required and always will be inherited from the abstract base class Checker
-	configuration_field = models.CharField(max_length=100, blank=True, default="I'm a test.", help_text=_("This text will be displayed under Charfield in the admin."))
+	configuration_field = models.CharField(max_length=100, blank=True, default="I'm a test.", help_text=gettext_lazy("This text will be displayed under Charfield in the admin."))
 
 	def title(self):
 		""" Return the name of this instance of the checker. This will be shown to the user if the checker is public. """

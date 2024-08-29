@@ -6,7 +6,7 @@ from django.db import models, transaction
 from django.conf import settings
 from tasks.models import Task
 from solutions.models import Solution, SolutionFile
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.core.mail import EmailMessage
 from django.core import serializers
 from django.template import loader
@@ -30,13 +30,13 @@ class Attestation(models.Model):
     solution = models.ForeignKey(Solution, on_delete=models.CASCADE)
     author = models.ForeignKey(User, verbose_name="attestation author", limit_choices_to = {'groups__name': 'Tutor'}, on_delete=models.CASCADE)
 
-    public_comment = models.TextField(blank=True, help_text = _('Comment which is shown to the user.'))
-    private_comment = models.TextField(blank=True, help_text = _('Comment which is only visible to tutors'))
-    final_grade = models.ForeignKey('RatingScaleItem', null=True, help_text = _('The mark for the whole solution.'), on_delete=models.SET_NULL)
+    public_comment = models.TextField(blank=True, help_text = gettext_lazy('Comment which is shown to the user.'))
+    private_comment = models.TextField(blank=True, help_text = gettext_lazy('Comment which is only visible to tutors'))
+    final_grade = models.ForeignKey('RatingScaleItem', null=True, help_text = gettext_lazy('The mark for the whole solution.'), on_delete=models.SET_NULL)
 
-    final = models.BooleanField(default = False, help_text = _('Indicates whether the attestation is ready to be published'))
-    published = models.BooleanField(default = False, help_text = _('Indicates whether the user can see the attestation.'))
-    published_on = models.DateTimeField(blank=True, null=True, help_text = _('The Date/Time the attestation was published.'))
+    final = models.BooleanField(default = False, help_text = gettext_lazy('Indicates whether the attestation is ready to be published'))
+    published = models.BooleanField(default = False, help_text = gettext_lazy('Indicates whether the user can see the attestation.'))
+    published_on = models.DateTimeField(blank=True, null=True, help_text = gettext_lazy('The Date/Time the attestation was published.'))
 
     def publish(self, request, by):
         """ Publish attestation and send email to user """
@@ -58,7 +58,7 @@ class Attestation(models.Model):
             'by': by,
             'invisible_attestor': get_settings().invisible_attestor,
         }
-        subject = _("New attestation for your solution of the task '%s'") % self.solution.task
+        subject = gettext_lazy("New attestation for your solution of the task '%s'") % self.solution.task
         body = t.render(c)
         reply_to = ([self.author.email] if self.author.email and (not get_settings().invisible_attestor) else []) \
                  + ([get_settings().attestation_reply_to]  if get_settings().attestation_reply_to else [])
@@ -92,7 +92,7 @@ class Attestation(models.Model):
             'site_name': settings.SITE_NAME,
             'by': by,
         }
-        subject = _("Attestation for your solution of the task '%s' withdrawn") % self.solution.task
+        subject = gettext_lazy("Attestation for your solution of the task '%s' withdrawn") % self.solution.task
         body = t.render(c)
         recipients = emails[0:1]
         bcc_recipients = emails[1:]
@@ -191,7 +191,7 @@ class AnnotatedSolutionFile(models.Model):
     """"""
     attestation = models.ForeignKey(Attestation, on_delete=models.CASCADE)
     solution_file = models.ForeignKey(SolutionFile, on_delete=models.CASCADE)
-    content = models.TextField(help_text = _('The content of the solution file annotated by the tutor.'), blank = True)
+    content = models.TextField(help_text = gettext_lazy('The content of the solution file annotated by the tutor.'), blank = True)
 
     def has_anotations(self):
         original = self.solution_file.content().replace("\r\n", "\n").replace("\r", "\n")
@@ -210,15 +210,15 @@ class AnnotatedSolutionFile(models.Model):
 
 class RatingAspect(models.Model):
     """ describes a review aspect which the reviewer has to evaluate """
-    name = models.CharField(max_length=100, help_text = _('The Name of the Aspect to be rated. E.g.: "Readability"'))
-    description = models.TextField(help_text = _('Description of the Aspect and how it should be rated. E.w.: "How well is the code structured?"'))
+    name = models.CharField(max_length=100, help_text = gettext_lazy('The Name of the Aspect to be rated. E.g.: "Readability"'))
+    description = models.TextField(help_text = gettext_lazy('Description of the Aspect and how it should be rated. E.w.: "How well is the code structured?"'))
 
     def __str__(self):
         return self.name
 
 class RatingScale(models.Model):
     """ describes a scale upon which the reviewer rates the aspect """
-    name = models.CharField(max_length=100, help_text = _('The Name of the rating scale for the aspects. E.g.: "School marks"'))
+    name = models.CharField(max_length=100, help_text = gettext_lazy('The Name of the rating scale for the aspects. E.g.: "School marks"'))
 
     def __str__(self):
         return self.name
@@ -226,8 +226,8 @@ class RatingScale(models.Model):
 class RatingScaleItem(models.Model):
     """ lists all items(marks) of an rating scale"""
     scale = models.ForeignKey(RatingScale, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100, help_text = _('The Name of the item(mark) in the rating scale. E.g.: "A" or "very good" '))
-    position = models.PositiveSmallIntegerField(help_text = _('Defines the order in which the items are sorted. Lowest is best.'))
+    name = models.CharField(max_length=100, help_text = gettext_lazy('The Name of the item(mark) in the rating scale. E.g.: "A" or "very good" '))
+    position = models.PositiveSmallIntegerField(help_text = gettext_lazy('Defines the order in which the items are sorted. Lowest is best.'))
 
     class Meta:
         ordering = ['position']
@@ -255,7 +255,7 @@ class RatingResult(models.Model):
 
 class Script(models.Model):
     """ save java script function of the rating overview page """
-    script = models.TextField(blank=True, help_text = _("This JavaScript will calculate a recommend end note for every user based on final grade of every task."), default="""var sum = 0.0;\nfor (x = 0; x != grades.length; ++x) {\n    grade = parseFloat(grades[x]);\n    if (!isNaN(grade)) {\n        sum += grade;\n    }\n}\nresult=sum;""")
+    script = models.TextField(blank=True, help_text = gettext_lazy("This JavaScript will calculate a recommend end note for every user based on final grade of every task."), default="""var sum = 0.0;\nfor (x = 0; x != grades.length; ++x) {\n    grade = parseFloat(grades[x]);\n    if (!isNaN(grade)) {\n        sum += grade;\n    }\n}\nresult=sum;""")
 
 
 
