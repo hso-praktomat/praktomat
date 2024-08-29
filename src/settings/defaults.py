@@ -74,17 +74,7 @@ def load_defaults(settings):
     d.USE_I18N = True
 
     # Apps and plugins
-
-    rhtmp=()
-    # if Django_version  is ( 1.8, 1.9, 1.10, 1.11, 2.0)
-    # insert 'admin_view_permission' as first element in d.INSTALLED_APPS
-    from django import get_version as djv
-    from distutils.version import StrictVersion
-    if StrictVersion('1.8') <= StrictVersion(djv()) and StrictVersion(djv()) <= StrictVersion('2.0') :
-        rhtmp = (
-            'admin_view_permission',
-        )
-    d.INSTALLED_APPS = rhtmp + (
+    d.INSTALLED_APPS = (
         'django.contrib.auth',
         'django.contrib.contenttypes',
         'django.contrib.sessions',
