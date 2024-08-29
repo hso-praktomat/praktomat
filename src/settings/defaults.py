@@ -199,6 +199,8 @@ def load_defaults(settings):
 
     # Database
 
+    d.DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
     d.DATABASES = {
         'default': {
                 'ENGINE': 'django.db.backends.sqlite3',
