@@ -9,7 +9,7 @@ from __future__ import unicode_literals
 no_defaults = [ "SITE_NAME", "PRAKTOMAT_ID", "BASE_HOST", "BASE_PATH", "UPLOAD_ROOT", "PRIVATE_KEY", "CERTIFICATE"]
 
 import os
-from os.path import dirname, join
+from os.path import abspath, dirname, join
 import utilities.log_filter
 import collections
 
@@ -113,7 +113,18 @@ def load_defaults(settings):
         'accounts.middleware.DisclaimerAcceptanceMiddleware',
     ]
 
-    d.DEFAULT_FILE_STORAGE = 'utilities.storage.UploadStorage'
+    d.STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+            'OPTIONS': {
+                'location': abspath(UPLOAD_ROOT),
+                'base_url': f'{BASE_PATH}upload/',
+            }
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        }
+    }
 
     # URL and file paths
     # Template file path is set in template section
