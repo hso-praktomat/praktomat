@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from django.utils.translation import gettext_lazy
 from django.forms.models import ModelForm, inlineformset_factory, BaseInlineFormSet
 from django import forms

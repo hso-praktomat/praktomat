@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 AutoAttestChecker (based on code of S.B. (HBRS FB02,2013) updated by Robert Hartmann,HBRS FB02, 2013 - 2016,2020,2022)
 """

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from django.db import models
 from django.utils.translation import gettext_lazy
 from checker.models import Checker, CheckerResult, execute

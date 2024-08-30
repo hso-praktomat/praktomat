@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from random import randint
 from django.utils.translation import gettext_lazy
 from django.contrib import admin, messages

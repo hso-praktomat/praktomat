@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from django.contrib import admin
 from django.shortcuts import render
 from django.contrib.auth.admin import UserAdmin

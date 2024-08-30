@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Dump files containing input, expected output and the shell script running diff.
 """
