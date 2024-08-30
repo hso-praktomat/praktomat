@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 # This module collects all defaults settings for the praktomat
 # It exports one function, load_defaults, which will set the settings in the
 # parameter, but only if it is not already defined.

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from datetime import date, datetime, timedelta
 import tempfile
 import zipfile

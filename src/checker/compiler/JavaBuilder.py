@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 """
 A Java bytecode compiler for construction.
 """

@@ -1,6 +1,3 @@
-from __future__ import unicode_literals
-
-
 """
 Generate some simple lexical statistics.
 """

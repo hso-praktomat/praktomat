@@ -1,7 +1,3 @@
-from __future__ import unicode_literals
-
-
-
 import os
 from os.path import dirname, join
 from django.conf import settings

@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 import os
 from pipes import quote
 import re, subprocess

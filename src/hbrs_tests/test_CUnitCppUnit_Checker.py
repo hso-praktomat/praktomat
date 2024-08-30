@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from os.path import dirname, join
 from os import environ as os_environ
 

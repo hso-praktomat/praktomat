@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 # Settings for running the test-runner
 
 import locale

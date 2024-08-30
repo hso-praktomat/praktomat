@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 from utilities.TestSuite import TestCase
 
 from accounts.models import User

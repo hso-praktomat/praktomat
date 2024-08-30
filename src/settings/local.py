@@ -1,5 +1,3 @@
-from __future__ import unicode_literals
-
 # Settings for deployment
 
 # These settings are KIT-specific and derive some parts of the settings
