@@ -62,6 +62,8 @@ class Solution(models.Model):
         """Override save calculate the number on first save"""
         if self.number == None:
             self.number = (self.task.solution_set.filter(author=self.author).aggregate(Max('number'))['number__max'] or 0) + 1
+            if 'update_fields' in kwargs:
+                kwargs['update_fields'] = {'number'}.union(kwargs['update_fields'])
         if self.final:
             # delete old final flag if this is the new final solution
             self.task.solutions(self.author).update(final=False)
@@ -133,7 +135,7 @@ class SolutionFile(models.Model):
 
     ignorred_file_names_re = re.compile(regex)
 
-    def save(self, force_insert=False, force_update=False, using=None):
+    def save(self, *args, **kwargs):
         """ override save method to automatically expand zip files"""
         if self.file.name.upper().endswith('.ZIP'):
             zip = zipfile.ZipFile(self.file, 'r')
@@ -146,7 +148,9 @@ class SolutionFile(models.Model):
                     new_solution_file.file.save(zip_file_name, File(temp_file), save=True)        # need to check for filenames begining with / or ..?
         else:
             self.mime_type = guess_mime_type(self.file.name)
-            models.Model.save(self, force_insert, force_update, using)
+            if 'update_fields' in kwargs:
+                kwargs['update_fields'] = {'mime_type'}.union(kwargs['update_fields'])
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return self.file.name.rpartition('/')[2]

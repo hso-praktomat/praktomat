@@ -60,8 +60,8 @@ class MyRegistrationForm(UserBaseCreationForm):
 
 
     @transaction.atomic
-    def save(self):
-        user = super(MyRegistrationForm, self).save()
+    def save(self, *args, **kwargs):
+        user = super(MyRegistrationForm, self).save(*args, **kwargs)
 
         # default group: user
         user.groups.set(Group.objects.filter(name='User'))
