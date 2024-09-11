@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
-
 import os.path
 import os
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.core.exceptions import ValidationError
 from checker.basemodels import Checker
 from utilities.file_operations import *
@@ -16,7 +12,7 @@ from django.contrib import admin
 
 
 class KeepFileChecker(Checker):
-    filename = models.CharField(max_length=500, blank=True, help_text=_("The name of the file to preserve (e.g. out.txt)"))
+    filename = models.CharField(max_length=500, blank=True, help_text=gettext_lazy("The name of the file to preserve (e.g. out.txt)"))
 
     def title(self):
         return "Keep file %s" % self.filename

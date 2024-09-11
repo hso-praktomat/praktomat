@@ -1,5 +1,5 @@
 urllib3[secure]
-Django~=2.2;python_version>="3.5"
+Django~=5.1
 # M2Crypto # has been removed by commit "use hashlib+smime for upload verification mails instead of M2Crypto" (19.1.2018)
 Markdown
 # Warning: updating Pygments currently breaks the syntax highlighting for annotated solution files.
@@ -11,7 +11,7 @@ django-extensions
 # It appears that due to the pull-request https://github.com/aljosa/django-tinymce/pull/103 merged in django-tinymce==2.4.0, jquery is loaded after our onw jquery
 # loaded in admin-sites. Using an old version of django-tinymce (2.3.x) is not possible because it uses methods removed between Django 1.8 and 1.11.
 # We might want to use the django-admin provieded jquery in our admin-site jquery snippets?!?!?
-django-tinymce~=3.0;python_version>="3.6"
+django-tinymce~=4.1
 django-debug-toolbar
 docutils
 psycopg2-binary

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # SB HBRS
 from accounts.models import User
 from configuration import get_settings

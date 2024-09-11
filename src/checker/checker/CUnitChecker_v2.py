@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
-
 import re
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from checker.basemodels import Checker, CheckerResult, CheckerFileField, truncated_log, CheckerEnvironment
@@ -96,17 +94,17 @@ class CUnitChecker2(CheckerWithFile):
     # The fields created, task, public, required and always will be inherited from the abstract base class Checker
     _test_name = models.CharField(
             max_length=100,
-            help_text=_("The fully qualified name of the test case executable (with fileending like .exe or .out)"),
-            verbose_name=_("TestApp Filename"),
+            help_text=gettext_lazy("The fully qualified name of the test case executable (with fileending like .exe or .out)"),
+            verbose_name=gettext_lazy("TestApp Filename"),
         default=u"TestApp.out"
     )
     _test_ignore = models.CharField(max_length=4096,
-        help_text=_("Regular Expression for ignoring files while compile and link test-code.")+" <br> Play with  RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>",
+        help_text=gettext_lazy("Regular Expression for ignoring files while compile and link test-code.")+" <br> Play with  RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>",
         default=u"sorry, this feature doesn't work now", blank=True)
 
     _test_flags = models.CharField(max_length = 1000, blank = True,
         default=u"-Wall -Wextra -Wl,--warn-common",
-        help_text = _("Compiler and Linker flags for i.e. libraries used while generating TestApp. <br> Don't fill in cunit or cppunit here."))
+        help_text = gettext_lazy("Compiler and Linker flags for i.e. libraries used while generating TestApp. <br> Don't fill in cunit or cppunit here."))
 
     LINK_CHOICES = (
       (u'o', u'Link Trainers Test-Code with solution objects (*.o)'),
@@ -114,7 +112,7 @@ class CUnitChecker2(CheckerWithFile):
       (u'out', u'MUT: Link solution objects as seperate executable program (*.out, *.exe)'),
     )
     LINK_DICT = {u'out':u'-o' , u'so':u'-shared -fPIC -o' , u'o':u''}
-    link_type = models.CharField(max_length=16, choices=LINK_CHOICES,default="o", help_text = _('How to use solution submission in test-code?'))
+    link_type = models.CharField(max_length=16, choices=LINK_CHOICES,default="o", help_text = gettext_lazy('How to use solution submission in test-code?'))
 
 
     CUNIT_CHOICES = (
@@ -124,39 +122,39 @@ class CUnitChecker2(CheckerWithFile):
       ('cpp', u'CPP tests'),
     )
     CUNIT_DICT = {u'cunit':u'-lcunit' , u'cppunit':u'-lcppunit' , u'c':u'', u'cpp':u''}
-    cunit_version = models.CharField(max_length=16, choices=CUNIT_CHOICES,default="cunit", verbose_name=_("Unittest type or library"))
+    cunit_version = models.CharField(max_length=16, choices=CUNIT_CHOICES,default="cunit", verbose_name=gettext_lazy("Unittest type or library"))
 
 
     _test_par = models.CharField(max_length = 1000,
         default=u"",
-        help_text = _("Command line parameters for running TestApp"),
+        help_text = gettext_lazy("Command line parameters for running TestApp"),
         blank=True)
 
     #don't change next two variable names, they are fixed in checker-hierarchie
-    test_description = models.TextField(help_text = _("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
-    name = models.CharField(max_length=100, help_text=_("Name of the Testcase. To be displayed as title on Checker Results page"))
+    test_description = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
+    name = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
 
     _sol_name =  models.CharField(
             max_length=100,
-            help_text=_("Basisfilename ( = filename without fileending!) for interaction with  MUT (Module-Under-Test)<br>"
+            help_text=gettext_lazy("Basisfilename ( = filename without fileending!) for interaction with  MUT (Module-Under-Test)<br>"
             +"The fileending to use gets determined by your choosen Link type.<br>"
             ),
-        verbose_name=_("MUT Filename"),
+        verbose_name=gettext_lazy("MUT Filename"),
         default=u"Solution"
     )
     _sol_ignore = models.CharField(max_length=4096,
-        help_text=_("Regular Expression for ignoring files while compile CUT and link MUT.<br>"
+        help_text=gettext_lazy("Regular Expression for ignoring files while compile CUT and link MUT.<br>"
               +"CUT = Code Under Test - MUT = Module Under Test <br>"
                       +"Play with RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>"
                       ),
         default="sorry, this feature doesn't work now", blank=True,
-        verbose_name=_("MUT ignore files")
+        verbose_name=gettext_lazy("MUT ignore files")
     )
 
     _sol_flags = models.CharField(max_length = 1000, blank = True,
         default=u"-Wall -Wextra -Wl,--warn-common",
-        help_text = _("Compiler and Linker flags used while generating MUT (Module-under-Test)."),
-        verbose_name=_("MUT flags")
+        help_text = gettext_lazy("Compiler and Linker flags used while generating MUT (Module-under-Test)."),
+        verbose_name=gettext_lazy("MUT flags")
     )
 
     def all_own_sibling_instances_filenames(self, env):
@@ -424,7 +422,7 @@ class UnitCheckerCopyForm(AlwaysChangedModelForm):
                 if not force:
                     if not (filename == basename):
                         from django import forms
-                        myerrmsg="%s \n %s \n %s"%(_('You should check \"Filename\" value. The correct name could be: '), basename , _('But you can save your given name for renaming file: just continue.'))
+                        myerrmsg="%s \n %s \n %s"%(gettext_lazy('You should check \"Filename\" value. The correct name could be: '), basename , gettext_lazy('But you can save your given name for renaming file: just continue.'))
                         myerrmsg=mark_safe(format_html("%s %s"%(myerrmsg,
 							      '<input type="hidden" id="force_save" name="force_save" value="1" />' )))
                         self.add_error('filename',myerrmsg)

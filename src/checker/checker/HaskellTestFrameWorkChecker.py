@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
-
 import re
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from django.contrib import admin
 from django.template.loader import get_template
@@ -50,13 +46,13 @@ class TestOnlyBuildingBuilder(HaskellBuilder):
 class HaskellTestFrameWorkChecker(CheckerWithFile):
     """ Checker for Haskell TestFrameWork Tests. """
 
-    test_description = models.TextField(help_text = _("Description of the Testcase. To be displayed on Checker Results page when checker is unfolded."))
-    name = models.CharField(max_length=100, help_text=_("Name of the Testcase. To be displayed as title on Checker Results page"))
-    ignore = models.CharField(max_length=4096, help_text=_("space-separated list of files to be ignored during compilation"), default="", blank=True)
-    require_safe = models.BooleanField(default = True, help_text=_("Is a submission required to be Safe (according to GHCs Safe-Mode)?"))
+    test_description = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is unfolded."))
+    name = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
+    ignore = models.CharField(max_length=4096, help_text=gettext_lazy("space-separated list of files to be ignored during compilation"), default="", blank=True)
+    require_safe = models.BooleanField(default = True, help_text=gettext_lazy("Is a submission required to be Safe (according to GHCs Safe-Mode)?"))
 
     TESTCASE_CHOICES = ( ("DL", "Download-Link only"), ("NO", "Do not make the testcases source available"), ("FULL", "Also copy the source into the report"))
-    include_testcase_in_report = models.CharField(max_length=4, choices=TESTCASE_CHOICES, default = "DL", help_text=_("Make the testcases source available via the checkers result report?"))
+    include_testcase_in_report = models.CharField(max_length=4, choices=TESTCASE_CHOICES, default = "DL", help_text=gettext_lazy("Make the testcases source available via the checkers result report?"))
 
     _add_to_environment = False
 

@@ -11,7 +11,7 @@ from django.views.decorators.cache import cache_control
 from django.template import loader
 from django.conf import settings
 from django.core.mail import send_mail, get_connection , mail_admins
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.contrib.sites.requests import RequestSite
 
 
@@ -109,8 +109,8 @@ def solution_list(request, task_id, user_id=None):
                       'datetime' : dt_string,
                 }
                 #ToDo: change to send signed e-mails or unsigned e-mails depending on settings configuration
-                send_mail(_("%s submission failed") %settings.SITE_NAME, t.render(c),None, [request.user.email])
-                mail_admins(_("%s submission failed") %settings.SITE_NAME, t.render(c))
+                send_mail(gettext_lazy("%s submission failed") %settings.SITE_NAME, t.render(c),None, [request.user.email])
+                mail_admins(gettext_lazy("%s submission failed") %settings.SITE_NAME, t.render(c))
                 raise inst
 
             #run_all_checker = bool(User.objects.filter(id=user_id, tutorial__tutors__pk=request.user.id) or request.user.is_trainer)
@@ -156,13 +156,13 @@ def solution_list(request, task_id, user_id=None):
                         [signed_mail, __, __, __, __]  = execute_arglist(["openssl", "smime", "-sign", "-signer", settings.CERTIFICATE, "-inkey", settings.PRIVATE_KEY, "-in", tmp.name], ".", environment_variables=environ, unsafe=True)
 
                     connection = get_connection()
-                    message = ConfirmationMessage(_("%s submission confirmation") % settings.SITE_NAME, signed_mail, None, [solution.author.email], connection=connection)
+                    message = ConfirmationMessage(gettext_lazy("%s submission confirmation") % settings.SITE_NAME, signed_mail, None, [solution.author.email], connection=connection)
                     if solution.author.email:
                          message.send() # any PY2-PY3 problem in here ?
 
                 else: #we are sending unsigned email
                     if solution.author.email:
-                         send_mail(_("%s submission confirmation") % settings.SITE_NAME, t.render(c), None, [solution.author.email])
+                         send_mail(gettext_lazy("%s submission confirmation") % settings.SITE_NAME, t.render(c), None, [solution.author.email])
 
             return HttpResponseRedirect(reverse('solution_detail', args=[solution.id]))
     else:

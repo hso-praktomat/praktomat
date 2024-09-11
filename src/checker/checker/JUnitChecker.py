@@ -1,11 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
-
 import re
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from checker.basemodels import Checker, CheckerResult, CheckerFileField, truncated_log
 from checker.admin import    CheckerInline, AlwaysChangedModelForm
@@ -36,11 +32,11 @@ class JUnitChecker(Checker):
     # The fields created, task, public, required and always will be inherited from the abstract base class Checker
     class_name = models.CharField(
             max_length=100,
-            help_text=_("The fully qualified name of the test case class (without .class)")
+            help_text=gettext_lazy("The fully qualified name of the test case class (without .class)")
         )
-    test_description = models.TextField(help_text = _("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
-    name = models.CharField(max_length=100, help_text=_("Name of the Testcase. To be displayed as title on Checker Results page"))
-    ignore = models.CharField(max_length=4096, help_text=_("space-separated list of files to be ignored during compilation, i.e.: these files will not be compiled."), default="", blank=True)
+    test_description = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
+    name = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
+    ignore = models.CharField(max_length=4096, help_text=gettext_lazy("space-separated list of files to be ignored during compilation, i.e.: these files will not be compiled."), default="", blank=True)
 
     JUNIT_CHOICES = (
       ('junit4', 'JUnit 4'),

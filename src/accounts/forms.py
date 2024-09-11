@@ -6,7 +6,7 @@ import re
 from django.conf import settings
 from django.db import models, transaction
 from django.template import loader
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.contrib.auth.models import Group
 from django import forms
 from django.contrib.auth.forms import UserCreationForm as UserBaseCreationForm, UserChangeForm as UserBaseChangeForm
@@ -60,8 +60,8 @@ class MyRegistrationForm(UserBaseCreationForm):
 
 
     @transaction.atomic
-    def save(self):
-        user = super(MyRegistrationForm, self).save()
+    def save(self, *args, **kwargs):
+        user = super(MyRegistrationForm, self).save(*args, **kwargs)
 
         # default group: user
         user.groups.set(Group.objects.filter(name='User'))
@@ -89,13 +89,13 @@ class MyRegistrationForm(UserBaseCreationForm):
 
         if get_settings().account_manual_validation:
             t = loader.get_template('registration/registration_email_manual_to_staff.html')
-            send_mail(_("Account activation on %s for %s (%s) ") % (settings.SITE_NAME, user.username, str(user)), t.render(c), None, [staff.email for staff in User.objects.all().filter(is_staff=True)])
+            send_mail(gettext_lazy("Account activation on %s for %s (%s) ") % (settings.SITE_NAME, user.username, str(user)), t.render(c), None, [staff.email for staff in User.objects.all().filter(is_staff=True)])
 
             t = loader.get_template('registration/registration_email_manual_to_user.html')
-            send_mail(_("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
+            send_mail(gettext_lazy("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
         else:
             t = loader.get_template('registration/registration_email.html')
-            send_mail(_("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
+            send_mail(gettext_lazy("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
 
         return user
 

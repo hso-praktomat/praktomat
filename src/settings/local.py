@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 # Settings for deployment
 
 # These settings are KIT-specific and derive some parts of the settings
@@ -146,7 +143,7 @@ DEBUG = MIRROR
 
 DATABASES = {
     'default': {
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+            'ENGINE': 'django.db.backends.postgresql',
             'NAME':   'praktomat_'+PRAKTOMAT_ID,
             'USER':   'the given username at database creation time',
             'PASSWORD':   'your given password at database creation time',

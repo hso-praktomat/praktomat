@@ -1,12 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import os
 from pipes import quote
 import re, subprocess
 import shlex
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from django.template.loader import get_template
 
@@ -27,7 +24,7 @@ class MainNeedHelper(models.Model):
         abstract = True
 
     # elements for using via django admin webinterface
-    _main_required    = models.BooleanField(default = True, help_text = _('Is a submission required to provide a main method or function?'))
+    _main_required    = models.BooleanField(default = True, help_text = gettext_lazy('Is a submission required to provide a main method or function?'))
 
     def main_required(self):
         """ Returns true, if Trainer has choosen, that a submission have to provide a main. """
@@ -55,7 +52,7 @@ class LibraryHelper(models.Model):
         abstract = True
 
     # elements for using via django admin webinterface
-    _libs        = models.CharField(max_length = 1000, blank = True, default = "", help_text = _('flags for libraries like \'-lm \' as math library for C'))
+    _libs        = models.CharField(max_length = 1000, blank = True, default = "", help_text = gettext_lazy('flags for libraries like \'-lm \' as math library for C'))
 
     def libs(self):
         """ returns flags for compiler or linker interaction with libraries. To be overloaded in subclasses. """
@@ -70,7 +67,7 @@ class IncludeHelper(models.Model):
         abstract = True
 
     # elements for using via django admin webinterface
-    _search_path    = models.CharField(max_length = 1000, blank = True, default = "", help_text = _('flags for additional search path for compiler or linker '))
+    _search_path    = models.CharField(max_length = 1000, blank = True, default = "", help_text = gettext_lazy('flags for additional search path for compiler or linker '))
 
     def search_path(self):
         """ returns flags for additional search path for compiler or linker interaction. To be overloaded in subclasses. """
@@ -96,8 +93,8 @@ class CompilerOrLinker(Checker, IncludeHelper):
     __runner    = "__runner_to_be_defined_via__fetch_runner"
 
     # elements for using via django admin webinterface
-    _flags        = models.CharField(max_length = 1000, blank = True, default="-Wall -Wextra", help_text = _('Compiler or Linker flags'))
-    _file_pattern    = models.CharField(max_length = 1000, default = r"^[a-zA-Z0-9_]*$", help_text = _('Regular expression describing all source files to be passed to the compiler or linker. (Play with  RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>'))
+    _flags        = models.CharField(max_length = 1000, blank = True, default="-Wall -Wextra", help_text = gettext_lazy('Compiler or Linker flags'))
+    _file_pattern    = models.CharField(max_length = 1000, default = r"^[a-zA-Z0-9_]*$", help_text = gettext_lazy('Regular expression describing all source files to be passed to the compiler or linker. (Play with  RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>'))
 
 
 
@@ -272,7 +269,7 @@ class Compiler(CompilerOrLinker):
     # builder configuration. override in subclass
     _compiler    = "compiler_configurable"        # command to invoce the compiler in the shell
 
-    _output_flags    = models.CharField(max_length = 1000, blank = True, default ="-c -g -O0", help_text = _('Output flags. \'%s\' will be replaced by the program name.'))
+    _output_flags    = models.CharField(max_length = 1000, blank = True, default ="-c -g -O0", help_text = gettext_lazy('Output flags. \'%s\' will be replaced by the program name.'))
 
     def compiler(self):
         return self._compiler
@@ -314,10 +311,10 @@ class Linker(CompilerOrLinker):
     )
 
     _LINK_DICT = {u'out': u'-o', u'so': u'-shared -fPIC -o'}
-    _output_flags = models.CharField(max_length=16, choices=_LINK_CHOICES,default="-o %s", help_text = _('choose link output type. \'%s\' will replaced by output_name. '))
+    _output_flags = models.CharField(max_length=16, choices=_LINK_CHOICES,default="-o %s", help_text = gettext_lazy('choose link output type. \'%s\' will replaced by output_name. '))
 
 
-    _output_name = models.CharField(max_length=16, default="%s", help_text = _('choose a outputname. \'%s\' will be replaced by an internal default name.'))
+    _output_name = models.CharField(max_length=16, default="%s", help_text = gettext_lazy('choose a outputname. \'%s\' will be replaced by an internal default name.'))
 
 
     def linker(self):
@@ -358,11 +355,11 @@ class Builder(Checker):
     _env                            = {}
 
 
-    _flags              = models.CharField(max_length = 1000, blank = True, default="-Wall", help_text = _('Compiler flags'))
-    _output_flags      = models.CharField(max_length = 1000, blank = True, default ="-o %s", help_text = _('Output flags. \'%s\' will be replaced by the program name.'))
-    _libs              = models.CharField(max_length = 1000, blank = True, default = "", help_text = _('Compiler libraries'))
-    _file_pattern      = models.CharField(max_length = 1000, default = r"^[a-zA-Z0-9_]*$", help_text = _('Regular expression describing all source files to be passed to the compiler.'))
-    _main_required    = models.BooleanField(default = True, help_text = _('Is a submission required to provide a main method?'))
+    _flags              = models.CharField(max_length = 1000, blank = True, default="-Wall", help_text = gettext_lazy('Compiler flags'))
+    _output_flags      = models.CharField(max_length = 1000, blank = True, default ="-o %s", help_text = gettext_lazy('Output flags. \'%s\' will be replaced by the program name.'))
+    _libs              = models.CharField(max_length = 1000, blank = True, default = "", help_text = gettext_lazy('Compiler libraries'))
+    _file_pattern      = models.CharField(max_length = 1000, default = r"^[a-zA-Z0-9_]*$", help_text = gettext_lazy('Regular expression describing all source files to be passed to the compiler.'))
+    _main_required    = models.BooleanField(default = True, help_text = gettext_lazy('Is a submission required to provide a main method?'))
 
     def title(self):
         return "%s - Compiler" % self.language()

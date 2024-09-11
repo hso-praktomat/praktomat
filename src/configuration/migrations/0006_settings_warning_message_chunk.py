@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-
-
 from django.db import migrations, models
 
 def settings_warning_message_chunk(apps, schema_editor):

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 Dump files containing input, expected output and the shell script running diff.
 """
@@ -9,7 +7,7 @@ import os, re
 import os.path
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 #from django.utils.encoding import force_unicode
 from checker.basemodels import Checker, CheckerFileField, CheckerResult, truncated_log
@@ -22,9 +20,9 @@ from utilities.file_operations import *
 
 class DiffChecker(Checker):
 
-    shell_script = CheckerFileField(help_text=_("The shell script whose output for the given input file is compared to the given output file: The substrings JAVA and PROGRAM got replaced by Praktomat determined values."))
-    input_file = CheckerFileField(blank=True, help_text=_("The file containing the input for the program."))
-    output_file = CheckerFileField(blank=True, help_text=_("The file containing the output for the program."))
+    shell_script = CheckerFileField(help_text=gettext_lazy("The shell script whose output for the given input file is compared to the given output file: The substrings JAVA and PROGRAM got replaced by Praktomat determined values."))
+    input_file = CheckerFileField(blank=True, help_text=gettext_lazy("The file containing the input for the program."))
+    output_file = CheckerFileField(blank=True, help_text=gettext_lazy("The file containing the output for the program."))
 
 
     def clean(self):

@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 # This module collects all defaults settings for the praktomat
 # It exports one function, load_defaults, which will set the settings in the
 # parameter, but only if it is not already defined.
@@ -9,7 +6,7 @@ from __future__ import unicode_literals
 no_defaults = [ "SITE_NAME", "PRAKTOMAT_ID", "BASE_HOST", "BASE_PATH", "UPLOAD_ROOT", "PRIVATE_KEY", "CERTIFICATE"]
 
 import os
-from os.path import dirname, join
+from os.path import abspath, dirname, join
 import utilities.log_filter
 import collections
 
@@ -54,6 +51,7 @@ def load_defaults(settings):
     # If running in a Windows environment this must be set to the same as your
     # system time zone.
     d.TIME_ZONE = 'Europe/Berlin'
+    d.USE_TZ = False
 
     # Language code for this installation. All choices can be found here:
     # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -74,17 +72,7 @@ def load_defaults(settings):
     d.USE_I18N = True
 
     # Apps and plugins
-
-    rhtmp=()
-    # if Django_version  is ( 1.8, 1.9, 1.10, 1.11, 2.0)
-    # insert 'admin_view_permission' as first element in d.INSTALLED_APPS
-    from django import get_version as djv
-    from distutils.version import StrictVersion
-    if StrictVersion('1.8') <= StrictVersion(djv()) and StrictVersion(djv()) <= StrictVersion('2.0') :
-        rhtmp = (
-            'admin_view_permission',
-        )
-    d.INSTALLED_APPS = rhtmp + (
+    d.INSTALLED_APPS = (
         'django.contrib.auth',
         'django.contrib.contenttypes',
         'django.contrib.sessions',
@@ -123,7 +111,18 @@ def load_defaults(settings):
         'accounts.middleware.DisclaimerAcceptanceMiddleware',
     ]
 
-    d.DEFAULT_FILE_STORAGE = 'utilities.storage.UploadStorage'
+    d.STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+            'OPTIONS': {
+                'location': abspath(UPLOAD_ROOT),
+                'base_url': f'{BASE_PATH}upload/',
+            }
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        }
+    }
 
     # URL and file paths
     # Template file path is set in template section
@@ -208,6 +207,8 @@ def load_defaults(settings):
     ]
 
     # Database
+
+    d.DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
     d.DATABASES = {
         'default': {
@@ -470,7 +471,7 @@ def load_defaults(settings):
 
 # Always show toolbar (if DEBUG is true)
 def show_toolbar(request):
-    if request.is_ajax():
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return False
 
     # return True here to enable the debug toolbar

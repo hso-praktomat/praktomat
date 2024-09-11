@@ -1,12 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
-
 """
 A C++ compiler for construction.
 """
 
-from django.utils.translation import ugettext_lazy as _
 from checker.compiler.Builder import Compiler
 from django.conf import settings
 

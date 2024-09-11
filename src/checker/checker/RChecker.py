@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
-
 from pipes import quote
 import shutil, os, re, subprocess
 from django.conf import settings
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 from checker.basemodels import Checker, CheckerFileField
 from utilities.safeexec import execute_arglist
@@ -15,14 +11,14 @@ from utilities.file_operations import *
 
 
 class RChecker(Checker):
-    r_script = models.CharField(max_length=100, help_text=_("R script to execute. If left blank, it will run any *.R file, as long as there is only one."), blank=True)
+    r_script = models.CharField(max_length=100, help_text=gettext_lazy("R script to execute. If left blank, it will run any *.R file, as long as there is only one."), blank=True)
     require_plots = models.BooleanField(
         default = False,
-        help_text = _("Require the script to create an Rplots.pdf file.")
+        help_text = gettext_lazy("Require the script to create an Rplots.pdf file.")
         )
     keep_plots = models.BooleanField(
         default = True,
-        help_text = _("If the R script creates a Rplots.pdf file, keep it.")
+        help_text = gettext_lazy("If the R script creates a Rplots.pdf file, keep it.")
         )
 
 

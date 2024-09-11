@@ -10,9 +10,9 @@ Resources
 * Running Checkers for Praktomat with docker: https://github.com/hso-praktomat/praktomat-checkers
 * Moderated [mailing list] for Praktomat administrators: praktomat-users@lists.kit.edu.
 
-Python 3.8
+Python 3.10
 ==========
-  The Praktomat currently requires at least Python 3.8. Older versions of Python may or may not work. Use them at your own risk.
+  The Praktomat currently requires at least Python 3.10. Older versions of Python may or may not work. Use them at your own risk.
 
   On Ubuntu 22.04, Python 3.10 is available by default,
   but you may need to additionaly install the packages

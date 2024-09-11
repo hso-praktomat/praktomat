@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 from django.db import models
 
 # We create a model for an unmanaged database view: The database view gets constructed by RAW-SQL commands inside Praktomat/src/statistics/migrations/0001_initial.py

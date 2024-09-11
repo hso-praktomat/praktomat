@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals
-
-
 import datetime
 import re
 import hashlib
@@ -10,7 +5,7 @@ import random
 
 from functools import reduce
 
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.conf import settings
 from django.db import models, utils
 from django.contrib.auth.models import User as BasicUser, UserManager
@@ -33,12 +28,12 @@ def validate_mat_number(value):
 
 class User(BasicUser):
     # all fields need to be null-able in order to create user
-    tutorial = models.ForeignKey('Tutorial', on_delete=models.SET_NULL, null=True, blank=True, help_text = _("The tutorial the student belongs to."))
+    tutorial = models.ForeignKey('Tutorial', on_delete=models.SET_NULL, null=True, blank=True, help_text = gettext_lazy("The tutorial the student belongs to."))
     mat_number = models.IntegerField( null=True, blank=True, validators=[validate_mat_number]) # special blank and unique validation in forms
-    final_grade = models.CharField( null=True, blank=True, max_length=100,  help_text = _('The final grade for the whole class.'))
-    programme = models.CharField(null=True, blank=True, max_length=100, help_text = _('The programme the student is enlisted in.'))
-    activation_key=models.CharField(_('activation key'), max_length=40, editable=False)
-    user_text=models.CharField(null=True, blank=True, max_length=500, help_text = _("Custom text which will be shown to this student."))
+    final_grade = models.CharField( null=True, blank=True, max_length=100,  help_text = gettext_lazy('The final grade for the whole class.'))
+    programme = models.CharField(null=True, blank=True, max_length=100, help_text = gettext_lazy('The programme the student is enlisted in.'))
+    activation_key=models.CharField(gettext_lazy('activation key'), max_length=40, editable=False)
+    user_text=models.CharField(null=True, blank=True, max_length=500, help_text = gettext_lazy("Custom text which will be shown to this student."))
     accepted_disclaimer=models.BooleanField(default=False, help_text="Whether the user accepted the disclaimer.")
 
     # Use UserManager to get the create_user method, etc.
@@ -221,13 +216,13 @@ def create_user_for_basicuser(sender, **kwargs):
 signals.post_save.connect(create_user_for_basicuser, sender=BasicUser)
 
 class Tutorial(models.Model):
-    name = models.CharField(max_length=100, blank=True, help_text=_("The name of the tutorial"))
+    name = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the tutorial"))
     # A Tutorial may have many tutors as well as a Tutor may have multiple tutorials
-    tutors = models.ManyToManyField('User', limit_choices_to = {'groups__name': 'Tutor'}, related_name='tutored_tutorials', help_text = _("The tutors in charge of the tutorial."))
+    tutors = models.ManyToManyField('User', limit_choices_to = {'groups__name': 'Tutor'}, related_name='tutored_tutorials', help_text = gettext_lazy("The tutors in charge of the tutorial."))
 
     def tutors_flat(self):
         return reduce(lambda x, y: x + ', ' + y.get_full_name(), self.tutors.all(), '')[2:]
-    tutors_flat.short_description = _('Tutors')
+    tutors_flat.short_description = gettext_lazy('Tutors')
 
     def __str__(self):
         return("%s: %s" % (self.name, self.tutors_flat()))

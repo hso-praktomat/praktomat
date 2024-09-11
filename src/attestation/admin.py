@@ -80,8 +80,8 @@ class AttestationAdmin(admin.ModelAdmin):
     def get_urls(self):
         """ Add URL to Attestation update """
         urls = super(AttestationAdmin, self).get_urls()
-        from django.conf.urls import url
-        my_urls = [url(r'^update/$', attestation.views.update_attestations, name='attestation_update')]
+        from django.urls import re_path
+        my_urls = [re_path(r'^update/$', attestation.views.update_attestations, name='attestation_update')]
         return my_urls + urls
 
     def has_add_permission(self, request):

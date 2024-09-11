@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 # Settings for development in the source tree
 
 from os.path import join, dirname
@@ -66,7 +63,7 @@ DATABASES = {
 #overwrite to use the same settings from local.py
 #DATABASES = {
 #    'default': {
-#            'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#            'ENGINE': 'django.db.backends.postgresql',
 #            'NAME':   'praktomat_'+PRAKTOMAT_ID,
 #            'USER':   'the given username at database creation time',
 #            'PASSWORD':   'your given password at database creation time',

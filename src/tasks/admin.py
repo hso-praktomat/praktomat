@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from django.contrib import admin
 from django.shortcuts import render
 from django.contrib.auth.admin import UserAdmin
@@ -133,7 +131,7 @@ class TaskAdmin(admin.ModelAdmin):
         from django.contrib.sites.requests import RequestSite
         from django.conf import settings
         from django.core.mail import send_mail
-        from django.utils.translation import ugettext_lazy as _
+        from django.utils.translation import gettext_lazy
         myRequestUser = User.objects.filter(id=request.user.id)
         allstart = timer()
         task_set = queryset
@@ -190,11 +188,11 @@ class TaskAdmin(admin.ModelAdmin):
                                         'request_user': myRequestUser,
                 }
                 if request.user.email and latestfailed_user_solution.author.email:
-                    send_mail(_("[%s] lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [request.user.email, latestfailed_user_solution.author.email])
+                    send_mail(gettext_lazy("[%s] lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [request.user.email, latestfailed_user_solution.author.email])
                 elif request.user.email and not latestfailed_user_solution.author.email:
-                    send_mail(_("[%s] lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [request.user.email])
+                    send_mail(gettext_lazy("[%s] lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [request.user.email])
                 elif not request.user.email and latestfailed_user_solution.author.email:
-                    send_mail(_("%s lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [latestfailed_user_solution.author.email])
+                    send_mail(gettext_lazy("%s lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [latestfailed_user_solution.author.email])
             end = timer()
             self.message_user(request, "Task %s : Checked %d authors lost their finals: LoopTimer: %d seconds elapsed "%(task.title, len(users_missing_in_new_final_solution),(end-start)),"warning")
         allend = timer()
@@ -230,8 +228,8 @@ class TaskAdmin(admin.ModelAdmin):
     def get_urls(self):
         """ Add URL to task import """
         urls = super(TaskAdmin, self).get_urls()
-        from django.conf.urls import url
-        my_urls = [url(r'^import/$', tasks.views.import_tasks, name='task_import')]
+        from django.urls import re_path
+        my_urls = [re_path(r'^import/$', tasks.views.import_tasks, name='task_import')]
         return my_urls + urls
 
     def attestations_url(self, task):

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 """
 AutoAttestChecker (based on code of S.B. (HBRS FB02,2013) updated by Robert Hartmann,HBRS FB02, 2013 - 2016,2020,2022)
 """
@@ -7,7 +5,7 @@ import os, re
 import os.path
 
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy
 from django.utils.html import escape
 #from django.utils.encoding import force_unicode
 from checker.basemodels import Checker, CheckerFileField, CheckerResult, truncated_log
@@ -22,10 +20,10 @@ from datetime import datetime
 class AutoAttestChecker(Checker):
 
     author = models.ForeignKey(User, verbose_name="attestation author", limit_choices_to = {'groups__name': 'Tutor'}, on_delete=models.SET_NULL, null=True, blank=True)
-    public_comment = models.TextField(blank=True, help_text = _('Comment which is shown to the user.'))
-    private_comment = models.TextField(blank=True, help_text = _('Comment which is only visible to tutors'))
-    final = models.BooleanField(default = True, help_text = _('Indicates whether the attestation is ready to be published'))
-    published = models.BooleanField(default = True, help_text = _('Indicates whether the user can see the attestation.'))
+    public_comment = models.TextField(blank=True, help_text = gettext_lazy('Comment which is shown to the user.'))
+    private_comment = models.TextField(blank=True, help_text = gettext_lazy('Comment which is only visible to tutors'))
+    final = models.BooleanField(default = True, help_text = gettext_lazy('Indicates whether the attestation is ready to be published'))
+    published = models.BooleanField(default = True, help_text = gettext_lazy('Indicates whether the user can see the attestation.'))
 
     def __init__(self, *args, **kwargs):
         super(AutoAttestChecker, self).__init__(*args, **kwargs)

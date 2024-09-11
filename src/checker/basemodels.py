@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import os.path
 import shutil
 import sys
@@ -12,8 +9,8 @@ from tasks.models import Task
 from solutions.models import Solution
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
-from django.utils.translation import ugettext_lazy as _
-from django.utils.encoding import force_text
+from django.utils.translation import gettext_lazy
+from django.utils.encoding import force_str
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.db.models.signals import post_delete
@@ -62,14 +59,14 @@ class Checker(models.Model):
     starts the complete rerun of all Checkers. """
 
     created = models.DateTimeField(auto_now_add=True)
-    order = models.IntegerField(help_text = _('Determines the order in which the checker will start. Not necessary continuously!'))
+    order = models.IntegerField(help_text = gettext_lazy('Determines the order in which the checker will start. Not necessary continuously!'))
 
     task = models.ForeignKey(Task, on_delete=models.CASCADE)
 
-    public = models.BooleanField(default=True, help_text = _('Test results are displayed to the submitter.'))
-    required = models.BooleanField(default=False, help_text = _('The test must be passed to submit the solution.'))
-    always = models.BooleanField(default=True, help_text = _('The test will run on submission time.'))
-    critical = models.BooleanField(default=False, help_text = _('If this test fails, do not display further test results.'))
+    public = models.BooleanField(default=True, help_text = gettext_lazy('Test results are displayed to the submitter.'))
+    required = models.BooleanField(default=False, help_text = gettext_lazy('The test must be passed to submit the solution.'))
+    always = models.BooleanField(default=True, help_text = gettext_lazy('The test will run on submission time.'))
+    critical = models.BooleanField(default=False, help_text = gettext_lazy('If this test fails, do not display further test results.'))
 
     results = GenericRelation("CheckerResult") # enables cascade on delete.
 
@@ -195,7 +192,7 @@ def truncated_log(log):
     log_length = len(log)
     if log_length > settings.TEST_MAXLOGSIZE*1024:
         # since we might be truncating utf8 encoded strings here, result may be erroneous, so we explicitly replace faulty byte tokens
-        return (force_text('======= Warning: Output too long, hence truncated ======\n' + log[0:(settings.TEST_MAXLOGSIZE*1024)//2] + "\n...\n...\n...\n...\n" + log[log_length-((settings.TEST_MAXLOGSIZE*1024)//2):], errors='replace'), True)
+        return (force_str('======= Warning: Output too long, hence truncated ======\n' + log[0:(settings.TEST_MAXLOGSIZE*1024)//2] + "\n...\n...\n...\n...\n" + log[log_length-((settings.TEST_MAXLOGSIZE*1024)//2):], errors='replace'), True)
     return (log, False)
 
 
@@ -213,11 +210,11 @@ class CheckerResult(models.Model):
     object_id = models.PositiveIntegerField()
     checker = GenericForeignKey('content_type', 'object_id')
 
-    passed = models.BooleanField(default=True,  help_text=_('Indicates whether the test has been passed'))
-    passed_with_warning = models.BooleanField(default=False, help_text=_('Indicates whether the test has been passed with a warning'))
-    log = models.TextField(help_text=_('Text result of the checker'))
+    passed = models.BooleanField(default=True,  help_text=gettext_lazy('Indicates whether the test has been passed'))
+    passed_with_warning = models.BooleanField(default=False, help_text=gettext_lazy('Indicates whether the test has been passed with a warning'))
+    log = models.TextField(help_text=gettext_lazy('Text result of the checker'))
     creation_date = models.DateTimeField(auto_now_add=True)
-    runtime = models.IntegerField(default=0, help_text=_('Runtime in milliseconds'))
+    runtime = models.IntegerField(default=0, help_text=gettext_lazy('Runtime in milliseconds'))
 
     def title(self):
         """ Returns the title of the Checker that did run. """
@@ -284,7 +281,7 @@ class CheckerResultArtefact(models.Model):
     file = models.FileField(
         upload_to = get_checkerresultartefact_upload_path,
         max_length=500,
-        help_text = _('Artefact produced by a checker')
+        help_text = gettext_lazy('Artefact produced by a checker')
         )
 
     def __str__(self):
@@ -411,9 +408,9 @@ def run_checks(solution, env, run_all):
                               'errormsg' : myerrmsg,
                               'datetime' : dt_string,
                         }
-                        mail_admins(_("%s : checker in %s failed")%(settings.SITE_NAME, myTask), plaintext.render(c),html_message=htmly.render(c))
+                        mail_admins(gettext_lazy("%s : checker in %s failed")%(settings.SITE_NAME, myTask), plaintext.render(c),html_message=htmly.render(c))
                         if settings.DEBUG :
-                            print (_("%s : checker in %s failed \n %s")%(settings.SITE_NAME, myTask, plaintext.render(c)))
+                            print (gettext_lazy("%s : checker in %s failed \n %s")%(settings.SITE_NAME, myTask, plaintext.render(c)))
                         #raise
             else:
                 # make non passed result
