@@ -45,6 +45,7 @@ class TaskAdmin(admin.ModelAdmin):
                             'only_trainers_publish',
                             'warning_threshold',
                             'useful_links',
+                            'custom_id'
                         )
         }),
     )

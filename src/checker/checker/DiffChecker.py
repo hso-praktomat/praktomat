@@ -73,6 +73,7 @@ class DiffChecker(Checker):
         environ['USER'] = env.user().username # gets overwritten with praktomat-test-user's name, therefore:
         environ['AUTHOR'] = env.solution().author.username # will not be overwritten!
         environ['HOME'] = test_dir
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
 
         script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),'scripts')
 

@@ -184,7 +184,7 @@ SYSADMIN_MOTD_URL = "https://praktomat.cs.kit.edu/sysadmin_motd.html"
 USEPRAKTOMATTESTER = False
 
 # It is recomendet to use DOCKER and not a tester account
-# for using Docker from https://github.com/nomeata/safe-docker
+
 # Use docker to test submission
 USESAFEDOCKER = True
 
@@ -199,15 +199,11 @@ USESAFEDOCKER = True
 # "_www		ALL=(tester) NOPASSWD: ALL"
 # "developer	ALL=(tester) NOPASSWD: ALL"
 
-# Add the following lines to the end of the file
-# to allow user Praktomat the execution of scriptfile  safe-docker  without requiring a password:
-# "praktomat	ALL= NOPASSWD: /usr/local/bin/safe-docker"
-
 # If you want to switch between "testuser" and "Docker"
 # use "sudo visudo -f /etc/sudoers.d/praktomat-tester"
 # "_www		ALL=(tester) NOPASSWD: ALL"
 # "developer	ALL=(tester) NOPASSWD: ALL"
-# "praktomat 	ALL=(tester) NOPASSWD: ALL, NOPASSWD: /usr/local/bin/safe-docker"
+# "praktomat 	ALL=(tester) NOPASSWD: ALL"
 #
 # be sure that you change file permission
 # sudo chown praktomat:tester praktomat/src/checker/scripts/java

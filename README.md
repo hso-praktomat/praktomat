@@ -428,8 +428,8 @@ submissions from the system:
    sudo usermod tester -a -G praktomat
    sudo usermod www-data -a -G praktomat
    ```
- * With `USESAFEDOCKER = True`, external commands are prefixed with
-   `safe-docker`, which you need to have installed. You can find it in the `scripts` directory of this repository.
+ * With `USESAFEDOCKER = True`, external commands are run using Docker in an
+   encapsulated environment.
 
    For this to work you need to have a docker image named `safe-docker`
    installed, which needs to have all required dependencies installed. A
@@ -441,7 +441,7 @@ submissions from the system:
 
 We recommend `USESAFEDOCKER`, as that is what we test in practice.
 
-When using `safe-docker` while Praktomat itself is already running inside a Docker container, you need to have a BusyBox image available. It is required for some temporary containers.
+If you are using Docker to run external commands and Praktomat itself is already running inside a Docker container, you need to have a BusyBox image available. It is required for some temporary containers.
 
 The Praktomat tries to limit the resources available to the student submissions:
 

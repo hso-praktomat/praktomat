@@ -32,6 +32,7 @@ class ClassFileGeneratingBuilder(Builder):
                     environ=self.environment()
                     environ['LANG'] = settings.LANG
                     environ['LANGUAGE'] = settings.LANGUAGE
+                    environ['TASK_ID_CUSTOM'] = env.task().custom_id
                     [classinfo, _, _, _, _]  = execute_arglist([settings.JAVAP, os.path.join(dirpath, filename)], env.tmpdir(), environ, unsafe=True)
                     if classinfo.find(main_method) >= 0 or classinfo.find(main_method_varargs) >= 0:
                         main_class_name = class_name.search(classinfo, re.MULTILINE).group(5)

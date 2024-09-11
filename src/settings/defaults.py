@@ -298,17 +298,9 @@ def load_defaults(settings):
     # insulation. Should not be used together with USEPRAKTOMATTESTER.
 
     # It is recomended to use DOCKER and not a tester account
-    # for using Docker from https://github.com/nomeata/safe-docker
-    # Use docker to test submission
 
-    # To allow Praktomat the execution of scriptfile  safe-docker  without requiring a password:
-    # "praktomat	ALL= NOPASSWD: /usr/local/bin/safe-docker"
-
+    # Whether to use (safe) Docker or not
     d.USESAFEDOCKER = False
-
-    # The path where the safe-docker script is located
-    # By default, it is assumed to be accessible through your PATH.
-    d.SAFE_DOCKER_PATH = "safe-docker"
 
     # The name of the Docker image to use for executing checkers
     d.DOCKER_IMAGE_NAME = "safe-docker"
@@ -322,6 +314,8 @@ def load_defaults(settings):
 
     # The path which to additionally mount into the checker container
     # If this is set to none, no additional directory will get mounted.
+    # Otherwise, this is treated as a template string. ${TASK_ID_CUSTOM} will be
+    # replaced with the specified custom ID in the task.
     d.DOCKER_CONTAINER_EXTERNAL_DIR = None
 
     # If the Docker container should be able to access the host's network

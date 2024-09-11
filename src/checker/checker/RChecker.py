@@ -77,6 +77,7 @@ class RChecker(Checker):
         environ = {}
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
         (output, error, exitcode, timed_out, oom_ed) = execute_arglist(
             args,
             working_directory=env.tmpdir(),

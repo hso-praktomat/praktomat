@@ -55,6 +55,7 @@ class ScriptChecker(Checker):
         environ = {}
         environ['TASK_ID'] = str(env.task().id)
         environ['TASK_TITLE'] = str(env.task().title).encode(sys.getfilesystemencoding(), 'ignore').decode() # The title may include invalid characters (e.g. umlauts) -> ignore them
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
         environ['USER'] = str(env.user().id)
         environ['USER_MATR'] = str(env.user().mat_number)
         environ['SOLUTION_ID'] = str(env.solution().id)

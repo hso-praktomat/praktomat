@@ -48,6 +48,7 @@ class HaskellBuilder(Builder):
         environ = self.environment()
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
         [output, _, _, _, _]  = execute_arglist(args, env.tmpdir(), environ)
 
         has_main = re.search(r"^Linking ([^ ]*) ...$", output, re.MULTILINE)

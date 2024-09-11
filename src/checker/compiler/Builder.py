@@ -154,6 +154,7 @@ class CompilerOrLinker(Checker, IncludeHelper):
         myenviron = self.environment()
         myenviron['LANG'] = settings.LANG
         myenviron['LANGUAGE'] = settings.LANGUAGE
+        myenviron['TASK_ID_CUSTOM'] = env.task().custom_id
         [output,error,exitcode,timed_out,oom_ed]  = execute_arglist(args, env.tmpdir(), myenviron, extradirs=[script_dir])
 
         output = escape(output)

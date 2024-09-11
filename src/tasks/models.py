@@ -38,6 +38,7 @@ class Task(models.Model):
     only_trainers_publish = models.BooleanField(default=False, help_text = gettext_lazy("Indicates that only trainers may publish attestations. Otherwise, tutors may publish final attestations within their tutorials."))
     jplag_up_to_date = models.BooleanField(default=False, help_text = gettext_lazy("No new solution uploads since the last jPlag run"))
     exam = models.BooleanField(default=False, help_text = gettext_lazy("If enabled, solutions (incl. attestations) of expired tasks and active tasks that are not exams are not accessible for students starting 60 minutes before the publication date until 15 minutes after the deadline. Media files will only be visible while the task is active. After the deadline passed, solutions for this task won't be visible until they got attested."))
+    custom_id = models.CharField(max_length=255, blank=True, help_text = gettext_lazy("The custom ID of the task that is available as an environment variable within a checker (TASK_ID_CUSTOM). This is also used to replace the task ID in the external directory path for the checkers."))
 
     class Meta:
         ordering = ['submission_date', 'title']

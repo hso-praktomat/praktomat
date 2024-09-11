@@ -371,6 +371,7 @@ class CUnitChecker2(CheckerWithFile):
         environ['UPLOAD_ROOT'] = settings.UPLOAD_ROOT
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
 
         script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),'scripts')
 

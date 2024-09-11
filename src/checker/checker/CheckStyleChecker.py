@@ -33,6 +33,7 @@ class CheckStyleChecker(Checker):
         environ = {}
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
+        environ['TASK_ID_CUSTOM'] = env.task().custom_id
 
         args = [settings.JVM, "-cp", settings.CHECKSTYLEALLJAR, "-Dbasedir=.", "com.puppycrawl.tools.checkstyle.Main", "-c", "checks.xml"] + [name for (name, content) in env.sources()]
         [output, error, exitcode, timed_out, oom_ed] = execute_arglist(args, working_directory=env.tmpdir(),environment_variables=environ)
