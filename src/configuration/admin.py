@@ -2,17 +2,11 @@ from django.contrib import admin
 from django.db import models
 from .models import Settings, Chunk
 
-from tinymce.widgets import TinyMCE
-
 class ChunkInline(admin.StackedInline):
     model = Chunk
     fields = ('content',)
     max_num = 0        # don't allow adds
     can_delete = False
-
-    formfield_overrides = {
-        models.TextField: {'widget': TinyMCE()},
-    }
 
 class SettingsAdmin(admin.ModelAdmin):
 

@@ -4,7 +4,6 @@ from django.contrib.auth.admin import UserAdmin
 from django.db import models
 from django.db import transaction
 from django.urls import reverse
-from tinymce.widgets import TinyMCE
 from django.utils.html import format_html
 
 from tasks.models import Task, MediaFile, HtmlInjector, DeadlineExtension
@@ -57,10 +56,6 @@ class TaskAdmin(admin.ModelAdmin):
 
     inlines = [DeadlineExtensionInline] + [MediaInline] + [HtmlInjectorInline] + CheckerInline.__subclasses__() + [ RatingAdminInline]
     actions = ['export_tasks', 'run_all_checkers', 'run_all_checkers_on_finals', 'run_all_checkers_on_latest_only_failed', 'check_unchecked_final_solutions', 'delete_attestations', 'unset_all_checker_finished', 'run_all_uploadtime_checkers_on_all']
-
-    formfield_overrides = {
-        models.TextField: {'widget': TinyMCE()},
-    }
 
     class Media:
         js = (
