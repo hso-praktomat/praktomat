@@ -108,10 +108,10 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
             int_cmd = sudo_prefix + int_cmd
             hup_cmd = sudo_prefix + hup_cmd
             kill_cmd = sudo_prefix + kill_cmd
-        if settings.USESAFEDOCKER:
+        if not unsafe and settings.USESAFEDOCKER:
             docker_kill_cmd = ["sudo", "docker", "kill", container_name]
             subprocess.call(docker_kill_cmd)
-        if not settings.USESAFEDOCKER or process.poll() is None:
+        if unsafe or not settings.USESAFEDOCKER or process.poll() is None:
             # For Docker: in case the "docker kill didn't help"
             subprocess.call(term_cmd)
             time.sleep(5)
@@ -130,10 +130,10 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
         #killpg(process.pid, signal.SIGKILL)
 
     # These exit codes originate from the original safe-docker script
-    if settings.USESAFEDOCKER and not timed_out and (process.returncode == 255 or process.returncode == 137):
+    if not unsafe and settings.USESAFEDOCKER and not timed_out and (process.returncode == 255 or process.returncode == 137):
         oom_ed = True
 
-    if settings.USESAFEDOCKER:
+    if not unsafe and settings.USESAFEDOCKER:
         safe_docker_cleanup(volumes)
 
     return [output.decode('utf-8'), error, process.returncode, timed_out, oom_ed]
