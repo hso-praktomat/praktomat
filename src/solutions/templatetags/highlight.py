@@ -35,10 +35,10 @@ def colorize_table(value,arg=None):
     except ClassNotFound:
         return mark_safe("<pre>%s</pre>" % escape(value))
 
-rx_diff_pm = re.compile('^(?P<first_line>\d*</pre></div></td><td class="code"><div class="highlight"><pre>)?(?P<line>(<span class=".*?">)?(?P<plusminus>\+|-).*?)(?P<endtag></pre>)?$')
-rx_diff_questionmark = re.compile('(?P<line>(<span class="\w*">)?\?.*$)')
-rx_tag = re.compile('^(<[^<]*>)+')
-rx_char = re.compile('^(&\w+;|.)')
+rx_diff_pm = re.compile(r'^(?P<first_line>\d*</pre></div></td><td class="code"><div class="highlight"><pre>)?(?P<line>(<span class=".*?">)?(?P<plusminus>\+|-).*?)(?P<endtag></pre>)?$')
+rx_diff_questionmark = re.compile(r'(?P<line>(<span class="\w*">)?\?.*$)')
+rx_tag = re.compile(r'^(<[^<]*>)+')
+rx_char = re.compile(r'^(&\w+;|.)')
 @register.filter
 def highlight_diff(value):
     "enclose highlighted lines beginning with an +-? in a span"
