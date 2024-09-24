@@ -228,9 +228,10 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
     if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
         external_dir = None
         tmpl = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR)
-        requires_task_id_custom = "TASK_ID_CUSTOM" in tmpl.get_identifiers()
+        var_id = "TASK_ID_CUSTOM"
+        requires_task_id_custom = var_id in tmpl.get_identifiers()
         if requires_task_id_custom:
-            task_id_custom = environment_variables.get('TASK_ID_CUSTOM')
+            task_id_custom = environment_variables.get(var_id)
             if task_id_custom is not None and task_id_custom != "":
                 external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=task_id_custom)
         else:
