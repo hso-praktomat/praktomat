@@ -226,11 +226,18 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
         cmd += add_dir(d, True, volumes)
 
     if settings.DOCKER_CONTAINER_EXTERNAL_DIR is not None:
-        external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
-        task_id_custom = environment_variables.get('TASK_ID_CUSTOM')
-        if task_id_custom is not None and task_id_custom != "":
-            external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=environment_variables.get('TASK_ID_CUSTOM'))
-        cmd += [f"--volume={external_dir}:/external:ro"]
+        external_dir = None
+        tmpl = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR)
+        var_id = "TASK_ID_CUSTOM"
+        requires_task_id_custom = var_id in tmpl.get_identifiers()
+        if requires_task_id_custom:
+            task_id_custom = environment_variables.get(var_id)
+            if task_id_custom is not None and task_id_custom != "":
+                external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=task_id_custom)
+        else:
+            external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
+        if external_dir is not None:
+            cmd += [f"--volume={external_dir}:/external:ro"]
     
     cmd += add_dir(working_directory, False, volumes)
     cmd += [f"--workdir={working_directory}"]
