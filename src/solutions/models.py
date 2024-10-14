@@ -80,8 +80,12 @@ class Solution(models.Model):
         """ create a copy of this solution """
         self.final = False
         self.save()
-        solutionfiles = self.solutionfile_set.all()
-        checkerresults = self.checkerresult_set.all()
+        # We need to force the evaluation of the following queries before
+        # duplicating the solution object in the database.
+        # Otherwise, the queries will be executed for the new object instead of
+        # the old one (and nothing will be found).
+        solutionfiles = list(self.solutionfile_set.all())
+        checkerresults = list(self.checkerresult_set.all())
         self.id = None
         self.number = None
         self.final = True
