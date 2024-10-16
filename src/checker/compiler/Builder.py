@@ -1,5 +1,4 @@
 import os
-from pipes import quote
 import re, subprocess
 import shlex
 from django.db import models
