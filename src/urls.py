@@ -12,7 +12,6 @@ import attestation.views
 import solutions.views
 import utilities.views
 import accounts.urls
-import tinymce.urls
 
 import taskstatistics.views
 
@@ -43,9 +42,6 @@ urlpatterns = [
 
     # Login and Registration
     re_path(r'^accounts/', include(accounts.urls)),
-
-    # tinyMCE
-    re_path(r'^tinymce/', include(tinymce.urls)),
 
     #Tasks
     re_path(r'^tasks/$', tasks.views.taskList, name = 'task_list'),

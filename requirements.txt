@@ -8,10 +8,6 @@ Pygments~=2.7.0;python_version>="3.4"
 chardet
 django-extensions
 
-# It appears that due to the pull-request https://github.com/aljosa/django-tinymce/pull/103 merged in django-tinymce==2.4.0, jquery is loaded after our onw jquery
-# loaded in admin-sites. Using an old version of django-tinymce (2.3.x) is not possible because it uses methods removed between Django 1.8 and 1.11.
-# We might want to use the django-admin provieded jquery in our admin-site jquery snippets?!?!?
-django-tinymce~=4.1
 django-debug-toolbar
 docutils
 psycopg2-binary
