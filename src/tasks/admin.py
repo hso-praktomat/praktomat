@@ -6,7 +6,7 @@ from django.db import transaction
 from django.urls import reverse
 from django.utils.html import format_html
 
-from tasks.models import Task, MediaFile, HtmlInjector, DeadlineExtension
+from tasks.models import Task, MediaFile, HtmlInjector, SubmissionBlacklistEntry, DeadlineExtension
 from solutions.models import Solution, SolutionFile
 from attestation.admin import RatingAdminInline
 
@@ -23,6 +23,11 @@ class MediaInline(admin.StackedInline):
 
 class HtmlInjectorInline(admin.StackedInline):
     model = HtmlInjector
+    extra = 0
+
+class SubmissionBlacklistInline(admin.TabularInline):
+    model = SubmissionBlacklistEntry
+    verbose_name_plural = "Submission Blacklist Entries"
     extra = 0
 
 class DeadlineExtensionInline(admin.TabularInline):
@@ -54,7 +59,7 @@ class TaskAdmin(admin.ModelAdmin):
     date_hierarchy = 'publication_date'
     save_on_top = True
 
-    inlines = [DeadlineExtensionInline] + [MediaInline] + [HtmlInjectorInline] + CheckerInline.__subclasses__() + [ RatingAdminInline]
+    inlines = [SubmissionBlacklistInline] + [DeadlineExtensionInline] + [MediaInline] + [HtmlInjectorInline] + CheckerInline.__subclasses__() + [ RatingAdminInline]
     actions = ['export_tasks', 'run_all_checkers', 'run_all_checkers_on_finals', 'run_all_checkers_on_latest_only_failed', 'check_unchecked_final_solutions', 'delete_attestations', 'unset_all_checker_finished', 'run_all_uploadtime_checkers_on_all']
 
     class Media:

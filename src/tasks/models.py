@@ -61,6 +61,8 @@ class Task(models.Model):
 
     def expired_for_user(self, user):
         """returns whether the task has expired for a certain user"""
+        if SubmissionBlacklistEntry.objects.filter(task=self, user=user).exists():
+            return True
         for deadline_extension in DeadlineExtension.objects.filter(task=self, user=user):
             return deadline_extension.timestamp + get_settings().deadline_tolerance < datetime.now()
         return self.expired()
@@ -417,6 +419,11 @@ class HtmlInjector(models.Model):
         help_text = gettext_lazy("Indicates whether HTML code shall be injected in attestation views, e.g.: in https://praktomat.cs.kit.edu/2016_WS_Abschluss/attestation/134")
     )
     html_file = DeletingFileField(upload_to=get_htmlinjectorfile_storage_path, max_length=500)
+
+
+class SubmissionBlacklistEntry(models.Model):
+    task = models.ForeignKey(Task, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={"groups__name": "User"})
 
 
 class DeadlineExtension(models.Model):
