@@ -1,114 +1,187 @@
-"""
-TextChecker.
-"""
+import re
+from collections import defaultdict
 
 from django.db import models
-from django import forms
 from django.utils.html import escape
+
 from checker.basemodels import Checker
 
+
 class TextChecker(Checker):
-    """ Checks if the specified text is included in a submitted file """
+    SET_OF_CHOICES = [
+        (0, 'The text must not be in the solution'),
+        (1, 'The text has to be in the solution'),
+    ]
 
-    #Code OTH Regensburg Francesco Cucinotta
-    SET_OF_CHOICES = [(0, 'The text must not be in the solution'),
-                      (1, 'The text has to be in the solution'),]
+    text = models.TextField(help_text="Enter multiple lines, one per pattern.")
+    choices = models.IntegerField(default=1, verbose_name='Select:', choices=SET_OF_CHOICES)
+    use_regex = models.BooleanField(default=False, help_text="Treat input as regular expressions.")
+    ignore_capitalization = models.BooleanField(default=False, help_text="Ignore case and camelCase differences.")
 
-    text = models.TextField()
-    choices = models.IntegerField(default=1, verbose_name='Select:', choices=SET_OF_CHOICES, blank=False)
-
+    skip_lines = models.BooleanField(
+        default=True,
+        help_text="Skip lines that begin with comment symbols or are inside block comments."
+    )
+    begin_with = models.CharField(
+        max_length=100,
+        blank=True,
+        default='// #',
+        help_text="Space-separated line prefixes for single-line comments (e.g., // #)."
+    )
+    multi_block = models.CharField(
+        max_length=100,
+        blank=True,
+        default='/* */',
+        help_text="Space-separated start and end symbols for block comments (e.g., /* */)."
+    )
 
     def title(self):
-        """Returns the title for this checker category."""
         return "Text Checker"
 
     @staticmethod
     def description():
-        """ Returns a description for this Checker. """
-        return "Diese Prüfung ist bestanden, wenn der eingegebene Text in einer Lösung gefunden wird."
+        return ("Checks for one or more strings or patterns in solution files, "
+                "with options to use regex, ignore case, and skip commented lines.")
 
+    def _normalize(self, text: str) -> str:
+        return text.lower() if self.ignore_capitalization else text
+
+    def _get_patterns(self) -> list[str]:
+        return [line.strip() for line in self.text.splitlines() if line.strip()]
+
+    def _get_matched_text(self, line: str, match) -> str:
+        if isinstance(match, re.Match):
+            start, end = match.span()
+        else:
+            start, end = match
+        return line[start:end]
+
+    def _is_commented_line(self, line: str) -> bool:
+        if not self.skip_lines or not self.begin_with:
+            return False
+        prefixes = self.begin_with.strip().split()
+        return any(line.strip().startswith(sym) for sym in prefixes)
+
+    def _remove_multiblock_comments_with_line_map(self, text: str, log_messages: list[str]) -> tuple[list[str], list[int]]:
+        if not self.skip_lines or not self.multi_block:
+            lines = text.splitlines()
+            return lines, list(range(1, len(lines) + 1))
+
+        symbols = self.multi_block.strip().split()
+        if len(symbols) % 2 != 0:
+            log_messages.append(
+                self._format_system_message("Warnung", "Ungültige Einstellungen in 'multi_block'. Es müssen Paare von Start- und Endsymbolen sein, z.&nbsp;B. <code>/* */</code>."))
+
+            lines = text.splitlines()
+            return lines, list(range(1, len(lines) + 1))
+
+        start_end_pairs = [(re.escape(symbols[i]), re.escape(symbols[i + 1])) for i in range(0, len(symbols), 2)]
+        cleaned_lines = []
+        line_map = []
+        inside_block = False
+        block_start_re = re.compile('|'.join(start for start, _ in start_end_pairs))
+        block_end_re = re.compile('|'.join(end for _, end in start_end_pairs))
+
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if inside_block:
+                if block_end_re.search(line):
+                    inside_block = False
+                continue
+            elif block_start_re.search(line):
+                inside_block = True
+                continue
+            cleaned_lines.append(line)
+            line_map.append(lineno)
+
+        return cleaned_lines, line_map
 
     def run(self, env):
-        """ Checks if the specified text is included in a submitted file """
         result = self.create_result(env)
-
-        lines = []
-        occurances = []
+        patterns = self._get_patterns()
         passed = 1
-        log = ""
-        lineNum = 1
-        inComment = False
-        gotoFind = ""
+        log = []
+        log_messages = []
+        occurrences = defaultdict(list)
+        explanations = defaultdict(list)
+        normalized_patterns = {p: self._normalize(p) for p in patterns}
 
-        # search the sources
-        for (name, content) in env.string_sources():
-            lines = self._getLines(content)
-            lineNum = 1
-            for line in lines:
-                if line.find(self.text) >= 0:
-                    gotoFind = 1
+        for filename, content in env.string_sources():
+            lines, line_map = self._remove_multiblock_comments_with_line_map(content, log_messages)
+            for i, line in enumerate(lines):
+                if self._is_commented_line(line):
+                    continue
 
-                if not inComment:
-                    if line.find('/*') >= 0:
-                        parts = line.split('/*')
-                        if parts[0].find(self.text) >= 0:
-                            occurances.append((name, lineNum))
-                        inComment = False
+                norm_line = self._normalize(line)
+                lineno = line_map[i]
 
-                if not inComment:
-                    parts = line.split('//')
-                    if parts[0].find(self.text) >= 0:
-                        occurances.append((name, lineNum))
+                for pattern, norm_pattern in normalized_patterns.items():
+                    matches = []
+                    if self.use_regex:
+                        try:
+                            matches = list(re.finditer(norm_pattern, norm_line))
+                        except re.error:
+                            log_messages.append(
+                                self._format_system_message("Fehler", f"Ungültiger regulärer Ausdruck: '<code>{escape(pattern)}</code>'."))
+                            continue
+                    else:
+                        start = 0
+                        while (idx := norm_line.find(norm_pattern, start)) != -1:
+                            matches.append((idx, idx + len(pattern)))
+                            start = idx + len(pattern)
 
+                    for match in matches:
+                        matched_text = self._get_matched_text(line, match)
+                        occurrences[pattern].append((filename, lineno, matched_text))
+                        explanations[pattern].append(
+                            f"<li>Das Muster '<code>{escape(pattern)}</code>' passt zu "
+                            f"<code>{escape(matched_text)}</code> in Zeile {lineno} der Datei "
+                            f"<code>{escape(filename)}</code>.</li>"
+                        )
 
-                else:
-                    if line.find('*/') >= 0:
-                        parts = line.split('*/')
-                        if len(parts) > 1:
-                            if parts[1].find(self.text) >= 0:
-                                occurances.append((name, lineNum))
-                        inComment = False
+        for pattern in patterns:
+            hits = occurrences[pattern]
+            has_hits = bool(hits)
+            must_be_present = self.choices == 1
 
-                if line.find(self.text) >= 0:
-                    gotoFind = 1
-
-                lineNum += 1
-
-
-        # Print Results:
-        if  gotoFind == 1:
-            if self.choices == 1:
-                if len(occurances) <= 0:
-                    passed = 0
-                    log = "<strong>" + "'" + escape(self.text) + "'" + "</strong>" + " kommt nicht in Ihrer Lösung vor!"
-                else:
-                    log = "<strong>" + "'" + escape(self.text) + "'" + "</strong>" + " kommt an folgenden Stellen vor<br>"
-                    for (name, num) in occurances:
-                        log += escape(name) + " Zeile: " + str(num) + "<br>"
+            if must_be_present and not has_hits:
+                passed = 0
+                log.append(self._format_message("Fehler", f"'<code>{escape(pattern)}</code>' wurde nicht gefunden."))
+            elif must_be_present:
+                log.append(self._format_message("OK", f"'<code>{escape(pattern)}</code>' gefunden an:"))
+                log.append(self._format_hits(hits))
+            elif has_hits:
+                passed = 0
+                log.append(self._format_message(
+                    "Fehler", f"'<code>{escape(pattern)}</code>' sollte nicht vorkommen, wurde aber gefunden:"))
+                log.append(self._format_hits(hits))
             else:
-                log = "<strong>" + "'" + escape(self.text) + "'" + "</strong>" + " kommt an folgenden Stellen vor<br>"
-                for (name, num) in occurances:
-                    log += escape(name) + " Zeile: " + str(num) + "<br>"
-                passed = 0
-        else:
-            if self.choices == 1:
-                log = "<strong>" + "'" + escape(self.text) + "'" + "</strong>" + " kommt nicht in Ihrer Lösung vor!"
-                passed = 0
-            elif self.choices == 0:
-                log = "<strong>"+"'"+escape(self.text)+"'"+"</strong>" + " kommt nicht in Ihrer Lösung vor!"
+                log.append(self._format_message("OK", f"'<code>{escape(pattern)}</code>' wurde nicht gefunden."))
 
+            if self.use_regex and explanations[pattern]:
+                log.append('<details><summary><em>Details</em></summary><ul>')
+                log.extend(explanations[pattern])
+                log.append('</ul></details>')
 
-        result.set_log(log)
+        if log_messages:
+            log.append('<hr><p><strong>Systemhinweise:</strong></p>')
+            log.extend(log_messages)
+
+        result.set_log("".join(log))
         result.set_passed(passed)
-
         return result
 
-    def _getLines(self, text):
-        """ Returns a list of lines (as strings) from text """
-        lines = text.split("\n")
-        return lines
+    def _format_message(self, status, message):
+        css_class = "passed" if status == "OK" else "error"
+        return f'<p><span class="{css_class}"><strong>{status}:</strong></span> {message}</p>'
 
-from checker.admin import    CheckerInline
+    def _format_hits(self, hits):
+        return f"<ul>{''.join(f'<li>{escape(f)} Zeile {l}</li>' for f, l, _ in hits)}</ul>"
+
+    def _format_system_message(self, level: str, message: str) -> str:
+        return f'<p><em>{level}:</em> {message}</p>'
+
+
+from checker.admin import CheckerInline
 
 class TextCheckerInline(CheckerInline):
     model = TextChecker
