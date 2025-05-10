@@ -75,7 +75,7 @@ def isar_decode(raw):
 
 # ~~/etc/symbols from Isabelle2016
 symbol_table = None
-symbols_raw = """
+symbols_raw = r"""
 \<zero>                 code: 0x01d7ec  group: digit
 \<one>                  code: 0x01d7ed  group: digit
 \<two>                  code: 0x01d7ee  group: digit

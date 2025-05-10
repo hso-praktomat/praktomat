@@ -31,7 +31,7 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
         #output of nm -A -C  mytest.o is: mytest.o:0000000d T main
         nm_rx  = re.compile(r"^(.*/)*(.*)\.[oO]:[0-9A-Fa-f]* T (main)$", re.MULTILINE)
         obj_files = []
-        c_rx = re.compile('^(.*\.)[cC]')
+        c_rx = re.compile(r'^(.*\.)[cC]')
         #ToDo: code review
         o_solution_list = [re.sub(r"\.[cC]",r".o",name)\
             for (name,void) in env.sources()\
@@ -70,7 +70,7 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
     def get_file_names(self,env):
 
         # Get all object files corresponding to solutions C files.
-        c_rx = re.compile('^(.*\.)[cC]')
+        c_rx = re.compile(r'^(.*\.)[cC]')
         o_solution_list = [re.sub(r"\.[cC]", r".o", name)\
             for (name,void) in env.sources()\
             if name.endswith(('.c','.C'))]
