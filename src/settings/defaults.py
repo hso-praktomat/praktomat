@@ -2,16 +2,20 @@
 # It exports one function, load_defaults, which will set the settings in the
 # parameter, but only if it is not already defined.
 
-# The following variables have _no_ sane default, and need to be set!
-no_defaults = [ "SITE_NAME", "PRAKTOMAT_ID", "BASE_HOST", "BASE_PATH", "UPLOAD_ROOT", "PRIVATE_KEY", "CERTIFICATE"]
-
+import collections
 import os
 from os.path import abspath, dirname, join
+
 import utilities.log_filter
-import collections
+
+from .version import __version__
+
+# The following variables have _no_ sane default, and need to be set!
+no_defaults = ["SITE_NAME", "PRAKTOMAT_ID", "BASE_HOST", "BASE_PATH", "UPLOAD_ROOT", "PRIVATE_KEY", "CERTIFICATE"]
+
 
 def load_defaults(settings):
-    missing = [ v for v in no_defaults if v not in settings]
+    missing = [v for v in no_defaults if v not in settings]
     if missing:
         raise RuntimeError("Variables without defaults not set: %s" % ", ".join(missing))
 
@@ -31,6 +35,7 @@ def load_defaults(settings):
 
     # Absolute path to the praktomat source
     d.PRAKTOMAT_ROOT = dirname(dirname(dirname(__file__)))
+    d.APP_VERSION = __version__
 
     #############################################################################
     # Django Settings                                                           #
@@ -93,13 +98,13 @@ def load_defaults(settings):
         'checker',
         'utilities',
         'settings',
-        #'sessionprofile', #phpBB integration
+        # 'sessionprofile', #phpBB integration
         'taskstatistics',
     )
 
     d.MIDDLEWARE = [
         'django.middleware.common.CommonMiddleware',
-        #'sessionprofile.middleware.SessionProfileMiddleware', #phpBB integration
+        # 'sessionprofile.middleware.SessionProfileMiddleware', #phpBB integration
         'django.contrib.sessions.middleware.SessionMiddleware',
         'django.contrib.messages.middleware.MessageMiddleware',
         'django.middleware.csrf.CsrfViewMiddleware',
@@ -130,7 +135,6 @@ def load_defaults(settings):
 
     # collect static contents outside of Praktomat
     d.STATIC_ROOT = join(dirname(PRAKTOMAT_ROOT), "static")
-
 
     # This directory is used to compiling and running the users code.
     # As such it is temporary, and might be put on a tmpfs mount, to speed
@@ -174,7 +178,6 @@ def load_defaults(settings):
             d.SECRET_KEY = uuid.uuid4().hex
             os.fdopen(os.open(secret_keyfile, os.O_WRONLY | os.O_CREAT, 0o600), 'w').write(d.SECRET_KEY)
 
-
     # Templates
 
     d.TEMPLATES = [
@@ -209,8 +212,8 @@ def load_defaults(settings):
 
     d.DATABASES = {
         'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME':   UPLOAD_ROOT+'/Database'
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME':   UPLOAD_ROOT+'/Database'
         }
     }
 
@@ -231,7 +234,7 @@ def load_defaults(settings):
     #############################################################################
 
     # Private key used to sign uploded solution files in submission confirmation email
-    #d.PRIVATE_KEY = '/home/praktomat/certificates/privkey.pem'
+    # d.PRIVATE_KEY = '/home/praktomat/certificates/privkey.pem'
 
     # Is this a mirror of another instance (different styling)
     d.MIRROR = False
@@ -245,17 +248,17 @@ def load_defaults(settings):
     d.JVM_SECURE = PRAKTOMAT_ROOT + '/src/checker/scripts/java'
     d.JVM_POLICY = PRAKTOMAT_ROOT + '/src/checker/scripts/java.policy'
     d.FORTRAN_BINARY = 'g77'
-    d.ISABELLE_BINARY = 'isabelle' # Isabelle should be in PATH
+    d.ISABELLE_BINARY = 'isabelle'  # Isabelle should be in PATH
     d.DEJAGNU_RUNTEST = '/usr/bin/runtest'
     d.CHECKSTYLEALLJAR = '/home/praktomat/contrib/checkstyle-8.14-all.jar'
-    d.JAVA_LIBS = { 'jun' : '/usr/share/java/junit.jar', 'junit4' : '/usr/share/java/junit4.jar' }
+    d.JAVA_LIBS = {'jun': '/usr/share/java/junit.jar', 'junit4': '/usr/share/java/junit4.jar'}
     d.JAVA_CUSTOM_LIBS = PRAKTOMAT_ROOT + '/lib/java/*'
-    d.JCFDUMP='jcf-dump'
+    d.JCFDUMP = 'jcf-dump'
 
-    d.JAVAP='javap'
-    d.GHC='ghc'
-    d.SCALA='scala'
-    d.SCALAC='scalac'
+    d.JAVAP = 'javap'
+    d.GHC = 'ghc'
+    d.SCALA = 'scala'
+    d.SCALAC = 'scalac'
 
     # Enable to run all scripts (checker) as the unix user 'tester'. Therefore
     # put 'tester' as well as the Apache user '_www' (and your development user
@@ -298,7 +301,6 @@ def load_defaults(settings):
     # If the altered files should not be copied back into the sandbox directory
     # after running a check with safe-docker.
     d.DOCKER_DISCARD_ARTEFACTS = False
-
 
     # be sure that you change file permission
     # sudo chown praktomat:tester praktomat/src/checker/scripts/java
@@ -354,7 +356,7 @@ def load_defaults(settings):
     # needed since Django 1.11 in order to show the 'Deactivated' page
     d.AUTH_BACKEND = 'django.contrib.auth.backends.AllowAllUsersModelBackend'
 
-    #TODO: Code refactoring: make it more flexible, to change between LDAP or Shibboleth support!
+    # TODO: Code refactoring: make it more flexible, to change between LDAP or Shibboleth support!
 
     # LDAP support
     # You probably want to disable REGISTRATION_POSSIBLE if you enable LDAP
@@ -362,34 +364,33 @@ def load_defaults(settings):
 
     d.LDAP_ENABLED = False
     d.AUTHENTICATION_BACKENDS = (
-	    'accounts.ldap_auth.LDAPBackend',
-	    d.AUTH_BACKEND,
+        'accounts.ldap_auth.LDAPBackend',
+        d.AUTH_BACKEND,
     )
-    d.LDAP_URI="ldap://ldap.DOMAINNAME.TOPLEVEL"
-    d.LDAP_BASE="dc=DOMAINNAME,dc=TOPLEVEL"
-
+    d.LDAP_URI = "ldap://ldap.DOMAINNAME.TOPLEVEL"
+    d.LDAP_BASE = "dc=DOMAINNAME,dc=TOPLEVEL"
 
     # Length of timeout applied whenever an external check that runs a students
     # submission is executed,
     # for example: JUnitChecker, DejaGnuChecker
-    d.TEST_TIMEOUT=60  # but make sure to use ulimit -t 60 inside shell scripts!
+    d.TEST_TIMEOUT = 60  # but make sure to use ulimit -t 60 inside shell scripts!
 
     # Amount of memory available to the checker, in megabytes
     # (this is currently only supported with USESAFEDOCKER=True)
-    d.TEST_MAXMEM=100
+    d.TEST_MAXMEM = 100
 
     # Maximal size (in kbyte) of files created whenever an external check that
     # runs a students submission is executed,
     # for example: JUnitChecker, DejaGnuChecker
-    d.TEST_MAXFILESIZE=64
+    d.TEST_MAXFILESIZE = 64
 
     # Maximal size (in kbyte) of checker logs accepted. This setting is
     # respected currently only by:
     # JUnitChecker, ScriptChecker,
-    d.TEST_MAXLOGSIZE=64
+    d.TEST_MAXLOGSIZE = 64
 
     # Maximum number of open file descriptors for a checker.
-    d.TEST_MAXFILENUMBER=128
+    d.TEST_MAXFILENUMBER = 128
 
     d.NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL = 1
 
@@ -400,7 +401,7 @@ def load_defaults(settings):
          ("text/x-isabelle", ".thy"),
          ("text/x-lean", ".lean"),
          ("text/x-r-script", ".R"),
-         ("text/x-r-script", ".r"),# Fixes KITPraktomatTeam/Praktomat#336 as workaround for issue in Python 3.9.12 and above: Add filename extension with small letter r to dict of additional mimetypes , more information see issue Python stdlib  92455
+         ("text/x-r-script", ".r"),  # Fixes KITPraktomatTeam/Praktomat#336 as workaround for issue in Python 3.9.12 and above: Add filename extension with small letter r to dict of additional mimetypes , more information see issue Python stdlib  92455
          ]
 
     # Subclassed TestSuitRunner to prepopulate unit test database.
@@ -443,6 +444,8 @@ def load_defaults(settings):
     }
 
 # Always show toolbar (if DEBUG is true)
+
+
 def show_toolbar(request):
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return False
