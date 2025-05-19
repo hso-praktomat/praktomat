@@ -124,7 +124,8 @@ class HaskellTestFrameWorkChecker(CheckerWithFile):
 
 
         result.set_log(output, timed_out=timed_out or oom_ed, truncated=truncated)
-        result.set_passed(not exitcode and not timed_out and not oom_ed and self.output_ok(output) and not truncated)
+        result.set_passed(not exitcode and not timed_out and not oom_ed and self.output_ok(output))
+        result.set_passed_with_warning(result.passed and truncated)
         return result
 
 class HaskellTestFrameWorkCheckerInline(CheckerInline):
