@@ -17,8 +17,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='textchecker',
-            name='ignore_capitalization',
-            field=models.BooleanField(default=False, help_text='Ignore case and camelCase differences.'),
+            name='ignore_case_and_whitespace',
+            field=models.BooleanField(
+                default=True, help_text='Ignore case differences and all whitespace (e.g., spaces, tabs) during matching.'),
         ),
         migrations.AddField(
             model_name='textchecker',

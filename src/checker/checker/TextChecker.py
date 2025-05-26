@@ -16,7 +16,8 @@ class TextChecker(Checker):
     text = models.TextField(help_text="Enter multiple lines, one per pattern.")
     choices = models.IntegerField(default=1, verbose_name='Select:', choices=SET_OF_CHOICES)
     use_regex = models.BooleanField(default=False, help_text="Treat input as regular expressions.")
-    ignore_capitalization = models.BooleanField(default=False, help_text="Ignore case and camelCase differences.")
+    ignore_case_and_whitespace = models.BooleanField(
+        default=True, help_text="Ignore case differences and all whitespace (e.g., spaces, tabs) during matching.")
 
     skip_lines = models.BooleanField(
         default=True,
@@ -44,7 +45,9 @@ class TextChecker(Checker):
                 "with options to use regex, ignore case, and skip commented lines.")
 
     def _normalize(self, text: str) -> str:
-        return text.lower() if self.ignore_capitalization else text
+        if self.ignore_case_and_whitespace:
+            return re.sub(r'\s+', '', text.lower())
+        return text
 
     def _get_patterns(self) -> list[str]:
         return [line.strip() for line in self.text.splitlines() if line.strip()]
