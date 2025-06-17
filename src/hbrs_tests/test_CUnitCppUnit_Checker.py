@@ -234,7 +234,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         # Therefor we test the form:
         initialdata=None
         for x in response.context['inline_admin_formsets'] :
-            if "CUnitChecker2FormFormSet" in str(type(x.formset))  :
+            if "CUnitChecker2FormSet" in str(type(x.formset)):
                for form in x.formset:
                   initialdata = form.initial.copy()
         formN = UnitCheckerCopyForm(initial=initialdata)
