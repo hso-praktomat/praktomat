@@ -100,8 +100,8 @@ class ScriptChecker(Checker):
         result.set_log(output, timed_out=timed_out, truncated=truncated, oom_ed=oom_ed)
 
         exitcode_ok = exitcode == 0 or exitcode == EXIT_CODE_PASSED_WITH_WARNING
-        result.set_passed(exitcode_ok and not timed_out and not oom_ed and not truncated)
-        result.set_passed_with_warning(result.passed and exitcode == EXIT_CODE_PASSED_WITH_WARNING)
+        result.set_passed(exitcode_ok and not timed_out and not oom_ed)
+        result.set_passed_with_warning(result.passed and (exitcode == EXIT_CODE_PASSED_WITH_WARNING or truncated))
 
         return result
 
