@@ -8,3 +8,9 @@
 {% endblock %}
 
 {% block userlinks %}{{ block.super }} / <a href="{% url "task_list" %}">{% trans 'User site' %}</a> {% endblock %}
+
+{% block footer %}
+  <footer>
+    <p>Praktomat Version: {{ APP_VERSION }}</p>
+  </footer>
+{% endblock %}
