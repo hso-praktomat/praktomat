@@ -85,7 +85,6 @@ input[type="file"] {
 }
 
 select {
-  min-width: 30%;
   max-width: 100%;
 }
 
@@ -163,7 +162,7 @@ td {
   border-bottom: 1px solid #e5e7eb;
 }
 
-tr:hover {
+table:not(.highlighttable) tr:hover {
   background-color: #f1f5f9; /* Slightly darker gray */
 }
 

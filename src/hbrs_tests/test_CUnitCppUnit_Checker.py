@@ -237,8 +237,6 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
             if "CUnitChecker2FormSet" in str(type(x.formset)):
                for form in x.formset:
                   initialdata = form.initial.copy()
-        if not initialdata:
-            return
         formN = UnitCheckerCopyForm(initial=initialdata)
         formFalse = UnitCheckerCopyForm(initial=initialdata, data={
                                'filename' :CUnitChecker2.objects.get(task_id=taskid).filename,
