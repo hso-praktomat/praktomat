@@ -20,7 +20,7 @@ class Settings(models.Model):
             models.CharField(
                 max_length=200,
                 blank=True,
-                default="\d{5,7}",
+                default=r"\d{5,7}",
                 help_text="Regular expression used to check the student number."
             )
 
