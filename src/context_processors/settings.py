@@ -10,5 +10,4 @@ def from_settings(request):
 	    'ACCOUNT_CHANGE_POSSIBLE': settings.ACCOUNT_CHANGE_POSSIBLE,
         'MIRROR': settings.MIRROR,
         'HAS_JPLAG': hasattr(settings, 'JPLAGJAR'),
-        'APP_VERSION': settings.APP_VERSION
     }
