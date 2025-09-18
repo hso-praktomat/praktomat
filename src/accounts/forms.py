@@ -9,7 +9,7 @@ from django.template import loader
 from django.utils.translation import gettext_lazy
 from django.contrib.auth.models import Group
 from django import forms
-from django.contrib.auth.forms import UserCreationForm as UserBaseCreationForm, UserChangeForm as UserBaseChangeForm
+from django.contrib.auth.forms import AdminUserCreationForm as AdminUserBaseCreationForm, UserChangeForm as UserBaseChangeForm
 from django.core.mail import send_mail
 from django.utils.http import int_to_base36
 from django.utils.safestring import mark_safe
@@ -18,7 +18,7 @@ from configuration import get_settings
 
 from accounts.models import User, Tutorial
 
-class MyRegistrationForm(UserBaseCreationForm):
+class MyRegistrationForm(AdminUserBaseCreationForm):
 
     def __init__(self, *args, **kwargs):
         # post, domaine=None, use_https=None):
@@ -111,7 +111,7 @@ class UserChangeForm(forms.ModelForm):
         fields = ("first_name", "last_name")
 
 
-class AdminUserCreationForm(UserBaseCreationForm):
+class AdminUserCreationForm(AdminUserBaseCreationForm):
     class Meta:
         model = User
         fields = "__all__"
