@@ -43,7 +43,7 @@ jobs:
       run: pip freeze
     - name: Display Python and SQLite version
       run: |
-        python --version && python -c "import sqlite3; print(\"... uses pysqlite \" + sqlite3.version +\" with SQLite \" + sqlite3.sqlite_version);"
+        python --version && python -c "import sqlite3; print(\"SQLite \" + sqlite3.sqlite_version);"
     - name: Create upload root directories
       run: |
         mkdir ../debug-data
