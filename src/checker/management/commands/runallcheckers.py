@@ -10,7 +10,7 @@ class Command(BaseCommand):
                 continue
             if not task.all_checker_finished:
                 self.stdout.write('Running all checkers for "%s"\n' % task.title)
-                task.check_all_final_solutions()
+                task.check_all_final_solutions(secondary_check = True)
                 task.check_all_latest_only_failed_solutions()
             else:
                 self.stdout.write('Running all checkers for unchecked solutions in "%s"\n' % task.title)

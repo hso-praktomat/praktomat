@@ -73,10 +73,10 @@ class Task(models.Model):
             return deadline_extension.timestamp
         return self.submission_date
 
-    def check_all_final_solutions(self):
+    def check_all_final_solutions(self, secondary_check = False):
         from checker.basemodels import check_multiple
         final_solutions = [solution for solution in self.solution_set.filter(final=True) if self.expired_for_user(solution.author)]
-        count = check_multiple(final_solutions, True)
+        count = check_multiple(final_solutions, run_secret = not secondary_check, secondary_check=secondary_check)
 
         if self.expired():
             self.all_checker_finished = True
