@@ -308,9 +308,6 @@ def solution_file_delete(sender, instance, **kwargs):
 def check_solution(solution, run_all = 0, debug_keep_tmp = True, secondary_check = False):
     """Builds and tests this solution."""
 
-    if not secondary_check:
-        # Delete previous results if the checkers have already been run
-        solution.checkerresult_set.all().delete()
     # set up environment
     env = CheckerEnvironment(solution)
 
@@ -362,14 +359,28 @@ def run_checks(solution, env, run_all, secondary_check = False):
 
     passed_checkers = set()
     checkers = solution.task.get_checkers()
+    previously_run_checkers = set(
+        solution.checkerresult_set.values_list(
+            'content_type_id',
+            'object_id',
+        )
+    )
 
     solution_accepted = True
     solution.warnings = False
 
     for checker in checkers:
-        # secondary_check -> nightly run. checker.always -> already run after submission. Dont rerun already run checkers in nightly run
-        # run_all should be off for nightly run. -> run_all or (checker.always XOR secondary_check)
-        if run_all or (checker.always != secondary_check):
+        checker_key = (
+            ContentType.objects.get_for_model(
+                checker, for_concrete_model=False
+            ).id,
+            checker.id,
+        )
+
+        # dont rerun previously run checkers in nightly run
+        dont_rerun = secondary_check and checker_key in previously_run_checkers
+
+        if (checker.always or run_all) and not dont_rerun:
             # Check dependencies -> This requires the right order of the checkers
             can_run_checker = True
             for requirement in checker.requires():
