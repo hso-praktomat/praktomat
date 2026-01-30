@@ -76,7 +76,7 @@ class Task(models.Model):
     def check_all_final_solutions(self, secondary_check = False):
         from checker.basemodels import check_multiple
         final_solutions = [solution for solution in self.solution_set.filter(final=True) if self.expired_for_user(solution.author)]
-        count = check_multiple(final_solutions, run_secret = not secondary_check, secondary_check=secondary_check)
+        count = check_multiple(final_solutions, True, secondary_check=secondary_check)
 
         if self.expired():
             self.all_checker_finished = True
