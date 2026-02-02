@@ -308,6 +308,9 @@ def solution_file_delete(sender, instance, **kwargs):
 def check_solution(solution, run_all = 0, debug_keep_tmp = True, secondary_check = False):
     """Builds and tests this solution."""
 
+    # Delete previous results if the checkers have already been run
+    solution.checkerresult_set.all().delete()
+    
     # set up environment
     env = CheckerEnvironment(solution)
 
