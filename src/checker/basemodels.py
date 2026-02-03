@@ -378,8 +378,11 @@ def run_checks(solution, env, run_all, secondary_check = False):
         )
 
         # dont rerun previously run checkers in nightly run
-        print("secondary_check: " + secondary_check + "and in...: " + checker_key in previously_run_checkers)
         dont_rerun = secondary_check and checker_key in previously_run_checkers
+        print("secondaryCheck: ")
+        print(secondary_check)
+        print("dont rerun: ")
+        print(dont_rerun)
 
         if (checker.always or run_all) and not dont_rerun:
             # Check dependencies -> This requires the right order of the checkers
