@@ -307,9 +307,6 @@ def solution_file_delete(sender, instance, **kwargs):
 
 def check_solution(solution, run_all = 0, debug_keep_tmp = True, secondary_check = False):
     """Builds and tests this solution."""
-
-    # Delete previous results if the checkers have already been run
-    solution.checkerresult_set.all().delete()
     
     # set up environment
     env = CheckerEnvironment(solution)
@@ -381,6 +378,7 @@ def run_checks(solution, env, run_all, secondary_check = False):
         )
 
         # dont rerun previously run checkers in nightly run
+        print("secondary_check: " + secondary_check + "and in...: " + checker_key in previously_run_checkers)
         dont_rerun = secondary_check and checker_key in previously_run_checkers
 
         if (checker.always or run_all) and not dont_rerun:
