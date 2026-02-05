@@ -104,10 +104,10 @@ class Task(models.Model):
                 count += 1
         return count
 
-    def check_unchecked_final_solutions(self):
+    def check_unchecked_final_solutions(self, secondary_check = False):
         from checker.basemodels import check_multiple
         final_solutions = [solution for solution in self.solution_set.filter(all_checker_finished=False, final=True) if self.expired_for_user(solution.author)]
-        check_multiple(final_solutions, True)
+        check_multiple(final_solutions, True, secondary_check = secondary_check)
         return len(final_solutions)
 
     def get_checkers(self):
