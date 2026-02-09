@@ -175,6 +175,11 @@ a.ui-button:active,
 	filter:Alpha(Opacity=70); /* support: IE8 */
 	font-weight: normal;
 }
+.checker-date {
+    font-weight: normal;
+    font-size: 0.85em;
+    color: #555;
+}
 .ui-state-disabled,
 .ui-widget-content .ui-state-disabled,
 .ui-widget-header .ui-state-disabled {
