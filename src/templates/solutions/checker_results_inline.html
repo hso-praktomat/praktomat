@@ -15,7 +15,7 @@
 				{{result.passed|yesno:_("passed, failed")}} {% if result.passed %} {% if result.passed_with_warning %} with warning {% endif %} {% else %} {% if result.required %} {% else %} (but not required) {% endif %} {% endif %}
 			</span>
 			<!-- Add creation date at the end -->
-            <span class="checker-date">({{ result.creation_date|date:"d.m.Y, H:i:s" }})</span>
+            <span style="font-weight: normal; font-size: 0.85em;">({{ result.creation_date|date:"d.m.Y, H:i:s" }})</span>
 			<!-- <span class="checkertime">{{ result.runtime }} ms</span> -->
 			{% if not result.only_title %}</a>{% endif %}
 		</h3>
