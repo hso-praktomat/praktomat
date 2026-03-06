@@ -78,6 +78,15 @@ def boxblot_to_graphic_list(glist=None, dtupel=None, fliers=None):
         #print(type(fliers), fliers)
 
     fig1, ax1 = plt.subplots()
+    #print(" DEBUG ax1 infos: " +
+    #      " Task " +  str(dtupel.task_id) + ": " + str(dtupel.title) +
+    #      " Submitters passed Posttest: " + str(dtupel.submitters_passed_finals) if (dtupel.submitters_passed_finals is not None and dtupel.submitters_passed_finals == dtupel.submitters_passed_finals) else '0'  +
+    #      " Submitters passed Pretest but failed Posttest: " + str(dtupel.submitters_failed_finals) if (dtupel.submitters_failed_finals is not None and dtupel.submitters_failed_finals == dtupel.submitters_failed_finals) else '0' +
+    #      " Submitters failed Pretest: " + str(dtupel.submitters_latest_not_accepted) if (dtupel.submitters_latest_not_accepted is not None and dtupel.submitters_latest_not_accepted == dtupel.submitters_latest_not_accepted) else '0' +
+    #      " Uploads accepted: " + str(dtupel.uploads_accepted) if (dtupel.uploads_accepted is not None and dtupel.uploads_accepted == dtupel.uploads_accepted) else '0' +
+    #      " Uploads rejected: " + str(dtupel.uploads_rejected) if (dtupel.uploads_rejected is not None and dtupel.uploads_rejected == dtupel.uploads_rejected) else '0'
+    #)
+
     ax1.set_title("Task %d : %s\n Submitters passed Posttest: %d \n Submitters passed Pretest but failed Posttest: %d\n Submitters failed Pretest: %d\n Uploads accepted: %d\n Uploads rejected: %d"%(dtupel.task_id , str(dtupel.title) , dtupel.submitters_passed_finals if dtupel.submitters_passed_finals else 0, dtupel.submitters_failed_finals if dtupel.submitters_failed_finals else 0, dtupel.submitters_latest_not_accepted if dtupel.submitters_latest_not_accepted else 0, dtupel.uploads_accepted if dtupel.uploads_accepted else 0, dtupel.uploads_rejected if dtupel.uploads_rejected else 0 ))
     #list of dicts used for mydata:
     dummyuserupload = dict()
@@ -144,6 +153,7 @@ def boxblot_to_graphic_list(glist=None, dtupel=None, fliers=None):
     bytebuffer.close()
     #plt.show()
     glist.append(graph)
+    plt.close()
     return glist
 
 def prepare_statistic_data():
@@ -158,7 +168,9 @@ def prepare_statistic_data():
             if str(col.name) in ["task" , "task_id"]:
                 ordered_dict["task_id"] = row["task_id"]
             else:
-                ordered_dict[col.name] = row[col.name]
+                ordered_dict[col.name] = 0 if row[col.name] is None else row[col.name] # semantical it is true to set the value 0 if database response with NULL which is transformed via ORM to Python None
+        #print("DEBUG")
+        #print(ordered_dict)
         objects_list.append(ordered_dict)
     tasks = Task.objects.filter(publication_date__lte = now, all_checker_finished = True).order_by('id')
     return (objects_list , tasks)
