@@ -359,26 +359,13 @@ def run_checks(solution, env, run_all, secondary_check = False):
 
     passed_checkers = set()
     checkers = solution.task.get_checkers()
-    previously_run_checkers = set(
-        solution.checkerresult_set.values_list(
-            'content_type_id',
-            'object_id',
-        )
-    )
 
     solution_accepted = True
     solution.warnings = False
 
     for checker in checkers:
-        checker_key = (
-            ContentType.objects.get_for_model(
-                checker, for_concrete_model=False
-            ).id,
-            checker.id,
-        )
-
         # dont rerun previously run checkers in nightly run
-        dont_rerun = secondary_check and checker_key in previously_run_checkers
+        dont_rerun = secondary_check and checker.results.filter(solution=solution).exists()
 
         if (checker.always or run_all) and not dont_rerun:
             # Check dependencies -> This requires the right order of the checkers
