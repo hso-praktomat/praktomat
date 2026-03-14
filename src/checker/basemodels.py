@@ -305,16 +305,14 @@ def solution_file_delete(sender, instance, **kwargs):
     except OSError:
         pass
 
-def check_solution(solution, run_all = 0, debug_keep_tmp = True):
+def check_solution(solution, run_all = 0, debug_keep_tmp = True, secondary_check = False):
     """Builds and tests this solution."""
-
-    # Delete previous results if the checkers have already been run
-    solution.checkerresult_set.all().delete()
+    
     # set up environment
     env = CheckerEnvironment(solution)
 
     solution.copySolutionFiles(env.tmpdir())
-    run_checks(solution, env, run_all)
+    run_checks(solution, env, run_all, secondary_check)
 
     if run_all:
         solution.all_checker_finished = True
@@ -328,25 +326,25 @@ def check_solution(solution, run_all = 0, debug_keep_tmp = True):
             pass
 
 # Assumes to be called from within a @transaction.autocommit Context!!!!
-def check_with_own_connection(solution,run_all = True, debug_keep_tmp = True):
+def check_with_own_connection(solution,run_all = True, debug_keep_tmp = True, secondary_check = False):
     # Close the current db connection - will cause Django to create a new connection (not shared with other processes)
     # when one is needed, see https://groups.google.com/forum/#!msg/django-users/eCAIY9DAfG0/6DMyz3YuQDgJ
     connection.close()
-    check_solution(solution, run_all, debug_keep_tmp)
+    check_solution(solution, run_all, debug_keep_tmp, secondary_check)
 
     # Don't leave idle connections behind
     connection.close()
 
-def check_with_own_connection_rev(run_all, debug_keep_tmp, solution):
-    return check_with_own_connection(solution, run_all, debug_keep_tmp)
+def check_with_own_connection_rev(run_all, debug_keep_tmp, solution, secondary_check = False):
+    return check_with_own_connection(solution, run_all, debug_keep_tmp, secondary_check)
 
 
-def check_multiple(solutions, run_secret = False, debug_keep_tmp = False):
+def check_multiple(solutions, run_secret = False, debug_keep_tmp = False, secondary_check = False):
     if settings.NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL <= 1:
         for solution in solutions:
-            solution.check_solution(run_secret, debug_keep_tmp)
+            solution.check_solution(run_secret, debug_keep_tmp, secondary_check)
     else:
-        check_it = partial(check_with_own_connection_rev, run_secret, debug_keep_tmp)
+        check_it = partial(check_with_own_connection_rev, run_secret, debug_keep_tmp, secondary_check = secondary_check)
 
         pool = Pool(processes=settings.NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL)  # Check n solutions at once
         pool.map(check_it, solutions, 1)
@@ -356,7 +354,7 @@ def check_multiple(solutions, run_secret = False, debug_keep_tmp = False):
 
 
 
-def run_checks(solution, env, run_all):
+def run_checks(solution, env, run_all, secondary_check = False):
     """  """
 
     passed_checkers = set()
@@ -364,8 +362,12 @@ def run_checks(solution, env, run_all):
 
     solution_accepted = True
     solution.warnings = False
+
     for checker in checkers:
-        if (checker.always or run_all):
+        # dont rerun previously run checkers in nightly run
+        dont_rerun = secondary_check and checker.results.filter(solution=solution).exists()
+
+        if (checker.always or run_all) and not dont_rerun:
             # Check dependencies -> This requires the right order of the checkers
             can_run_checker = True
             for requirement in checker.requires():
