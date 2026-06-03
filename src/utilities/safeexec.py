@@ -37,7 +37,9 @@ def kill_proc_tree(pid, including_parent=False):
 		parent.kill()
 		parent.wait(5)
 
-def execute_arglist(args, working_directory, environment_variables={}, timeout=None, maxmem=None, fileseeklimit=None, extradirs=[], unsafe=False, error_to_output=True, filenumberlimit=128):
+def execute_arglist(args, working_directory, environment_variables={}, timeout=None, maxmem=None, fileseeklimit=None, extradirs=[], unsafe=False, error_to_output=True, filenumberlimit=128
+                    ,mount_extra_directories=False,
+):
     """ Wrapper to execute Commands with the praktomat testuser. Expects Command as list of arguments, the first being the executable to run. """
     assert isinstance(args, list)
 
@@ -77,6 +79,7 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
             maxmem=maxmem,
             ulimits=docker_ulimits,
             working_directory=abspath(working_directory),
+            mount_extra_directories=mount_extra_directories,
         )
         command += safe_docker_cmd
 
@@ -139,7 +142,7 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
     return [output.decode('utf-8'), error, process.returncode, timed_out, oom_ed]
 
 
-def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_directory):
+def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_directory, mount_extra_directories=False,):
     cmd = ["sudo", "docker", "run", "--rm", "--sig-proxy",
         "--tmpfs", "/tmp", "--tmpfs", "/run", "--tmpfs", "/home"]
 
@@ -239,6 +242,31 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
         if external_dir is not None:
             cmd += [f"--volume={external_dir}:/external:ro"]
     
+
+    if mount_extra_directories:
+        extra_external_dirs = [
+            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1", None),
+            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2", None),
+            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3", None),
+            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4", None),
+            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5", None),
+        ]
+
+        for external_dir in extra_external_dirs:
+            if external_dir:
+                tmpl = string.Template(external_dir)
+                var_id = "TASK_ID_CUSTOM"
+
+                if var_id in tmpl.get_identifiers():
+                    task_id_custom = environment_variables.get(var_id)
+                    if task_id_custom:
+                        external_dir = tmpl.substitute(TASK_ID_CUSTOM=task_id_custom)
+                    else:
+                        continue
+
+                cmd += [f"--volume={external_dir}"]
+
+
     cmd += add_dir(working_directory, False, volumes)
     cmd += [f"--workdir={working_directory}"]
 

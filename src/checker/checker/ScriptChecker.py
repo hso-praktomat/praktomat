@@ -20,7 +20,7 @@ class ScriptChecker(Checker):
     remove = models.CharField(max_length=5000, blank=True, help_text=gettext_lazy("Regular expression describing passages to be removed from the output."))
     returns_html = models.BooleanField(default= False, help_text=gettext_lazy("If the script doesn't return HTML it will be enclosed in &lt; pre &gt; tags."))
     arguments = models.CharField(max_length=5000, blank=True, help_text=gettext_lazy("Additional arguments to pass to the script. Shell-like escaping and quoting is supported."))
-
+    mount_extra_directories = models.BooleanField(default=False, verbose_name=gettext_lazy("Mount extra directories"), help_text=gettext_lazy("Mount configured external extra directories into the checker Docker container."),)
 
     def title(self):
         """ Returns the title for this checker category. """
@@ -79,6 +79,8 @@ class ScriptChecker(Checker):
                             fileseeklimit=settings.TEST_MAXFILESIZE,
                             filenumberlimit=settings.TEST_MAXFILENUMBER,
                             extradirs = [script_dir],
+                            mount_extra_directories=self.mount_extra_directories,
+
                             )
         output = force_str(output, errors='replace')
 
