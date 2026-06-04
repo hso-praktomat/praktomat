@@ -189,21 +189,6 @@ USEPRAKTOMATTESTER = False
 # Use docker to test submission
 USESAFEDOCKER = True
 
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1 = (
-    os.environ.get("PRAKTOMAT_CHECKER_EXTERNAL_EXTRA_DIR_1") or None
-)
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2 = (
-    os.environ.get("PRAKTOMAT_CHECKER_EXTERNAL_EXTRA_DIR_2") or None
-)
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3 = (
-    os.environ.get("PRAKTOMAT_CHECKER_EXTERNAL_EXTRA_DIR_3") or None
-)
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4 = (
-    os.environ.get("PRAKTOMAT_CHECKER_EXTERNAL_EXTRA_DIR_4") or None
-)
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5 = (
-    os.environ.get("PRAKTOMAT_CHECKER_EXTERNAL_EXTRA_DIR_5") or None
-)
 # Linux User "tester" and Usergroup "praktomat"
 # Enable to run all scripts (checker) as the unix user 'tester'.
 # Therefore put 'tester' as well as the Apache user '_www' (and your development user account)

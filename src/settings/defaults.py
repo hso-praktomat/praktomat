@@ -449,3 +449,11 @@ def show_toolbar(request):
 
     # return True here to enable the debug toolbar
     return True
+
+
+# default values for mouting extra files 
+DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1 = None
+DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2 = None
+DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3 = None
+DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4 = None
+DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5 = None

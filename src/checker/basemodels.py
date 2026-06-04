@@ -67,7 +67,6 @@ class Checker(models.Model):
     required = models.BooleanField(default=False, help_text = gettext_lazy('The test must be passed to submit the solution.'))
     always = models.BooleanField(default=True, help_text = gettext_lazy('The test will run on submission time.'))
     critical = models.BooleanField(default=False, help_text = gettext_lazy('If this test fails, do not display further test results.'))
-    # skippable = models.BooleanField(default=False, help_text = gettext_lazy('If the user choose True, checker will be skipped.'))
 
 
     results = GenericRelation("CheckerResult") # enables cascade on delete.

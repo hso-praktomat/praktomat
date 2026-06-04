@@ -245,11 +245,11 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
 
     if mount_extra_directories:
         extra_external_dirs = [
-            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1", None),
-            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2", None),
-            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3", None),
-            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4", None),
-            getattr(settings, "DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5", None),
+            settings.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1,
+            settings.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2,
+            settings.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3,
+            settings.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4,
+            settings.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5,
         ]
 
         for external_dir in extra_external_dirs:
