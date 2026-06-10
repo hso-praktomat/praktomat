@@ -36,6 +36,7 @@ class Solution(models.Model):
     plagiarism = models.BooleanField( default = False, help_text = gettext_lazy('Indicates whether the solution is a rip-off of another one.'))
     final = models.BooleanField( default = False, help_text = gettext_lazy('Indicates whether this solution is the last (accepted) of the author.'))
     all_checker_finished = models.BooleanField(default = False, help_text = gettext_lazy('Indicates whether all checkers have been run for this solution.'))
+    allow_llm_upload = models.BooleanField(default = False, verbose_name=gettext_lazy("I agree to my solution being uploaded to an LLM for evaluation purposes."), help_text = gettext_lazy('Indicates whether the student allows the solution to be uploaded to an LLM.'))
 
     def __str__(self):
         return "%s:%s:%s" % (self.task, self.author , self.number)

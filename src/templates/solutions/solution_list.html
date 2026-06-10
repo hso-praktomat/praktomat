@@ -88,6 +88,7 @@ Just for Debugging... </br>
 						{% endif %}				
 						<form enctype="multipart/form-data" method="post" action="" > {% csrf_token %}
 							{% include "forms/formset_as_div.html" %}
+							{% include "solutions/solution_upload_form.html" %}
 							<input type="submit" value="upload" />
 						</form>
 				{% else %}		
@@ -105,6 +106,7 @@ Just for Debugging... </br>
 			    </h3>
 			    <form enctype="multipart/form-data" method="post" action="" > {% csrf_token %}
 			          {% include "forms/formset_as_div.html" %}
+								{% include "solutions/solution_upload_form.html" %}
 			          <input type="submit" value="upload" />
 			    </form>
 			
@@ -119,6 +121,7 @@ Just for Debugging... </br>
 						{% endif %}
 						<form enctype="multipart/form-data" method="post" action="" > {% csrf_token %}
 							{% include "forms/formset_as_div.html" %}
+							{% include "solutions/solution_upload_form.html" %}
 							<input type="submit" value="upload" />
 						</form>
 				{% else %}					
@@ -153,6 +156,7 @@ Just for Debugging... </br>
 				{% endif %}
 				<form enctype="multipart/form-data" method="post" action="" > {% csrf_token %}
 					{% include "forms/formset_as_div.html" %}
+					{% include "solutions/solution_upload_form.html" %}
 					<input type="submit" value="upload" />
 				</form>
 			{% endif %}
@@ -175,6 +179,7 @@ Just for Debugging... </br>
 			</h2>	  
 			<form enctype="multipart/form-data" method="post" action="" > {% csrf_token %}
 				{% include "forms/formset_as_div.html" %}
+				{% include "solutions/solution_upload_form.html" %}
 				<input type="submit" value="upload" />
 			</form>
 		{% endif %}		

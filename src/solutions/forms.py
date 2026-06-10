@@ -69,3 +69,11 @@ class MyBaseInlineFormSet(BaseInlineFormSet):
 
 SolutionFormSet = inlineformset_factory(Solution, SolutionFile, form=SolutionFileForm, formset=MyBaseInlineFormSet, can_delete=False, extra=1)
 ModelSolutionFormSet = inlineformset_factory(Solution, SolutionFile, form=SolutionFileForm, formset=MyBaseInlineFormSet, can_delete=False, extra=1)
+
+class SolutionUploadForm(forms.ModelForm):
+    class Meta:
+        model = Solution
+        fields = ['allow_llm_upload']
+        help_texts = {
+            'allow_llm_upload': '',
+        }

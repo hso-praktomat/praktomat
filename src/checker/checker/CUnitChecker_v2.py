@@ -372,6 +372,7 @@ class CUnitChecker2(CheckerWithFile):
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
         environ['TASK_ID_CUSTOM'] = env.task().custom_id
+        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
 
         script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),'scripts')
 

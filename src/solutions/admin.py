@@ -85,7 +85,7 @@ class SolutionAdmin(admin.ModelAdmin):
     list_display = ["edit", "view_url", "download_url", "run_checker_url", "task", "show_author", "number", "creation_date", "final", "accepted", "tests_failed", "all_checker_finished", "latest_of_only_failed", "plagiarism"]
     list_filter = ["task", "author", "author__groups", "creation_date" , IsLatestOfOnlyFailedFilter ,"final", "accepted", "warnings", "plagiarism"]
     fieldsets = ((None, {
-                    'fields': ( "task", "author", "creation_date", ("final", "accepted", "warnings", "all_checker_finished"), "plagiarism", 'useful_links')
+                    'fields': ( "task", "author", "creation_date", ("final", "accepted", "warnings", "all_checker_finished"), "plagiarism", "allow_llm_upload", 'useful_links')
                 }),)
     readonly_fields = ["creation_date", "accepted", "all_checker_finished", "tests_failed", 'useful_links']
     inlines = [CheckerResultInline, SolutionFileInline]

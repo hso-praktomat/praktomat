@@ -51,6 +51,7 @@ $(document).ready(function(){
 	<h2>{%trans "Upload solution" %}</h2>
 	<form enctype="multipart/form-data" method="post" action="" > {% csrf_token %}
 		{% include "forms/formset_as_div.html" %}
+		{% include "solutions/solution_upload_form.html" %}
 		<input type="submit" value="upload" />
 	</form>
 </div>

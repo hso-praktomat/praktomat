@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from tasks.models import Task, HtmlInjector
 from attestation.models import Attestation
 from solutions.models import Solution, SolutionFile, get_solutions_zip, ConfirmationMessage
-from solutions.forms import SolutionFormSet
+from solutions.forms import SolutionUploadForm, SolutionFormSet
 from accounts.views import access_denied
 from accounts.models import User
 from configuration import get_settings
@@ -86,7 +86,8 @@ def solution_list(request, task_id, user_id=None):
 
         solution = Solution(task = task, author=author)
         formset = SolutionFormSet(request.POST, request.FILES, instance=solution)
-        if formset.is_valid():
+        solution_form = SolutionUploadForm(request.POST, instance=solution)
+        if formset.is_valid() and solution_form.is_valid():
             solution.save()
             try:
                 formset.save() # Handle UnicodeEncodeError while saving solution
@@ -167,13 +168,14 @@ def solution_list(request, task_id, user_id=None):
             return HttpResponseRedirect(reverse('solution_detail', args=[solution.id]))
     else:
         formset = SolutionFormSet()
+        solution_form = SolutionUploadForm(initial={'allow_llm_upload': True})
 
     attestations = Attestation.objects.filter(solution__task=task, author__tutored_tutorials=request.user.tutorial)
     attestationsPublished = attestations[0].published if attestations else False
 
 
     return render(request, "solutions/solution_list.html",
-                {"formset": formset, "task":task, "solutions": solutions, "final_solution":final_solution,  "uploads_left":uploads_left,  "upload_next_possible_time":upload_next_possible_time,  "dnow":dnow, "attestationsPublished":attestationsPublished, "author":author, "invisible_attestor":get_settings().invisible_attestor, "expired_for_user": task.expired_for_user(author), "submission_date": task.submission_date_for_user(author)})
+                {"formset": formset, "solution_form": solution_form, "task":task, "solutions": solutions, "final_solution":final_solution,  "uploads_left":uploads_left,  "upload_next_possible_time":upload_next_possible_time,  "dnow":dnow, "attestationsPublished":attestationsPublished, "author":author, "invisible_attestor":get_settings().invisible_attestor, "expired_for_user": task.expired_for_user(author), "submission_date": task.submission_date_for_user(author)})
 
 
 @login_required
