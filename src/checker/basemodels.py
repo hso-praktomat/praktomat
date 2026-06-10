@@ -68,7 +68,6 @@ class Checker(models.Model):
     always = models.BooleanField(default=True, help_text = gettext_lazy('The test will run on submission time.'))
     critical = models.BooleanField(default=False, help_text = gettext_lazy('If this test fails, do not display further test results.'))
 
-
     results = GenericRelation("CheckerResult") # enables cascade on delete.
 
     class Meta:

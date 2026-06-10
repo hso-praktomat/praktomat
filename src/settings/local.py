@@ -7,7 +7,6 @@
 
 from os.path import join, dirname, basename
 import re
-import os
 
 PRAKTOMAT_PATH = dirname(dirname(dirname(__file__)))
 
