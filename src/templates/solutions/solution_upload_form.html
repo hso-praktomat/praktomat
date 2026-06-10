@@ -1,0 +1,5 @@
+{% for field in solution_form.visible_fields %}
+<div class="form-row {{field.name}} {{field.errors|yesno:'errors,'}}">
+	<label class="{{field.required|yesno:'required,'}}">{{ field }}{{ field.label }}</label>
+</div>
+{% endfor %}

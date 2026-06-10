@@ -79,6 +79,7 @@ class JUnitChecker(Checker):
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
         environ['TASK_ID_CUSTOM'] = env.task().custom_id
+        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
 
         cmd = [settings.JVM_SECURE, "-cp", settings.JAVA_LIBS[self.junit_version]+":.", self.runner(), self.class_name]
         [output, error, exitcode, timed_out, oom_ed] = execute_arglist(cmd, env.tmpdir(), environment_variables=environ, timeout=settings.TEST_TIMEOUT, fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER, extradirs=[script_dir])

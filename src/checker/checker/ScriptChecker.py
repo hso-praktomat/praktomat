@@ -67,6 +67,7 @@ class ScriptChecker(Checker):
         environ['PROGRAM'] = env.program() or ''
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
+        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
 
         script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts')
 
