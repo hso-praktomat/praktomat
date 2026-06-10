@@ -22,7 +22,8 @@ class SolutionFileInline(admin.TabularInline):
     model = SolutionFile
     extra = 0
     can_delete = False
-    readonly_fields=["mime_type", "file"]
+    fields = ["file", "mime_type"]
+    readonly_fields=["mime_type"]
 
 
 class IsLatestOfOnlyFailedFilter(admin.SimpleListFilter):
@@ -84,11 +85,18 @@ class SolutionAdmin(admin.ModelAdmin):
     list_display = ["edit", "view_url", "download_url", "run_checker_url", "task", "show_author", "number", "creation_date", "final", "accepted", "tests_failed", "all_checker_finished", "latest_of_only_failed", "plagiarism"]
     list_filter = ["task", "author", "author__groups", "creation_date" , IsLatestOfOnlyFailedFilter ,"final", "accepted", "warnings", "plagiarism"]
     fieldsets = ((None, {
-                    'fields': ( "task", "show_author", "creation_date", ("final", "accepted", "warnings", "all_checker_finished"), "plagiarism", 'useful_links')
+                    'fields': ( "task", "author", "creation_date", ("final", "accepted", "warnings", "all_checker_finished"), "plagiarism", 'useful_links')
                 }),)
-    readonly_fields=["task", "show_author", "creation_date", "accepted", "final", "all_checker_finished", "tests_failed", 'useful_links']
-    inlines =  [CheckerResultInline, SolutionFileInline]
+    readonly_fields = ["creation_date", "accepted", "all_checker_finished", "tests_failed", 'useful_links']
+    inlines = [CheckerResultInline, SolutionFileInline]
     actions = ['run_checkers', 'run_checkers_all', 'mark_plagiarism', 'mark_no_plagiarism']
+
+    def get_readonly_fields(self, request, obj=None):
+        # If obj exists (Edit mode), make task and author readonly
+        if obj:
+            return self.readonly_fields + ["task", "author"]
+        # On creation (obj=None), all fields defined in fieldsets are editable
+        return self.readonly_fields
 
     #for sorting computed values "tests_failed" and "latest of only failed" which are not stored in database,
     #wie have to implement the behavior of get_queryset to simulate a return of SQL's ORDER BY
