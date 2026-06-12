@@ -5,6 +5,7 @@
 	<script type="text/javascript" src="{{STATIC_URL}}/frameworks/jquery.easy-confirm-dialog/jquery.easy-confirm-dialog.js"></script>
 	<script type="text/javascript" src="{{STATIC_URL}}script/solution_inlines.js"></script>
 	<link type="text/css" rel="stylesheet" href="{{STATIC_URL}}styles/pygments_friendly.css" />
+	<link type="text/css" rel="stylesheet" href="{{STATIC_URL}}styles/code_highlight_table.css" />
 	<script type="text/javascript">
 		function updatePublishButton(){
 			if ($('#id_final').is(':checked')) {
@@ -102,7 +103,12 @@
 	{% for anotfile in attest.annotatedsolutionfile_set.all|basenamedictsort:"solution_file.file.name" %}
 		<div class="file" id="file{{forloop.counter}}">
 			<h3>{{solutionfile}}</h3>
-			<div class="content">{{anotfile.content_diff|highlight_table:anotfile.solution_file.file.name|highlight_diff}}</div>
+			
+			<div class="content">
+			{% with diff=anotfile.content_diff %}
+				{{diff|highlight_table:anotfile.solution_file.file.name|fix_table_code:diff|highlight_diff}}
+			{% endwith %}
+			</div>
 		</div>
 	{%endfor%}
 </div>
@@ -146,4 +152,4 @@
 		</div>
 {% endfor %}
 
-{% endblock %}
+</div>{% endblock %}
