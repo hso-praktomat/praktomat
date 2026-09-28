@@ -239,7 +239,7 @@ class CheckerResult(models.Model):
     def set_log(self, log,timed_out=False,truncated=False,oom_ed=False):
         """ Sets the log of the Checker run. timed_out and truncated indicated if appropriate error messages shall be appended  """
         if timed_out:
-            log = '<div class="error">Timeout occurred!</div>' + log
+            log = f'<div class="error">Timeout occurred! (after {settings.TEST_TIMEOUT} seconds)</div>' + log
         if truncated:
             log = '<div class="error">Output too long, truncated</div>' + log
         if oom_ed:
