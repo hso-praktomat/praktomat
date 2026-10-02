@@ -103,12 +103,7 @@
 	{% for anotfile in attest.annotatedsolutionfile_set.all|basenamedictsort:"solution_file.file.name" %}
 		<div class="file" id="file{{forloop.counter}}">
 			<h3>{{solutionfile}}</h3>
-			
-			<div class="content">
-			{% with diff=anotfile.content_diff %}
-				{{diff|highlight_table:anotfile.solution_file.file.name|fix_table_code:diff|highlight_diff}}
-			{% endwith %}
-			</div>
+			<div class="content">{{anotfile.content_diff|highlight_diff_table:anotfile.solution_file.file.name}}</div>
 		</div>
 	{%endfor%}
 </div>
