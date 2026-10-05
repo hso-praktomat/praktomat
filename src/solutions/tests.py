@@ -1,12 +1,60 @@
 from os.path import dirname, join
 from datetime import datetime, timedelta
+import difflib
 
 from utilities.TestSuite import TestCase
 from django.test.client import Client
 from django.urls import reverse
 
 from solutions.models import Solution
+from solutions.templatetags.highlight import colorize_diff_table
 from tasks.models import Task
+
+
+class TestHighlightDiffTable(TestCase):
+    """Tests for the rendering of annotated solution diffs."""
+
+    def render(self, original, anotated, filename):
+        differ = difflib.Differ()
+        diff = "\n".join(l.strip("\n") for l in differ.compare(original.splitlines(0), anotated.splitlines(0)))
+        return colorize_diff_table(diff, filename)
+
+    def test_empty_diff(self):
+        self.assertEqual(colorize_diff_table("", "Hello.java"), "")
+
+    def test_line_numbers_match_the_number_of_code_lines(self):
+        html = self.render("a = 1\nb = 2\n", "a = 1\nb = 3\nc = 4\n", "t.py")
+        linenos = html.split('<td class="code">')[0]
+        # one number per code line, the "? " hint lines of difflib do not count
+        self.assertEqual(linenos.count('<span class="normal">'), 4)
+        self.assertIn('<span class="normal">4</span>', linenos)
+        self.assertNotIn('<span class="normal">5</span>', linenos)
+
+    def test_syntax_highlighting_is_not_confused_by_the_diff_markers(self):
+        html = self.render("// comment\n", "int x = 0;\n", "Hello.java")
+        # the leading +/- must neither end up inside a token nor be highlighted
+        self.assertIn('<span class="c1">// comment</span>', html)
+        self.assertIn('<span class="kt">int</span>', html)
+        self.assertNotIn('<span class="o">-</span>', html)
+        self.assertNotIn('<span class="o">+</span>', html)
+
+    def test_changed_lines_get_a_css_class(self):
+        html = self.render("a = 1\n", "a = 1\nb = 2\n", "t.py")
+        self.assertIn('<div class="changed added">', html)
+
+    def test_changed_characters_get_a_css_class(self):
+        html = self.render('s = "Hello"\n', 's = "Hello World"\n', "t.py")
+        self.assertIn('<span class="addedChar"> World</span>', html)
+
+    def test_html_entities_count_as_one_character(self):
+        html = self.render("a = b & c;\n", "a = b && c;\n", "T.java")
+        self.assertIn('<span class="addedChar">&amp;</span>', html)
+
+    def test_unknown_file_type_is_escaped(self):
+        html = self.render("a < b\n", "a > b\n", "unknown.filetype")
+        self.assertIn("&lt;", html)
+        self.assertNotIn("a < b", html)
+
 
 class TestViews(TestCase):
     def setUp(self):

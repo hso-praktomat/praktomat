@@ -195,9 +195,18 @@ class AnnotatedSolutionFile(models.Model):
         return not original == anotated
 
     def content_diff(self):
+        def strip_blank_border_lines(lines):
+            start = 0
+            end = len(lines)
+            while start < end and lines[start].strip() == "":
+                start += 1
+            while end > start and lines[end - 1].strip() == "":
+                end -= 1
+            return lines[start:end]
+
         d = difflib.Differ()
-        original = self.solution_file.content().replace("\r\n", "\n").replace("\r", "\n").splitlines(0)
-        anotated = self.content.replace("\r\n", "\n").replace("\r", "\n").splitlines(0)
+        original = strip_blank_border_lines(self.solution_file.content().replace("\r\n", "\n").replace("\r", "\n").splitlines(0))
+        anotated = strip_blank_border_lines(self.content.replace("\r\n", "\n").replace("\r", "\n").splitlines(0))
         result = list(d.compare(original, anotated))
         return "\n".join([l.strip("\n") for l in result])
 
