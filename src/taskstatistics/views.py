@@ -169,8 +169,6 @@ def prepare_statistic_data():
                 ordered_dict["task_id"] = row["task_id"]
             else:
                 ordered_dict[col.name] = 0 if row[col.name] is None else row[col.name] # semantical it is true to set the value 0 if database response with NULL which is transformed via ORM to Python None
-        #print("DEBUG")
-        #print(ordered_dict)
         objects_list.append(ordered_dict)
     tasks = Task.objects.filter(publication_date__lte = now, all_checker_finished = True).order_by('id')
     return (objects_list , tasks)
