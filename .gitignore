@@ -16,3 +16,9 @@ build
 .project
 .pydevproject
 .DS_Store
+
+# tool caches and reports (scripts/check)
+.coverage
+coverage.xml
+.mypy_cache/
+.ruff_cache/

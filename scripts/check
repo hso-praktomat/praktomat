@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Single entry point for the Definition of Done (see CLAUDE.md and static_analysis.md).
+#
+#   scripts/check            fast loop: lint + types (report-only), Django checks, tests without external tools
+#   scripts/check --full     before merge / in CI: all tests under coverage, coverage threshold, diff coverage
+#
+# Environment:
+#   PYTHON                       interpreter of the virtualenv to use (default: python3)
+#   COMPARE_BRANCH               base for "changed files" and diff coverage (default: origin/master)
+#   PRAKTOMAT_TEST_DATA          upload/data directory for tests (default: ../test-data next to the repo)
+#   PRAKTOMAT_REQUIRE_ALL_TOOLS  set to 1 to fail (instead of skip) tests whose external tools are missing
+#
+# Exit code is non-zero if any blocking step fails. Lint and type findings do not block yet;
+# they become blocking in Phases 2 and 3 of static_analysis.md.
+
+set -uo pipefail
+
+FULL=0
+for arg in "$@"; do
+    case "$arg" in
+        --full) FULL=1 ;;
+        -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+        *) echo "unknown argument: $arg" >&2; exit 2 ;;
+    esac
+done
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 2
+PYTHON="${PYTHON:-python3}"
+COMPARE_BRANCH="${COMPARE_BRANCH:-origin/master}"
+DIFF_COVER_FAIL_UNDER=80
+APPS=(accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests)
+
+failed=()
+warned=()
+
+section() { printf '\n==> %s\n' "$1"; }
+
+# run NAME CMD...: blocking step
+run() {
+    local name="$1"; shift
+    section "$name"
+    if "$@"; then echo "--> ok: $name"; else echo "--> FAILED: $name"; failed+=("$name"); fi
+}
+
+# Python files under src/ changed relative to COMPARE_BRANCH (committed, staged, unstaged, untracked)
+changed_py_files() {
+    local base
+    if base="$(git merge-base HEAD "$COMPARE_BRANCH" 2>/dev/null)"; then
+        git diff --name-only --diff-filter=ACMR "$base" -- 'src/*.py'
+    fi
+    git ls-files --others --exclude-standard -- 'src/*.py'
+}
+
+# report_only NAME CMD...: runs CMD, prints the summary line and the findings in changed files, never blocks
+report_only() {
+    local name="$1"; shift
+    section "$name (report-only)"
+    local out
+    out="$("$@" 2>&1)"
+    local status=$?
+    if [ $status -eq 0 ]; then echo "--> ok: $name"; return; fi
+    echo "$out" | grep -E '^(Found [0-9]+|Success)' || true
+    local files
+    files="$(changed_py_files | grep -v '/migrations/' | sort -u)"
+    if [ -n "$files" ]; then
+        local in_changed
+        in_changed="$(echo "$out" | grep -F -f <(echo "$files") || true)"
+        if [ -n "$in_changed" ]; then
+            echo "Findings in files changed relative to $COMPARE_BRANCH (including pre-existing ones; add no new ones):"
+            echo "$in_changed"
+        else
+            echo "No findings in files changed relative to $COMPARE_BRANCH."
+        fi
+    fi
+    warned+=("$name")
+}
+
+report_only "ruff check" "$PYTHON" -m ruff check --output-format concise src
+report_only "mypy" "$PYTHON" -m mypy src
+
+run "django check" "$PYTHON" src/manage-test.py check
+run "migrations up to date" "$PYTHON" src/manage-test.py makemigrations --check --dry-run
+run "template syntax" "$PYTHON" src/manage-test.py validate_templates
+
+if [ $FULL -eq 0 ]; then
+    run "tests (without external tools)" "$PYTHON" src/manage-test.py test --exclude-tag external "${APPS[@]}"
+else
+    run "tests (all, with coverage)" "$PYTHON" -m coverage run src/manage-test.py test "${APPS[@]}"
+    run "coverage threshold" "$PYTHON" -m coverage report
+    "$PYTHON" -m coverage xml -q
+    section "diff coverage"
+    if git rev-parse --verify --quiet "$COMPARE_BRANCH" >/dev/null; then
+        if diff-cover coverage.xml --compare-branch="$COMPARE_BRANCH" --fail-under="$DIFF_COVER_FAIL_UNDER"; then
+            echo "--> ok: diff coverage"
+        else
+            echo "--> FAILED: diff coverage"; failed+=("diff coverage")
+        fi
+    else
+        echo "--> skipped: $COMPARE_BRANCH not available (e.g. shallow CI checkout)"
+    fi
+    report_only "pip-audit" "$PYTHON" -m pip_audit --progress-spinner off
+fi
+
+section "summary"
+if [ ${#warned[@]} -gt 0 ]; then echo "report-only findings: ${warned[*]}"; fi
+if [ ${#failed[@]} -gt 0 ]; then
+    echo "FAILED: ${failed[*]}"
+    exit 1
+fi
+echo "all blocking checks passed"

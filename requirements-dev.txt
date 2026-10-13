@@ -1,0 +1,19 @@
+# Development and CI tooling. Install in addition to requirements.txt:
+#   pip install -r requirements.txt -r requirements-dev.txt
+# Linters and type checkers are pinned exactly, since new versions add rules and change results.
+
+# linting (formatting is not enforced yet, see static_analysis.md)
+ruff==0.16.9
+
+# type checking; the compatible-mypy extra pins a mypy version that works with the plugin
+django-stubs[compatible-mypy]==5.2.9
+types-psutil
+types-Pygments
+pandas-stubs
+
+# tests and coverage
+coverage[toml]~=7.16
+diff-cover~=10.6
+
+# dependency audit (informational)
+pip-audit~=2.10
