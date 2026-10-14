@@ -1,16 +1,19 @@
-from django.test.runner import DiscoverRunner
-from django.test import TestCase as DjangoTestCase
-from django.test import tag
-from django.conf import settings
-from os.path import dirname, join
-from shutil import rmtree
-from collections.abc import Callable, Iterable
-from typing import Any, TypeVar, cast
 import functools
 import importlib.util
 import os
 import shutil
+import sys
 import unittest
+from collections.abc import Callable, Iterable
+from os.path import dirname, join
+from shutil import rmtree
+from typing import Any, TypeVar, cast
+
+from django.conf import settings
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.test import TestCase as DjangoTestCase
+from django.test import tag
+from django.test.runner import DiscoverRunner
 
 # a test method or a test class; Any matches the bound of unittest.skip and django.test.tag
 T = TypeVar("T", bound=Callable[..., Any])
@@ -26,12 +29,14 @@ class TestSuiteRunner(DiscoverRunner):
         from django.core.files.storage import default_storage
         default_storage.location = self.testSuiteUploadRoot
 
-    def setup_databases(self, **kwargs):
+    def setup_databases(self, **kwargs: object) -> list[tuple[BaseDatabaseWrapper, str, bool]]:
         """ Prefill database with some testdata. Rollbacks ensure that the database is in the state after create_test_data().
         Rollbacks need to be supported by the database otherwise the db will be flushed after every test.
         This is much quicker than creating everything in setUp() and more flexible than fixtures as you can use files. """
-        x = super(TestSuiteRunner, self).setup_databases(**kwargs)
-        create_test_data()
+        x = super().setup_databases(**kwargs)
+        # Django creates no test database if the selected tests don't need one (only SimpleTestCase)
+        if x:
+            create_test_data()
         return x
 
     def teardown_test_environment(self, **kwargs):
@@ -41,6 +46,18 @@ class TestSuiteRunner(DiscoverRunner):
         except:
             pass
 
+    def suite_result(self, suite: unittest.TestSuite, result: unittest.TextTestResult, **kwargs: object) -> int:
+        """ Names the skipped tests at the end of the run; unittest itself only counts them. """
+        sys.stderr.write(format_skipped_tests(result.skipped))
+        return super().suite_result(suite, result, **kwargs)
+
+
+def format_skipped_tests(skipped: Iterable[tuple[unittest.TestCase, str]]) -> str:
+    """ One line per skipped test with its reason, sorted by test id; empty if nothing was skipped. """
+    lines = sorted(f"  {test.id()}: {reason}" for test, reason in skipped)
+    if not lines:
+        return ""
+    return f"Skipped tests ({len(lines)}):\n" + "\n".join(lines) + "\n"
 
 
 class TestCase(DjangoTestCase):

@@ -5,13 +5,14 @@
 #   scripts/check --full     before merge / in CI: all tests under coverage, coverage threshold, diff coverage
 #
 # Environment:
-#   PYTHON                       interpreter of the virtualenv to use (default: python3)
+#   PYTHON                       interpreter to use (default: .venv/bin/python if it exists, else python3)
 #   COMPARE_BRANCH               base for "changed files" and diff coverage (default: origin/master)
 #   PRAKTOMAT_TEST_DATA          upload/data directory for tests (default: ../test-data next to the repo)
 #   PRAKTOMAT_REQUIRE_ALL_TOOLS  set to 1 to fail (instead of skip) tests whose external tools are missing
 #
 # Exit code is non-zero if any blocking step fails. Lint and type findings do not block yet;
-# they become blocking in Phases 2 and 3 of static_analysis.md.
+# they become blocking in Phases 2 and 3 of static_analysis.md. A report-only tool that does
+# not run at all (not installed, crash, config error) does block.
 
 set -uo pipefail
 
@@ -26,10 +27,18 @@ done
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 2
-PYTHON="${PYTHON:-python3}"
+if [ -z "${PYTHON:-}" ]; then
+    if [ -x "$ROOT/.venv/bin/python" ]; then PYTHON="$ROOT/.venv/bin/python"; else PYTHON=python3; fi
+fi
 COMPARE_BRANCH="${COMPARE_BRANCH:-origin/master}"
 DIFF_COVER_FAIL_UNDER=80
-APPS=(accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests)
+APPS=(accounts attestation checker configuration solutions tasks taskstatistics utilities hbrs_tests)
+
+if ! "$PYTHON" -c "import django, ruff, mypy, coverage, diff_cover, pip_audit" 2>/dev/null; then
+    echo "error: $PYTHON lacks the project requirements. Create the virtualenv first:" >&2
+    echo "  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt" >&2
+    exit 2
+fi
 
 failed=()
 warned=()
@@ -52,15 +61,30 @@ changed_py_files() {
     git ls-files --others --exclude-standard -- 'src/*.py'
 }
 
-# report_only NAME CMD...: runs CMD, prints the summary line and the findings in changed files, never blocks
+# report_only [--warn-on-error] NAME CMD...: runs CMD, prints the summary line and the findings in
+# changed files. Findings never block. If CMD fails without a "Found N ..." summary, the tool did not
+# run properly; that blocks, or only warns with --warn-on-error (for tools that need the network).
 report_only() {
+    local warn_on_error=0
+    if [ "$1" = "--warn-on-error" ]; then warn_on_error=1; shift; fi
     local name="$1"; shift
     section "$name (report-only)"
     local out
     out="$("$@" 2>&1)"
     local status=$?
     if [ $status -eq 0 ]; then echo "--> ok: $name"; return; fi
-    echo "$out" | grep -E '^(Found [0-9]+|Success)' || true
+    local summary
+    summary="$(echo "$out" | grep -E '^Found [0-9]+' || true)"
+    if [ -z "$summary" ]; then
+        echo "$out" | tail -n 20
+        if [ $warn_on_error -eq 1 ]; then
+            echo "--> WARNING: $name did not run (exit code $status)"; warned+=("$name (did not run)")
+        else
+            echo "--> FAILED: $name did not run (exit code $status)"; failed+=("$name (did not run)")
+        fi
+        return
+    fi
+    echo "$summary"
     local files
     files="$(changed_py_files | grep -v '/migrations/' | sort -u)"
     if [ -n "$files" ]; then
@@ -91,7 +115,7 @@ else
     "$PYTHON" -m coverage xml -q
     section "diff coverage"
     if git rev-parse --verify --quiet "$COMPARE_BRANCH" >/dev/null; then
-        if diff-cover coverage.xml --compare-branch="$COMPARE_BRANCH" --fail-under="$DIFF_COVER_FAIL_UNDER"; then
+        if "$PYTHON" -m diff_cover.diff_cover_tool coverage.xml --compare-branch="$COMPARE_BRANCH" --fail-under="$DIFF_COVER_FAIL_UNDER"; then
             echo "--> ok: diff coverage"
         else
             echo "--> FAILED: diff coverage"; failed+=("diff coverage")
@@ -99,7 +123,7 @@ else
     else
         echo "--> skipped: $COMPARE_BRANCH not available (e.g. shallow CI checkout)"
     fi
-    report_only "pip-audit" "$PYTHON" -m pip_audit --progress-spinner off
+    report_only --warn-on-error "pip-audit" "$PYTHON" -m pip_audit --progress-spinner off
 fi
 
 section "summary"

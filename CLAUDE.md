@@ -17,14 +17,14 @@ templates in `src/templates/`, and static JS/CSS in `media/`.
 |---|---|
 | `src/` | **Import root.** `manage-*.py` live here, so imports are top-level: `from checker.basemodels import Checker`, `from accounts.models import User`. Never write `from src.… import`. |
 | `src/settings/` | `defaults.py` plus the per-mode files `devel.py`, `local.py` and `test.py` (see *Settings* below). |
-| `src/accounts/` | `User` (a multi-table subclass of `auth.User`, with the role helpers `is_trainer`/`is_tutor`/`is_coordinator`), `Tutorial`, LDAP and Shibboleth login, user import, access decorators. |
+| `src/accounts/` | `User` (a multi-table subclass of `auth.User`, with the role helpers `is_trainer`/`is_tutor`/`is_coordinator`), `Tutorial`, LDAP and Shibboleth login, user import, the `access_denied` view (`views.py`), Shibboleth/local-user decorators. |
 | `src/tasks/` | `Task`, checker orchestration (`Task.get_checkers`, `check_all_*`), XML/zip task import/export, JPlag. |
 | `src/solutions/` | `Solution` and `SolutionFile` (zip upload is unpacked in `SolutionFile.save`), the upload view and form (zip-bomb checks), downloads. |
 | `src/checker/` | The checker framework: `basemodels.py` (`Checker`, `CheckerEnvironment`, `CheckerResult` with a GenericFK, `check_solution`, `run_checks`), `checker/*.py` (one module per checker type, each ending with its admin `…Inline`), `compiler/*.py` (C/C++/Java/Haskell/… builders), `scripts/` (bash wrappers and Java policies). |
 | `src/attestation/` | Grading: `Attestation`, `RatingScale`, `Rating`, and a large `views.py`. |
 | `src/taskstatistics/` | An unmanaged model on a raw-SQL DB view (window functions, so SQLite ≥ 3.38 is needed), plus pandas/matplotlib boxplots. |
 | `src/configuration/` | Singleton `Settings` model (`get_settings()` hits the DB every call) and `Chunk` text snippets. |
-| `src/utilities/` | `safeexec.py` (**all execution of student code**), `file_operations.py`, `encoding.py`, `TestSuite.py` (test runner plus shared test data), protected file serving in `views.py`, management commands. |
+| `src/utilities/` | `safeexec.py` (**all execution of student code**), `file_operations.py`, `encoding.py`, `TestSuite.py` (test runner plus shared test data), protected file serving in `views.py`, management commands. Tests in `tests.py`. |
 | `src/hbrs_tests/` | Extra tests (CUnit/CppUnit, admin list views, wsgi, locale). Not an installed app. |
 | `src/sessionprofile/` | phpBB integration. **Disabled** (commented out in `INSTALLED_APPS`), and its tests are not run. |
 | `ADR/` | Architecture decision records named `yyyy-mm-dd-title.md`, with the sections Context and Problem Statement, Options, Decision, Rationale. Write one for significant design decisions. |
@@ -48,19 +48,26 @@ templates in `src/templates/`, and static JS/CSS in `media/`.
   - Each mode file sets the required values (`SITE_NAME`, `PRAKTOMAT_ID`, `BASE_HOST`, `BASE_PATH`, `UPLOAD_ROOT`, `PRIVATE_KEY`, `CERTIFICATE`), then calls `defaults.load_defaults(globals())`. That call fills in every other setting through a `__setattr__` trick.
   - Consequences: static tools cannot see most settings; module-level constants at the bottom of `defaults.py` are **not** exported; some settings exist only in `local.py` and are probed with `hasattr`.
   - When you add a setting, put it inside `load_defaults` as `d.NAME = …`.
-- **`request.user`** is replaced by `accounts.middleware` with the `accounts.models.User` subclass. Role checks are done with the helpers and decorators in `accounts/`.
-- **Migrations.** After changing a model, run `makemigrations`. The history contains many merge migrations; keep them linear from now on.
+  - `settings/local.py` is tracked, but production deployments ([praktomat-docker](https://github.com/hso-praktomat/praktomat-docker)) bring their own `local.py`. A new setting therefore needs a default in `load_defaults`; never rely on it being set in `local.py`.
+- **Access control in views.** `request.user` is replaced by `accounts.middleware` with the `accounts.models.User` subclass. There are **no role decorators**. The idiom is:
+  - `@login_required` (or `@staff_member_required` for staff-only pages) on the view, then
+  - an inline role check with the helpers, e.g. `if not (request.user.is_trainer or request.user.is_tutor or request.user.is_superuser): return access_denied(request)` (`access_denied` is in `accounts/views.py`).
+  - Follow this idiom in new views, and test the denied path.
+- **Migrations.** After changing a model, run `makemigrations`. **Never edit an existing migration**; it may already have run in production. Add a new one instead. The history contains many merge migrations; keep it linear from now on.
+- **Databases.** Production runs on PostgreSQL; development and tests use SQLite. Raw SQL (the DB view in the `taskstatistics` migrations) must work on both, but only SQLite is tested, so keep it portable.
 - **Supported vs. legacy checkers.** **ScriptChecker** is actively used and must stay fully tested. The language-toolchain checkers (R, DejaGnu/Java, C/C++ builders, CUnit/CppUnit, Haskell, Isabelle, …) are not actively maintained. Keep them working when you touch shared code, but don't invest in them otherwise.
 
 ## Running things
 
 Setup (once):
 - **System packages:** `./scripts/install-system-deps.sh` (Debian/Ubuntu; CI uses the same script). It installs the build dependencies for `python-ldap`, `psycopg2` and `mod_wsgi`, the tools that `safeexec` and the ScriptChecker tests use, and the locale `en_US.UTF-8`. `settings/test.py` calls `setlocale` with that locale at import time and aborts without it. Add `--checker-toolchains` to also install R, DejaGnu, JDK 8 and CUnit/CppUnit for the optional checker tests.
-- **Python packages:** `pip install -r requirements.txt -r requirements-dev.txt` in a virtualenv.
+- **Python packages:** in the virtualenv `.venv/` in the repo root (git-ignored), which `scripts/check` uses automatically:
+  `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt`.
+  Run the other commands below with `.venv/bin/python` or with the virtualenv activated. If `scripts/check` stops with "lacks the project requirements", this step is missing.
 - **Test data directory:** tests write to `$PRAKTOMAT_TEST_DATA`, which defaults to `../test-data/`, a **sibling of the repo root**. It is created automatically. In sandboxes or worktrees, set `PRAKTOMAT_TEST_DATA` to a directory you may write to. For development, use `../debug-data/`.
 
 ```bash
-# THE check: lint, types, Django checks, tests without external tools (about 10 s)
+# THE check: lint, types, Django checks, tests without external tools (about 20 s)
 ./scripts/check
 # before finishing: all tests under coverage, coverage threshold, diff coverage vs origin/master (about 60 s)
 ./scripts/check --full
@@ -70,18 +77,22 @@ Setup (once):
 # individual tools (configured in pyproject.toml)
 ruff check src/path/to/file.py
 mypy src
-# dev server
-./src/manage-devel.py migrate && ./src/manage-devel.py runserver
+# dev server (SQLite database and uploads in ../debug-data/); create a login once with createsuperuser
+./src/manage-devel.py migrate && ./src/manage-devel.py createsuperuser && ./src/manage-devel.py runserver
 ```
 
-`scripts/check` uses `$PYTHON` (default `python3`) and compares against `$COMPARE_BRANCH` (default
-`origin/master`). For ruff and mypy it prints the total count plus all findings in the files you
-changed, including findings that were already there.
+`scripts/check` uses `$PYTHON` (default `.venv/bin/python` if it exists, else `python3`) and compares
+against `$COMPARE_BRANCH` (default `origin/master`). For ruff and mypy it prints the total count plus
+all findings in the files you changed, including findings that were already there. If a report-only
+tool cannot run at all (not installed, crash, config error), the check fails; pip-audit, which needs
+the network, only warns.
 
 The test runner is `utilities.TestSuite.TestSuiteRunner`. It relocates `UPLOAD_ROOT` to
 `…/TestSuite`, and creates the users `trainer`, `tutor` and `user` (all with password `demo`) plus one
 task, one solution and one attestation **once per run**. Tests rely on per-test transaction rollback.
-Even tests that subclass plain `django.test.TestCase` depend on this data.
+Even tests that subclass plain `django.test.TestCase` depend on this data. Tests that need no database
+should subclass `django.test.SimpleTestCase`. At the end of a run, the runner prints a
+`Skipped tests (N):` list with the reason for each skip.
 
 **Environment-dependent tests.** Tests that need external tools are marked with
 `@requires(executables=…, headers=…, modules=…, paths=…, optional=…)` from `utilities/TestSuite.py`,
@@ -146,13 +157,13 @@ tightening them is in [static_analysis.md](static_analysis.md).
   - Prefer focused tests, e.g. checker logic with a mocked `execute_arglist`, over full compiler runs.
   - Tests that run an external program use `@requires`.
   - Never delete, skip or weaken an existing assertion to make a change pass.
-- **Security-sensitive code** needs explicit tests for its permission and failure paths. This covers `utilities/safeexec.py`, upload/zip handling in `solutions/` and `utilities/file_operations.py`, file serving in `utilities/views.py`, and the access decorators of views.
+- **Security-sensitive code** needs explicit tests for its permission and failure paths. This covers `utilities/safeexec.py`, upload/zip handling in `solutions/` and `utilities/file_operations.py`, file serving in `utilities/views.py`, and the access checks of views (anonymous, `user`, `tutor`, `trainer`).
 
 ## Definition of Done
 
 A change is done only when **all** of the following hold:
 
-1. **`./scripts/check --full` exits 0.** In your summary, name every test that was skipped for a missing tool.
+1. **`./scripts/check --full` exits 0.** In your summary, name every test that was skipped for a missing tool (copy them from the `Skipped tests` list in the test output).
 2. **No regressions in the report-only gates:** no new ruff findings and no new mypy errors in the files you changed.
 3. **Tests.**
    - New behaviour comes with new tests.
@@ -164,4 +175,7 @@ A change is done only when **all** of the following hold:
    - No mass reformatting or unrelated cleanups mixed into a functional change.
    - Diffs stay reviewable.
    - Significant design decisions get an ADR in `ADR/`.
-8. **Commits** use short imperative messages in the existing style, and are made only when asked.
+8. **Git: agents do not commit.** The maintainer reviews and commits every change.
+   - Leave your changes uncommitted in the working tree. Don't run `git commit`, `git push`, or anything that rewrites history or discards work (`rebase`, `reset --hard`, `stash drop`, `checkout -- <file>`), unless the maintainer explicitly asks for it in the current task.
+   - Don't stage unrelated files. The untracked `.claude/`, `.devcontainer/`, `.mcp.json` and `.vscode/` are personal settings.
+   - End your summary with a proposed commit message: imperative, capitalised, at most 72 characters in the first line (e.g. `Fix NameError in ScriptChecker.clean_filename`), and a short body if the reason isn't obvious.

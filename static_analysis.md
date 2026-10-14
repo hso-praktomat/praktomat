@@ -12,7 +12,7 @@ When a gate changes, update the quality requirements and the Definition of Done 
 
 | Phase | Topic                                                                                                        | Status                                                                                            |
 | ----- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| 0     | Reproducible environment, `scripts/check`, CI on the same script                                             | ✅ **done, uncommitted** (§0.1)                                                                   |
+| 0     | Reproducible environment, `scripts/check`, CI on the same script                                             | ✅ **done, not pushed** (§0.1)                                                                    |
 | 1     | One-shot reformat with `ruff format` + format gate, then fix the confirmed latent bugs with regression tests | ⏭️ **next** (§5, Phase 1)                                                                         |
 | 2     | Lint gate (ruff)                                                                                             | ☐ open, report-only for now                                                                       |
 | 3     | Type-checking infrastructure, mypy gate at zero                                                              | ☐ open, report-only for now                                                                       |
@@ -22,12 +22,16 @@ When a gate changes, update the quality requirements and the Definition of Done 
 
 ### 0.1 Where the work stands
 
-- **Nothing is committed yet.** All Phase 0 work is in the working tree of `master`, on top of `b2ad432d`.
-- **Changed files:**
-  - New: `CLAUDE.md`, `static_analysis.md`, `pyproject.toml`, `requirements-dev.txt`, `scripts/check`, `scripts/install-system-deps.sh`.
-  - Modified: `.github/workflows/test.yml`, `.gitignore`, `src/settings/test.py`, `src/utilities/TestSuite.py`, `src/tasks/tests.py`, `src/checker/tests.py`, `src/hbrs_tests/test_CUnitCppUnit_Checker.py`, `src/hbrs_tests/test_wsgi.py`.
-  - The untracked `.claude/`, `.devcontainer/`, `.mcp.json` and `.vscode/` are personal editor/agent settings. They are **not** part of this work; do not commit them.
-- **Verified locally** (Python 3.12, all checker toolchains installed, mod_wsgi missing): `./scripts/check --full` is green, with 113 tests, 6 skipped, coverage 62 % and diff coverage 93 %. The toolchain-free subset that CI runs passes as well (102 tests).
+- **Committed, not pushed.** Phase 0 is commit `0a4e75a0` on the local branch `coding-agents`, on top of `b2ad432d`.
+- **Review follow-up (2026-10-13, committed, on top of `0a4e75a0`):**
+  - `scripts/check` uses `.venv/bin/python` if it exists, and stops with setup instructions if the interpreter lacks the requirements.
+  - A report-only tool that does not run at all (not installed, crash, config error) now fails the check instead of being reported as "no findings". pip-audit, which needs the network, only warns.
+  - `diff-cover` runs through `$PYTHON`, so it no longer depends on `PATH`.
+  - `TestSuiteRunner` prints a `Skipped tests (N):` list with reasons, so the Definition of Done ("name every skipped test") can be met from the output. It also no longer crashes when the selected tests need no database (only `SimpleTestCase`).
+  - New test app `utilities` (`src/utilities/tests.py`), added to the app list in `scripts/check`.
+  - CLAUDE.md: virtualenv convention, the real access-control idiom (no role decorators), never edit existing migrations, PostgreSQL vs. SQLite, `local.py` in deployments, dev-server login, and **agents do not commit** (D6).
+- The untracked `.claude/`, `.devcontainer/`, `.mcp.json` and `.vscode/` are personal editor/agent settings. They are **not** part of this work; do not commit them.
+- **Verified locally** (Python 3.14, `.venv`, checker toolchains installed except `fakechroot`/`bindfs`, no `../env` symlink): `./scripts/check --full` is green, with 116 tests, 6 skipped (memory limit, CUnit C ×2, wsgi ×3), coverage 62 % and diff coverage 100 %.
 - **Not verified:** the GitHub Actions workflow. It has not run yet because nothing is pushed. The likely trouble spots are:
   - `pip install -r requirements-dev.txt` on Python 3.10 and 3.14 (stub packages and the mypy pin).
   - `scripts/install-system-deps.sh` on the `ubuntu-latest` runner.
@@ -35,8 +39,8 @@ When a gate changes, update the quality requirements and the Definition of Done 
 
 ### 0.2 Next actions for whoever picks this up
 
-1. **Land Phase 0.**
-   - Create a branch (e.g. `static-analysis-phase0`), commit the files listed above, push, and open a PR.
+1. **Land Phase 0** (the maintainer commits and pushes, D6).
+   - Commit the review follow-up on `coding-agents`, push the branch, and open a PR against `master`.
    - Watch CI and fix what breaks. Verify that the CI coverage is ≥ 57 %, which is `fail_under`.
    - Merge only when CI is green on all Python versions.
 2. **Phase 1**, in the order of §5. Start with the one-shot reformat (step 1a); it goes first so that every later diff is already formatted. Then fix the bugs, beginning with `utilities/safeexec.py`.
@@ -51,7 +55,7 @@ Coding agents can only be trusted to change code autonomously when a single, fas
 command tells them and reviewers whether a change is acceptable:
 
 ```
-./scripts/check          # inner loop: lint + types (report-only for now), Django checks, tests without external tools (~40 s)
+./scripts/check          # inner loop: lint + types (report-only for now), Django checks, tests without external tools (~20 s)
 ./scripts/check --full   # before merge and in CI: all tests under coverage, coverage threshold, diff coverage (~60 s)
 ```
 
@@ -85,6 +89,7 @@ stricter module by module.
 | D3  | 2026-10-13                     | **The coverage ratchet is measured the way CI measures it**, without the optional toolchains: `fail_under = 57`. It was 61 % while the toolchain tests ran; that was not a real loss of tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | D4  | 2026-09-28                     | **mypy + django-stubs is the type gate, not pyright.** pyright has no Django plugin: 161 of its 270 errors were ORM noise. Pylance remains fine as an editor aid.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | D5  | 2026-09-28                     | **Keep Django's test runner.** `TestSuiteRunner` provides shared test data. pytest-django is optional and not planned.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| D6  | 2026-10-13                     | **Coding agents do not commit or push.** They leave changes in the working tree and propose a commit message; the maintainer reviews and commits. Recorded in CLAUDE.md, Definition of Done item 8.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | —   | upstream                       | The Pygments pin (`~=2.7.0`) was lifted on `master` (`99c648fb`, now `~=2.19`). The former open question about it is gone.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ### 2.2 Open (need a maintainer)
@@ -135,7 +140,7 @@ These must be solved first, otherwise mypy stays noisy and agents learn to ignor
 
 Effort estimates assume one developer working with an agent.
 
-### Phase 0: Reproducible environment and single entry point — ✅ done (uncommitted)
+### Phase 0: Reproducible environment and single entry point — ✅ done (not pushed)
 
 - [x] `requirements-dev.txt` with pinned tools: ruff, django-stubs + mypy, stub packages, coverage, diff-cover, pip-audit.
 - [x] `pyproject.toml`: ruff lint rules (the Phase 2 target set), mypy config, coverage config with `fail_under`.
@@ -145,7 +150,8 @@ Effort estimates assume one developer working with an agent.
 - [x] New end-to-end test `tasks.tests.TestTaskImportAndUploadWithScriptChecker`: export → admin import → student upload → required ScriptChecker passes or fails.
 - [x] `scripts/check [--full]` and `scripts/install-system-deps.sh [--checker-toolchains]`.
 - [x] CI uses both scripts, runs the tests once under coverage, and sets `PRAKTOMAT_REQUIRE_ALL_TOOLS=1`.
-- [ ] **Commit, push, and get CI green** (§0.2).
+- [x] Review follow-up: `.venv` convention and preflight, tool errors block, skipped-test list (§0.1).
+- [ ] **Commit the follow-up, push, and get CI green** (§0.2).
 
 Deviations from the original plan:
 - No format step yet (D1); it is added in Phase 1, step 1a.
@@ -286,10 +292,10 @@ Mechanism:
 
 | Metric                                | 2026-09-28 (`7a657885`, analysis)          | 2026-10-13 (`b2ad432d` + Phase 0)                                      |
 | ------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------- |
-| Tests                                 | 104; 10 failed because tools were missing  | 113 (6 skipped locally: wsgi ×3, CUnit C ×2, memory limit), 0 failures |
+| Tests                                 | 104; 10 failed because tools were missing  | 113, 116 after the review follow-up (6 skipped locally: wsgi ×3, CUnit C ×2, memory limit), 0 failures |
 | Branch coverage                       | 61 % (with the toolchain tests)            | 62 % locally with toolchains; **57.18 % in CI** (no toolchains)        |
 | Annotated functions                   | 6 / 701                                    | new test helpers only                                                  |
-| ruff (rule set in `pyproject.toml`)   | — (480 with ruff defaults)                 | 1005                                                                   |
+| ruff (rule set in `pyproject.toml`)   | — (480 with ruff defaults)                 | 1005, 1003 after the review follow-up                                  |
 | mypy (`pyproject.toml` config)        | 432 (`check_untyped_defs`, tests excluded) | 433 (tests included)                                                   |
 | Django check / migrations / templates | clean                                      | clean                                                                  |
 | pip-audit                             | —                                          | no known vulnerabilities                                               |
