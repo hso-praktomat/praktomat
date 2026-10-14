@@ -7,6 +7,9 @@ from django.urls import reverse
 from django.contrib.admin.sites import AdminSite
 from unittest import skipIf
 
+from django.conf import settings
+from utilities.TestSuite import requires
+
 from checker.checker.CUnitChecker_v2 import UnitCheckerCopyForm
 from checker.checker.CUnitChecker_v2 import CUnitChecker2Inline
 from checker.checker.CUnitChecker_v2 import CUnitChecker2
@@ -173,6 +176,8 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertEqual(field_label, 'MUT flags')
 
     @skipIf('CI' in os_environ, "Since I have no time to figure out how path-information in cTestrunner has to be set for GitHub Actions, I skip this test for now")
+    # cTestrunner runs the C test app in a sandbox built with bindfs and fakechroot
+    @requires(executables=[settings.C_BINARY, 'fakechroot', 'bindfs'], headers=['CUnit/Basic.h'], optional=True)
     def test_task_solutionview_student_upload_C_app(self):
         taskpath = join(dirname(__file__), 'test_C_app_Task' , 'TestC_app_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
@@ -184,6 +189,8 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertTrue(value_C_app_Task)
 
     @skipIf('CI' in os_environ, "Since I have no time to figure out how path-information in cTestrunner has to be set for GitHub Actions, I skip this test for now")
+    # cTestrunner runs the C test app in a sandbox built with bindfs and fakechroot
+    @requires(executables=[settings.C_BINARY, 'fakechroot', 'bindfs'], headers=['CUnit/Basic.h'], optional=True)
     def test_task_solutionview_student_upload_C_funcLib(self):
         taskpath = join(dirname(__file__), 'test_C_funcLib_Task' , 'TestC_funcLib_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
@@ -195,6 +202,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertTrue(value_C_funcLib_Task)
 
 
+    @requires(executables=[settings.CXX_BINARY], headers=['cppunit/TestFixture.h'], optional=True)
     def test_task_solutionview_student_upload_CPP_app(self):
         taskpath = join(dirname(__file__), 'test_CPP_app_Task' , 'TestCPP_app_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
@@ -207,6 +215,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
 
 
 
+    @requires(executables=[settings.CXX_BINARY], headers=['cppunit/TestFixture.h'], optional=True)
     def test_task_solutionview_student_upload_CPP_method(self):
         taskpath = join(dirname(__file__), 'test_CPP_method_Task' , 'TestCPP_Method_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
@@ -316,6 +325,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertIn("0 final solutions were successfully checked".encode("utf-8"),response.content)
 
 
+    @requires(executables=[settings.CXX_BINARY], headers=['cppunit/TestFixture.h'], optional=True)
     def test_taskAdmin_action_runallcheckers_onTaskWithOneSolutionUploads(self):
         """
         Testing run_all_checkers action

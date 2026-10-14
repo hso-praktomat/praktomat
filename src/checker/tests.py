@@ -1,7 +1,7 @@
 import os
 from os.path import dirname, join
 from django.conf import settings
-from utilities.TestSuite import TestCase
+from utilities.TestSuite import TestCase, requires
 from utilities.file_operations import copy_file, InvalidZipFile
 import unittest
 
@@ -154,6 +154,7 @@ class TestChecker(TestCase):
         for checkerresult in self.solution.checkerresult_set.all():
             self.assertTrue(checkerresult.passed, checkerresult.log)
 
+    @requires(executables=['bash', 'prlimit'])
     def test_script_checker(self):
         src = join(dirname(dirname(dirname(__file__))), 'examples', 'Power.sh')
         dest = join(settings.UPLOAD_ROOT, 'directdeposit', 'Power.sh')
@@ -168,6 +169,7 @@ class TestChecker(TestCase):
         for checkerresult in self.solution.checkerresult_set.all():
             self.assertTrue(checkerresult.passed, checkerresult.log)
 
+    @requires(executables=['bash', 'seq', 'prlimit', 'pkill'])
     def test_script_timeout(self):
         src = join(dirname(dirname(dirname(__file__))), 'examples', 'loop.sh')
         dest = join(settings.UPLOAD_ROOT, 'directdeposit', 'loop.sh')
@@ -190,6 +192,7 @@ class TestChecker(TestCase):
 
     @unittest.skipIf('TRAVIS' in os.environ, "ulimit doesn’t seem to work on travis")
     @unittest.skipIf(settings.USESAFEDOCKER, "not yet supported with safe-docker")
+    @requires(executables=['perl', 'prlimit'])
     def test_script_filesizelimit(self):
         src = join(dirname(dirname(dirname(__file__))), 'examples', 'largefile.pl')
         dest = join(settings.UPLOAD_ROOT, 'directdeposit', 'largefile.pl')
@@ -240,6 +243,7 @@ class TestChecker(TestCase):
         for checkerresult in self.solution.checkerresult_set.all():
             self.assertTrue(checkerresult.passed, checkerresult.log)
 
+    @requires(executables=[settings.JAVA_BINARY, settings.DEJAGNU_RUNTEST], optional=True)
     def test_dejagnu_checker(self):
         src = join(dirname(dirname(dirname(__file__))), 'examples', 'Tasks', 'GGT', 'solutions', 'javagently', 'Stream.java')
         dest = join(settings.UPLOAD_ROOT, 'directdeposit',  'javagently', 'Stream.java')
@@ -283,6 +287,7 @@ class TestChecker(TestCase):
         for checkerresult in self.solution.checkerresult_set.all():
             self.assertTrue(checkerresult.passed, checkerresult.log)
 
+    @requires(executables=[settings.C_BINARY], optional=True)
     def test_c_checker(self):
         src = join(dirname(dirname(dirname(__file__))), 'examples', 'Hello World.c')
         dest = join(settings.UPLOAD_ROOT, 'directdeposit', 'Hello World.c')
@@ -304,6 +309,7 @@ class TestChecker(TestCase):
         for checkerresult in self.solution.checkerresult_set.all():
             self.assertTrue(checkerresult.passed, checkerresult.log)
 
+    @requires(executables=['Rscript'], optional=True)
     def test_r_checker(self):
         import mimetypes
         mimetypes.init()
@@ -340,6 +346,7 @@ class TestChecker(TestCase):
         finally:
             solution_file.delete()
 
+    @requires(executables=['Rscript'], optional=True)
     def test_r_checker_2(self):
         import mimetypes
         mimetypes.init()
@@ -375,6 +382,7 @@ class TestChecker(TestCase):
         finally:
                 solution_file.delete()
 
+    @requires(executables=['Rscript'], optional=True)
     def test_r_checker_3(self):
         import mimetypes
         mimetypes.init()
@@ -408,6 +416,7 @@ class TestChecker(TestCase):
         finally:
             solution_file.delete()
 
+    @requires(executables=['Rscript'], optional=True)
     def test_r_checker_4(self):
         import mimetypes
         mimetypes.init()

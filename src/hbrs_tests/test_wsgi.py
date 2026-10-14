@@ -4,6 +4,9 @@ from django.test import RequestFactory
 
 from django.conf import settings
 from django.core.handlers.wsgi import WSGIHandler
+from os.path import dirname, join
+
+from utilities.TestSuite import requires
 
 #from myapp.wsgi import my_wsgi_app
 # since praktomat.wsgi is not a module, we simulate that it is a module.
@@ -23,6 +26,8 @@ def my_wsgi_loader():
     return mymodule.application
 
 
+# praktomat.wsgi needs mod_wsgi and a virtualenv symlinked as ../env next to the repository
+@requires(modules=['mod_wsgi'], paths=[join(dirname(settings.PRAKTOMAT_PATH), 'env', 'lib')])
 class PraktomatMyWsgiTest(TestCase):
     def setUp(self):
         pass

@@ -4,6 +4,7 @@ import locale
 locale.setlocale( locale.LC_ALL, 'en_US.UTF-8' )
 
 
+import os
 from os.path import join, dirname
 
 PRAKTOMAT_PATH = dirname(dirname(dirname(__file__)))
@@ -21,8 +22,10 @@ BASE_PATH = '/'
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-UPLOAD_ROOT = join(dirname(dirname(dirname(__file__))), 'data')
-UPLOAD_ROOT = join(dirname(PRAKTOMAT_PATH), "test-data/")
+# Defaults to a sibling of the repository root. Set PRAKTOMAT_TEST_DATA to run tests
+# without writing outside the repository (e.g. in sandboxes or git worktrees).
+UPLOAD_ROOT = os.environ.get("PRAKTOMAT_TEST_DATA") or join(dirname(PRAKTOMAT_PATH), "test-data/")
+os.makedirs(UPLOAD_ROOT, exist_ok=True)
 
 SECRET_KEY = "not-so-secret"
 

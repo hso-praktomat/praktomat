@@ -1,0 +1,65 @@
+# Tool configuration only. Praktomat is not packaged.
+# See static_analysis.md for the plan behind these settings.
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+src = ["src"]
+extend-exclude = ["src/*/migrations/*"]
+
+[tool.ruff.lint]
+# Target rule set of static_analysis.md, Phase 2. Until then scripts/check only reports findings.
+select = [
+    "F",                      # pyflakes: undefined names, unused imports/variables
+    "E4", "E7", "E9", "W",    # pycodestyle core
+    "B",                      # bugbear: mutable defaults, loop-variable closures, raise-from
+    "BLE", "E722",            # blind and bare except
+    "S102", "S103", "S108", "S301", "S307", "S602", "S604", "S605", "S606", "S608", "S701",  # security subset
+    "DJ",                     # flake8-django
+    "UP",                     # pyupgrade to py310
+    "I",                      # import sorting
+    "PLE",                    # pylint errors
+    "T20",                    # print()
+    "RUF100",                 # unused noqa
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/settings/*" = ["F403", "F405", "F821"]  # settings are injected by defaults.load_defaults
+"src/**/tests.py" = ["S", "T20"]
+"src/hbrs_tests/*" = ["S", "T20"]
+"src/**/management/commands/*" = ["T20"]
+
+[tool.mypy]
+# python_version is deliberately not set: mypy uses the running interpreter (the numpy stubs
+# need >= 3.12 syntax). The 3.10 minimum is enforced by ruff's target-version and the CI matrix.
+mypy_path = "src"
+explicit_package_bases = true
+plugins = ["mypy_django_plugin.main"]
+exclude = ["/migrations/"]
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+enable_error_code = ["ignore-without-code"]
+
+[[tool.mypy.overrides]]
+module = ["ldap", "ldap.*", "debug_toolbar.*", "django_extensions.*", "chardet.*", "mod_wsgi"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+# Phase 3 switches this to a typed settings shim (settings.typecheck).
+django_settings_module = "settings.test"
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["*/migrations/*"]
+
+[tool.coverage.report]
+# Ratchet: raise whenever the measured value exceeds this by 2 points or more. Never lower it.
+# Measured as in CI, i.e. WITHOUT the optional checker toolchains (57.18 % on 2026-10-13);
+# with R/DejaGnu/C/CUnit installed locally the value is about 62 %.
+fail_under = 57
+skip_empty = true
+
+[tool.coverage.xml]
+output = "coverage.xml"

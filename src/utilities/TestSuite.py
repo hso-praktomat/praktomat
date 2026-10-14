@@ -1,8 +1,22 @@
-from django.test.runner import DiscoverRunner
-from django.test import TestCase as DjangoTestCase
-from django.conf import settings
+import functools
+import importlib.util
+import os
+import shutil
+import sys
+import unittest
+from collections.abc import Callable, Iterable
 from os.path import dirname, join
 from shutil import rmtree
+from typing import Any, TypeVar, cast
+
+from django.conf import settings
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.test import TestCase as DjangoTestCase
+from django.test import tag
+from django.test.runner import DiscoverRunner
+
+# a test method or a test class; Any matches the bound of unittest.skip and django.test.tag
+T = TypeVar("T", bound=Callable[..., Any])
 
 class TestSuiteRunner(DiscoverRunner):
     testSuiteUploadRoot = join(settings.UPLOAD_ROOT, 'TestSuite')
@@ -15,12 +29,14 @@ class TestSuiteRunner(DiscoverRunner):
         from django.core.files.storage import default_storage
         default_storage.location = self.testSuiteUploadRoot
 
-    def setup_databases(self, **kwargs):
+    def setup_databases(self, **kwargs: object) -> list[tuple[BaseDatabaseWrapper, str, bool]]:
         """ Prefill database with some testdata. Rollbacks ensure that the database is in the state after create_test_data().
         Rollbacks need to be supported by the database otherwise the db will be flushed after every test.
         This is much quicker than creating everything in setUp() and more flexible than fixtures as you can use files. """
-        x = super(TestSuiteRunner, self).setup_databases(**kwargs)
-        create_test_data()
+        x = super().setup_databases(**kwargs)
+        # Django creates no test database if the selected tests don't need one (only SimpleTestCase)
+        if x:
+            create_test_data()
         return x
 
     def teardown_test_environment(self, **kwargs):
@@ -30,6 +46,18 @@ class TestSuiteRunner(DiscoverRunner):
         except:
             pass
 
+    def suite_result(self, suite: unittest.TestSuite, result: unittest.TextTestResult, **kwargs: object) -> int:
+        """ Names the skipped tests at the end of the run; unittest itself only counts them. """
+        sys.stderr.write(format_skipped_tests(result.skipped))
+        return super().suite_result(suite, result, **kwargs)
+
+
+def format_skipped_tests(skipped: Iterable[tuple[unittest.TestCase, str]]) -> str:
+    """ One line per skipped test with its reason, sorted by test id; empty if nothing was skipped. """
+    lines = sorted(f"  {test.id()}: {reason}" for test, reason in skipped)
+    if not lines:
+        return ""
+    return f"Skipped tests ({len(lines)}):\n" + "\n".join(lines) + "\n"
 
 
 class TestCase(DjangoTestCase):
@@ -44,6 +72,65 @@ class TestCase(DjangoTestCase):
                         msg="No redirection found")
         url = response.redirect_chain[-1][0]
         self.assertEqual(resolve(urlparse(url)[2])[0].__name__, view)
+
+
+REQUIRE_ALL_TOOLS_ENV = "PRAKTOMAT_REQUIRE_ALL_TOOLS"
+INCLUDE_DIRS = ("/usr/include", "/usr/local/include")
+
+
+def missing_requirements(
+    executables: Iterable[str] = (),
+    headers: Iterable[str] = (),
+    modules: Iterable[str] = (),
+    paths: Iterable[str] = (),
+) -> list[str]:
+    """ Returns a description of every requirement that is not available on this system. """
+    missing = [f"executable '{e}'" for e in executables if shutil.which(e) is None]
+    missing += [f"C header '{h}'" for h in headers
+                if not any(os.path.isfile(os.path.join(d, h)) for d in INCLUDE_DIRS)]
+    missing += [f"Python module '{m}'" for m in modules if importlib.util.find_spec(m) is None]
+    missing += [f"path '{p}'" for p in paths if not os.path.exists(p)]
+    return missing
+
+
+def requires(
+    executables: Iterable[str] = (),
+    headers: Iterable[str] = (),
+    modules: Iterable[str] = (),
+    paths: Iterable[str] = (),
+    optional: bool = False,
+) -> Callable[[T], T]:
+    """ Decorator for tests (methods or classes) that depend on external tools.
+
+    Tags the test as 'external' (run `manage-test.py test --exclude-tag external` for the fast subset).
+    If a requirement is missing, the test is skipped, unless the environment variable
+    PRAKTOMAT_REQUIRE_ALL_TOOLS=1 is set (as in CI): then it fails, so a CI run can never
+    turn green just because tools were not installed.
+
+    optional=True is for tests of language toolchains that are not maintained actively
+    (e.g. the R, DejaGnu and CUnit/CppUnit checkers): they are additionally tagged
+    'optional_toolchain' and are always skipped if a requirement is missing, even in CI. """
+    missing = missing_requirements(executables, headers, modules, paths)
+
+    def decorator(test_item: T) -> T:
+        test_item = tag("external")(test_item)
+        if optional:
+            test_item = tag("optional_toolchain")(test_item)
+        if not missing:
+            return test_item
+        reason = "missing " + ", ".join(missing)
+        if optional or os.environ.get(REQUIRE_ALL_TOOLS_ENV) != "1":
+            return unittest.skip(reason)(test_item)
+        if isinstance(test_item, type):
+            # let the tests of the class run and fail with their own error messages
+            return test_item
+
+        @functools.wraps(test_item)
+        def failing_test(self: unittest.TestCase, *args: object, **kwargs: object) -> None:
+            self.fail(f"{reason} ({REQUIRE_ALL_TOOLS_ENV}=1)")
+        return cast(T, failing_test)
+
+    return decorator
 
 
 
