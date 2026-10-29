@@ -3,11 +3,12 @@ A Java bytecode compiler for construction.
 """
 
 import os, re
-import string
+from typing import Any
+
 from checker.compiler.Builder import Builder
 from django.conf import settings
 from django.template.loader import get_template
-from checker.basemodels import Checker
+from checker.basemodels import CheckerEnvironment
 
 from utilities.safeexec import execute_arglist
 from functools import reduce
@@ -16,16 +17,16 @@ from functools import reduce
 class ClassFileGeneratingBuilder(Builder):
     """ A base class for Builders that generate .class files """
 
-    class Meta(Checker.Meta):
+    class Meta(Builder.Meta):
         abstract = True
 
-    def main_module(self, env):
+    def main_module(self, env: CheckerEnvironment) -> str:
         """ find the first class file containing a main method """
         main_method = "public static void main(java.lang.String[])"
         main_method_varargs = "public static void main(java.lang.String...)"
         class_name  = re.compile(r"^(public )?(abstract )?(final )?(class|interface) ([^ ]*)( extends .*)?( implements .*)? \{$", re.MULTILINE)
-        class_files = []
-        for dirpath, dirs, files in os.walk(env.tmpdir()):
+        class_files: list[str] = []
+        for dirpath, _, files in os.walk(env.tmpdir()):
             for filename in files:
                 if filename.endswith(".class"):
                     class_files.append(filename)
@@ -35,8 +36,10 @@ class ClassFileGeneratingBuilder(Builder):
                     environ['TASK_ID_CUSTOM'] = env.task().custom_id
                     [classinfo, _, _, _, _]  = execute_arglist([settings.JAVAP, os.path.join(dirpath, filename)], env.tmpdir(), environ, unsafe=True)
                     if classinfo.find(main_method) >= 0 or classinfo.find(main_method_varargs) >= 0:
-                        main_class_name = class_name.search(classinfo, re.MULTILINE).group(5)
-                        return main_class_name
+                        match = class_name.search(classinfo)
+                        if match is None:
+                            raise self.NotFoundError(f"Could not identify the main class in {filename}:\n{classinfo}")
+                        return match.group(5)
 
         raise self.NotFoundError("A class containing the main method ('public static void main(String[] args)') could not be found in the files %s" % ", ".join(class_files))
 
@@ -50,23 +53,25 @@ class JavaBuilder(ClassFileGeneratingBuilder):
     _env['JAVAC'] = settings.JAVA_BINARY
     _env['JAVAP'] = settings.JAVAP
 
-    def libs(self):
+    def libs(self) -> list[str]:
         required_libs = super(JavaBuilder, self).libs()
 
         return ["-cp", ".:"+(":".join([ settings.JAVA_LIBS[lib] for lib in required_libs if lib in settings.JAVA_LIBS ]))]
 
-    def flags(self, env):
+    def flags(self, env: CheckerEnvironment) -> list[str]:
         """ Accept unicode characters. """
         return (self._flags.split(" ") if self._flags else []) + ["-encoding", "utf-8"]
 
-    def build_log(self, output, args, filenames):
+    def build_log(
+        self, output: str, args: list[str], filenames: set[str]
+    ) -> str:
         t = get_template('checker/compiler/java_builder_report.html')
         return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
 
 from checker.admin import CheckerInline, AlwaysChangedModelForm
 
 class CheckerForm(AlwaysChangedModelForm):
-    def __init__(self, **args):
+    def __init__(self, **args: Any) -> None:
         """ override default values for the model fields """
         super(CheckerForm, self).__init__(**args)
         self.fields["_flags"].initial = ""
@@ -74,6 +79,6 @@ class CheckerForm(AlwaysChangedModelForm):
         #self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^.*\.[jJ][aA][vV][aA]$"
 
-class JavaBuilderInline(CheckerInline):
-    model = JavaBuilder
+class JavaBuilderInline(CheckerInline[JavaBuilder]):
+    model: type[JavaBuilder] = JavaBuilder
     form = CheckerForm

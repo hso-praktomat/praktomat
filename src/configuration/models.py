@@ -1,5 +1,5 @@
 from django.db import models
-from datetime import date, timedelta
+from datetime import date, datetime as _datetime, timedelta
 
 class Settings(models.Model):
     """ Singleton object containing site wide settings configurable by the trainer. """
@@ -8,7 +8,7 @@ class Settings(models.Model):
         # Django admin adds an 's' to the class name; prevent SettingSS
         verbose_name = 'Setting'
 
-    email_validation_regex = \
+    email_validation_regex: "models.CharField[str, str]" = \
             models.CharField(
                 max_length=200,
                 blank=True,
@@ -16,7 +16,7 @@ class Settings(models.Model):
                 help_text="Regular expression used to check the email domain of registering users."
             )
 
-    mat_number_validation_regex = \
+    mat_number_validation_regex: "models.CharField[str, str]" = \
             models.CharField(
                 max_length=200,
                 blank=True,
@@ -24,49 +24,49 @@ class Settings(models.Model):
                 help_text="Regular expression used to check the student number."
             )
 
-    new_users_via_sso = \
+    new_users_via_sso: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=True,
                 help_text="If enabled, users previously unknown to the Praktomat can register via single sign on (eg. Shibboleth)."
             )
 
-    deny_registration_from = \
+    deny_registration_from: "models.DateTimeField[date | _datetime, date | _datetime]" = \
             models.DateTimeField(
                 default=date(2222, 1, 1),
                 help_text="After this date, registration won't be possible."
             )
 
-    acount_activation_days = \
+    acount_activation_days: "models.IntegerField[int, int]" = \
             models.IntegerField(
                 default=10,
                 help_text="Days until the user has time to activate his account with the link sent in the registration email."
             )
 
-    account_manual_validation = \
+    account_manual_validation: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, registrations via the website must be manually validated by a trainer."
             )
 
-    requires_disclaimer_acceptance = \
+    requires_disclaimer_acceptance: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, users have to accept the disclaimer before using the site."
             )
 
-    accept_all_solutions = \
+    accept_all_solutions: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, solutions can become the final solution even if not all required checkers are passed."
             )
 
-    anonymous_attestation = \
+    anonymous_attestation: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, the tutor can't see the name of the user who submitted the solution."
             )
 
-    final_grades_published = \
+    final_grades_published: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, all users can see their final grades."
@@ -80,7 +80,7 @@ class Settings(models.Model):
         (AVERAGE, 'Average'),
     )
 
-    final_grades_arithmetic_option = \
+    final_grades_arithmetic_option: "models.CharField[str, str]" = \
             models.CharField(
                 max_length=3,
                 choices=ARITHMETIC_CHOICES,
@@ -95,45 +95,45 @@ class Settings(models.Model):
         (WITH_PLAGIARISM, 'Including'),
     )
 
-    final_grades_plagiarism_option = \
+    final_grades_plagiarism_option: "models.CharField[str, str]" = \
             models.CharField(
                 max_length=2,
                 choices=PLAGIARISM_CHOICES,
                 default=NO_PLAGIARISM,
             )
 
-    invisible_attestor = \
+    invisible_attestor: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, a user will not learn which tutor wrote attestations to his solutions. In particular, tutors will not be named in attestation emails."
             )
 
-    attestation_reply_to = \
+    attestation_reply_to: "models.EmailField[str, str]" = \
             models.EmailField(
                 blank=True,
                 help_text="Additional Reply-To: address to be set for attestation emails."
             )
 
-    attestation_allow_run_checkers = \
+    attestation_allow_run_checkers: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, tutors can re-run all checkers for solutions they attest. Can be used to re-run checks that failed due to problems unrelated to the solution (e.g.: time-outs because of high server load), but needs to be used with care, since it may change the results from what the student saw when he submitted his solution."
             )
 
-    jplag_setting = \
+    jplag_setting: "models.CharField[str, str]" = \
             models.CharField(
                 max_length=200,
                 default='Java',
                 help_text="Default settings for jPlag"
             )
 
-    deadline_tolerance = \
+    deadline_tolerance: "models.DurationField[timedelta, timedelta]" = \
             models.DurationField(
                 default=timedelta(hours=0),
                 help_text="The duration by which the submission date for a task will be extended for those who just missed the deadline."
             )
 
-    tutors_can_edit_solutions = \
+    tutors_can_edit_solutions: "models.BooleanField[bool, bool]" = \
             models.BooleanField(
                 default=False,
                 help_text="If enabled, tutors can also upload solutions for students in their tutorial."
@@ -141,14 +141,14 @@ class Settings(models.Model):
 
 class Chunk(models.Model):
     """ A Chunk is a piece of content associated with a unique key that can be inserted into any template with the use of a special template tag """
-    settings = models.ForeignKey(
+    settings: "models.ForeignKey[Settings, Settings]" = models.ForeignKey(
             Settings,
             default=1,
             help_text="Makes it easy to display chunks as inlines in Settings.",
             on_delete=models.CASCADE
         )
 
-    key = \
+    key: "models.CharField[str, str]" = \
             models.CharField(
                 help_text="A unique name for this chunk of content",
                 blank=False,
@@ -157,7 +157,7 @@ class Chunk(models.Model):
                 editable=False
             )
 
-    content = models.TextField(blank=True)
+    content: "models.TextField[str, str]" = models.TextField(blank=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "%s" % (self.key,)

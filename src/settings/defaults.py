@@ -1,3 +1,7 @@
+from collections.abc import Mapping, MutableMapping, Sequence
+from typing import TypeVar, cast
+from django.http import HttpRequest
+
 # This module collects all defaults settings for the praktomat
 # It exports one function, load_defaults, which will set the settings in the
 # parameter, but only if it is not already defined.
@@ -8,29 +12,47 @@ no_defaults = [ "SITE_NAME", "PRAKTOMAT_ID", "BASE_HOST", "BASE_PATH", "UPLOAD_R
 import os
 from os.path import abspath, dirname, join
 import utilities.log_filter
-import collections
 
-def load_defaults(settings):
+T = TypeVar('T')
+
+
+def _setting(settings: Mapping[str, object], name: str, expected: type[T]) -> T:
+    value = settings[name]
+    if not isinstance(value, expected):
+        raise TypeError(f"Setting {name} must be {expected.__name__}")
+    return value
+
+
+def _string_sequence(settings: Mapping[str, object], name: str) -> list[str]:
+    value = settings[name]
+    if not isinstance(value, (list, tuple)):
+        raise TypeError(f"Setting {name} must be a list or tuple of strings")
+    items = cast(Sequence[object], value)
+    result: list[str] = []
+    for item in items:
+        if not isinstance(item, str):
+            raise TypeError(f"Setting {name} must contain only strings")
+        result.append(item)
+    return result
+
+def load_defaults(settings: MutableMapping[str, object]) -> None:
     missing = [ v for v in no_defaults if v not in settings]
     if missing:
         raise RuntimeError("Variables without defaults not set: %s" % ", ".join(missing))
 
-    # import settings so that we can conveniently use the settings here
-    for k, v in settings.items():
-        if not isinstance(v, collections.abc.Callable) and not k.startswith('__'):
-            globals()[k] = v
+    UPLOAD_ROOT = _setting(settings, 'UPLOAD_ROOT', str)
+    BASE_PATH = _setting(settings, 'BASE_PATH', str)
+    PRAKTOMAT_ID = _setting(settings, 'PRAKTOMAT_ID', str)
 
     class D(object):
 
-        def __setattr__(self, k, v):
-            object.__setattr__(self, k, v)   # assign value v to instance attribute k
-            if k not in globals():
-                settings[k] = v
-                globals()[k] = v
+        def __setattr__(self, k: str, v: object) -> None:
+            settings.setdefault(k, v)
     d = D()
 
     # Absolute path to the praktomat source
     d.PRAKTOMAT_ROOT = dirname(dirname(dirname(__file__)))
+    PRAKTOMAT_ROOT = _setting(settings, 'PRAKTOMAT_ROOT', str)
 
     #############################################################################
     # Django Settings                                                           #
@@ -65,7 +87,7 @@ def load_defaults(settings):
 
     # A tuple in the same format as ADMINS that specifies who should get broken
     # link notifications when BrokenLinkEmailsMiddleware is enabled.
-    d.MANAGERS = ADMINS
+    d.MANAGERS = settings['ADMINS']
 
     # If you set this to False, Django will make some optimizations so as not
     # to load the internationalization machinery.
@@ -147,6 +169,7 @@ def load_defaults(settings):
     # (the Media class) and the staticfiles app.
     # It must end in a slash if set to a non-empty value.
     d.STATIC_URL = BASE_PATH + 'static/'
+    STATIC_URL = _setting(settings, 'STATIC_URL', str)
 
     # The URL prefix for admin media - CSS, JavaScript and images used by the
     # Django administrative interface. Make sure to use a trailing slash, and to
@@ -162,17 +185,19 @@ def load_defaults(settings):
     d.CSRF_COOKIE_NAME = 'csrftoken_' + PRAKTOMAT_ID
 
     # Make this unique, and don't share it with anybody.
-    if 'SECRET_KEY' not in globals():
+    if 'SECRET_KEY' not in settings:
         secret_keyfile = join(UPLOAD_ROOT, 'SECRET_KEY')
         if os.path.exists(secret_keyfile):
             with open(secret_keyfile) as f:
-                d.SECRET_KEY = f.read()
-            if not d.SECRET_KEY:
+                secret_key = f.read()
+            if not secret_key:
                 raise RuntimeError("File %s empty!" % secret_keyfile)
         else:
             import uuid
-            d.SECRET_KEY = uuid.uuid4().hex
-            os.fdopen(os.open(secret_keyfile, os.O_WRONLY | os.O_CREAT, 0o600), 'w').write(d.SECRET_KEY)
+            secret_key = uuid.uuid4().hex
+            with os.fdopen(os.open(secret_keyfile, os.O_WRONLY | os.O_CREAT, 0o600), 'w') as f:
+                f.write(secret_key)
+        d.SECRET_KEY = secret_key
 
 
     # Templates
@@ -290,6 +315,11 @@ def load_defaults(settings):
     # Otherwise, this is treated as a template string. ${TASK_ID_CUSTOM} will be
     # replaced with the specified custom ID in the task.
     d.DOCKER_CONTAINER_EXTERNAL_DIR = None
+    d.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1 = None
+    d.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2 = None
+    d.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3 = None
+    d.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4 = None
+    d.DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5 = None
 
     # If the Docker container should be able to access the host's network
     # When this is set to false, the container does not have any access to the network.
@@ -363,7 +393,7 @@ def load_defaults(settings):
     d.LDAP_ENABLED = False
     d.AUTHENTICATION_BACKENDS = (
 	    'accounts.ldap_auth.LDAPBackend',
-	    d.AUTH_BACKEND,
+	    _setting(settings, 'AUTH_BACKEND', str),
     )
     d.LDAP_URI="ldap://ldap.DOMAINNAME.TOPLEVEL"
     d.LDAP_BASE="dc=DOMAINNAME,dc=TOPLEVEL"
@@ -407,17 +437,17 @@ def load_defaults(settings):
     d.TEST_RUNNER = 'utilities.TestSuite.TestSuiteRunner'
 
     # This is actually a django setting, but depends on a praktomat setting:
-    if SHIB_ENABLED:
+    if _setting(settings, 'SHIB_ENABLED', bool):
         d.LOGIN_URL = 'shib_hello'
     else:
         d.LOGIN_URL = 'login'
 
-    if DEBUG:
+    if _setting(settings, 'DEBUG', bool):
         # Setup for the debug toolbar
-        settings['INSTALLED_APPS'] = ('debug_toolbar',) + settings['INSTALLED_APPS']
+        settings['INSTALLED_APPS'] = ('debug_toolbar',) + tuple(_string_sequence(settings, 'INSTALLED_APPS'))
         settings['MIDDLEWARE'] = [
             'debug_toolbar.middleware.DebugToolbarMiddleware',
-        ] + settings['MIDDLEWARE']
+        ] + _string_sequence(settings, 'MIDDLEWARE')
 
     d.DEBUG_TOOLBAR_PATCH_SETTINGS = False
     d.DEBUG_TOOLBAR_CONFIG = {
@@ -443,17 +473,9 @@ def load_defaults(settings):
     }
 
 # Always show toolbar (if DEBUG is true)
-def show_toolbar(request):
+def show_toolbar(request: HttpRequest) -> bool:
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         return False
 
     # return True here to enable the debug toolbar
     return True
-
-
-# default values for mouting extra files 
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_1 = None
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_2 = None
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_3 = None
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_4 = None
-DOCKER_CONTAINER_EXTERNAL_EXTRA_DIR_5 = None

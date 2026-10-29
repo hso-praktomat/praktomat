@@ -1,10 +1,9 @@
-import datetime
-import random
-import hashlib
 import re
+import typing as _typing
 
 from django.conf import settings
-from django.db import models, transaction
+from django.db import transaction
+from django.db.models import QuerySet
 from django.template import loader
 from django.utils.translation import gettext_lazy
 from django.contrib.auth.models import Group
@@ -13,19 +12,20 @@ from django.contrib.auth.forms import AdminUserCreationForm as AdminUserBaseCrea
 from django.core.mail import send_mail
 from django.utils.http import int_to_base36
 from django.utils.safestring import mark_safe
-from django import forms
 from configuration import get_settings
 
 from accounts.models import User, Tutorial
 
-class MyRegistrationForm(AdminUserBaseCreationForm):
+class MyRegistrationForm(
+    AdminUserBaseCreationForm[User] if _typing.TYPE_CHECKING else AdminUserBaseCreationForm
+):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: _typing.Any, **kwargs: _typing.Any) -> None:
         # post, domaine=None, use_https=None):
         if 'domain' in kwargs:
-            self.domain = kwargs.pop('domain')
+            self.domain: str = kwargs.pop('domain')
         if 'use_https' in kwargs:
-            self.use_https = kwargs.pop('use_https')
+            self.use_https: bool = kwargs.pop('use_https')
         super(MyRegistrationForm, self).__init__(*args, **kwargs)
 
     # overriding modelfields to ensure required fields are provided
@@ -34,11 +34,11 @@ class MyRegistrationForm(AdminUserBaseCreationForm):
     email = forms.EmailField(required=True)
 
     # adding first and last name, email to the form
-    class Meta:
+    class Meta(AdminUserBaseCreationForm.Meta if _typing.TYPE_CHECKING else object):
         model = User
         fields = ("username", "first_name", "last_name", "email", "mat_number")
 
-    def clean_email(self):
+    def clean_email(self) -> str:
         # cleaning the email in the form doesn't validate it in the admin (good for tutors etc.)
         data = self.cleaned_data['email']
         email_validation_regex = get_settings().email_validation_regex
@@ -46,22 +46,23 @@ class MyRegistrationForm(AdminUserBaseCreationForm):
             raise forms.ValidationError("The email you have provided is not valid. It has to be in: " + email_validation_regex)
         return data
 
-    def clean_mat_number(self):
+    def clean_mat_number(self) -> int:
         # Special error message for un-unique / empty matnumbers on user registration.
         data = self.cleaned_data['mat_number']
         if not data:
             raise forms.ValidationError("This field is required.")
         for user in User.objects.filter(mat_number=data):
             if user.is_activated():
-                trainers = ["<a href='mailto:%s'>%s</a>" % (user.email, user.get_full_name() or user.email) for user in Group.objects.get(name='Trainer').user_set.all()]
+                trainer_group = Group.objects.get(name='Trainer')
+                trainers = ["<a href='mailto:%s'>%s</a>" % (trainer.email, trainer.get_full_name() or trainer.email) for trainer in User.objects.filter(groups=trainer_group)]
                 trainers = ', '.join(trainers)
                 raise forms.ValidationError(mark_safe("A user with this number is already registered. Please contact a trainer: %s" % trainers ))
         return data
 
 
     @transaction.atomic
-    def save(self, *args, **kwargs):
-        user = super(MyRegistrationForm, self).save(*args, **kwargs)
+    def save(self, *args: _typing.Any, **kwargs: _typing.Any) -> User:
+        user: User = super(MyRegistrationForm, self).save(*args, **kwargs)
 
         # default group: user
         user.groups.set(Group.objects.filter(name='User'))
@@ -99,7 +100,9 @@ class MyRegistrationForm(AdminUserBaseCreationForm):
 
         return user
 
-class UserChangeForm(forms.ModelForm):
+class UserChangeForm(
+    forms.ModelForm[User] if _typing.TYPE_CHECKING else forms.ModelForm
+):
 
     # overriding modelfields to ensure required fields are provided
     first_name = forms.CharField(max_length = 30, required=True)
@@ -111,31 +114,46 @@ class UserChangeForm(forms.ModelForm):
         fields = ("first_name", "last_name")
 
 
-class AdminUserCreationForm(AdminUserBaseCreationForm):
-    class Meta:
-        model = User
-        fields = "__all__"
+class AdminUserCreationForm(
+    AdminUserBaseCreationForm[User] if _typing.TYPE_CHECKING else AdminUserBaseCreationForm
+):
+    # Django accepts "__all__"; the creation-form stub restricts fields to tuples.
+    if _typing.TYPE_CHECKING:
+        class Meta(AdminUserBaseCreationForm.Meta):
+            model = User
+    else:
+        class Meta:
+            model = User
+            fields = "__all__"
 
 
-class AdminUserChangeForm(UserBaseChangeForm):
-    class Meta:
+class AdminUserChangeForm(
+    UserBaseChangeForm[User] if _typing.TYPE_CHECKING else UserBaseChangeForm
+):
+    class Meta(UserBaseChangeForm.Meta if _typing.TYPE_CHECKING else object):
         model = User
         fields = "__all__"
         widgets = {
             'user_text': forms.Textarea,
         }
 
-    def clean(self):
+    def clean(self) -> dict[str, _typing.Any]:
         # Require a mat number only if user is in group "User".
         cleaned_data = super(AdminUserChangeForm, self).clean()
-        groups = cleaned_data.get("groups")
+        if cleaned_data is None:
+            cleaned_data = self.cleaned_data
+        groups: object = cleaned_data.get("groups")
         if not groups:
-            self._errors["groups"] = self.error_class(["This field is required."])
-        if ( groups and groups.filter(name="User") and not (cleaned_data.get("mat_number") or settings.DUMMY_MAT_NUMBERS)):
-            self._errors["mat_number"] = self.error_class(["This field is required for Users."])
-            if "mat_number" in cleaned_data:
-                #mat_number was probably removed prior to this validation (eg. no number)
-                del cleaned_data["mat_number"]
+            if not self.has_error("groups"):
+                self.add_error("groups", "This field is required.")
+        elif not isinstance(groups, QuerySet):
+            raise forms.ValidationError("Invalid groups selection.")
+        else:
+            group_queryset = _typing.cast("QuerySet[Group]", groups)
+            if group_queryset.model is not Group:
+                raise forms.ValidationError("Invalid groups selection.")
+            if group_queryset.filter(name="User").exists() and not (cleaned_data.get("mat_number") or settings.DUMMY_MAT_NUMBERS):
+                self.add_error("mat_number", "This field is required for Users.")
         return cleaned_data
 
 reactivation_message_text = """ {% autoescape off %}

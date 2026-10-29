@@ -21,7 +21,6 @@ BASE_PATH = '/'
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-UPLOAD_ROOT = join(dirname(dirname(dirname(__file__))), 'data')
 UPLOAD_ROOT = join(dirname(PRAKTOMAT_PATH), "test-data/")
 
 SECRET_KEY = "not-so-secret"

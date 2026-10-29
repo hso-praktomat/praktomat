@@ -1,7 +1,8 @@
 from django.conf import settings
+from django.http import HttpRequest
 from django.urls import reverse
 
-def from_settings(request):
+def from_settings(request: HttpRequest) -> dict[str, object]:
     ''' A context processor to add the "current site" to the current Context '''
     return {
             'SITE_NAME': settings.SITE_NAME,

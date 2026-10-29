@@ -293,9 +293,72 @@ to run django unit tests
 ```bash
 cd Praktomat
 mkdir ../test-data/
-./src/manage-test.py test accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests
+cd src
+LANGUAGE=en_US:en python -m django test utilities.tests accounts.tests attestation.tests checker.tests configuration.tests solutions.tests tasks.tests taskstatistics.tests hbrs_tests --settings=settings.test --noinput
 ```
 
+Set `LANGUAGE` explicitly for the host-locale tests; checker subprocess environment
+overrides no longer modify the parent process. The settings/execution regressions
+can also run independently without database fixtures or real Docker processes:
+
+```bash
+python -m django test utilities.tests --settings=settings.test --testrunner=django.test.runner.DiscoverRunner --noinput
+```
+
+To run the strict Pyright check from the repository root, create/activate the
+`.venv` environment selected by `pyproject.toml` and install the development
+typing tools alongside the project dependencies (Python 3.10 or newer):
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m pyright --project . --warnings
+```
+
+The check targets maintained Python code under `src/` and the checker example
+in `documentation/ExampleChecker.py`. It uses Python 3.10 as its compatibility
+target and includes tests and migrations.
+The development-only django-stubs 6.0.9 pin supports Python 3.10 and provides
+partial Django 5.2 support. Runtime Django remains on the 5.2 LTS series.
+Development typing also includes Python-3.10-compatible Pygments stubs. Narrow
+local declarations under `typings/ldap/` describe the synchronous python-ldap
+APIs used by Praktomat; they are not replacement runtime modules. No installed
+third-party code needs to be patched.
+
+The full configured scope now passes strict checking with zero errors and
+warnings. The independent `Strict Pyright (Python 3.10 target)` GitHub Actions
+job installs the runtime and pinned typing dependencies into `.venv` on Python
+3.10 and runs the same command on pushes and pull requests. `--warnings` makes
+warnings fail the check as well as errors; no reduced baseline is accepted.
+Historical migrations retain their serialized operations and byte-valued
+metadata; typing compatibility casts must not convert these values at runtime.
+See [the typing plan](PYTHON-TYPING-PLAN.md) for the completed remediation and
+validation results. The full runtime suite passed in a disposable Docker app
+container (320 passed, 3 skipped); the two C upload integration tests were
+skipped by their existing `CI` guard. The legacy `sessionprofile` PHP
+integration is disabled in the default test settings; its Python code is
+type-checked, but its runtime suite requires separate setup.
+
+LDAP deployments may set `LDAP_GROUP_ADAPTERS` to a list or tuple of module
+names. Each `<module>.ldap_group_adapter` must expose a callable
+`ldap_group_adapter(user)`. These adapters load at startup; import/configuration
+errors are reported rather than silently disabling the integration.
+
+Shibboleth matriculation-number attributes must be numeric when provided.
+Malformed values return the Shibboleth error page; database failures propagate
+instead of being treated as missing accounts eligible for creation.
+
+For custom checker implementations, see
+[`documentation/ExampleChecker.py`](documentation/ExampleChecker.py).
+Use `self.create_result(env)` to attach results to their solution; use
+`result.require_checker()` when a generic result needs its concrete checker.
+Compiler/linker `post_run()` implementations return a `(passed, log)` tuple.
+Execution exit codes, timeout and memory-limit flags all contribute to compiler
+success, in addition to the configured warning detection.
+Declare checker admin inlines as `CheckerInline[YourChecker]` with
+`model = YourChecker`; the parent is a Task. TaskAdmin continues discovering
+these inline subclasses automatically.
 
 Deployment installation (using Apache and PostgreSQL)
 =======================

@@ -1,10 +1,10 @@
 import re
+from typing import Any
 
 from django.db import models
 from django.utils.translation import gettext_lazy
 from django.utils.html import escape, format_html
-from django.utils.safestring import mark_safe
-from checker.basemodels import Checker, CheckerResult, CheckerFileField, truncated_log, CheckerEnvironment
+from checker.basemodels import CheckerResult, truncated_log, CheckerEnvironment
 from checker.admin import    CheckerInline, AlwaysChangedModelForm
 from utilities.safeexec import execute_arglist
 from utilities.file_operations import *
@@ -21,64 +21,70 @@ RXFAIL       = re.compile(r"^(.*)(FAILURES!!!|your program crashed|cpu time limi
 #TODO: okay perhaps we could merge both IgnoringBuilders while specialising from Compiler
 
 class IgnoringCBuilder2(CBuilder):
-    _ignore = []
+    _ignore: list[str] = []
 
-    def __init__(self,_flags, _ignore, _file_pattern, _output_flags):
+    def __init__(
+        self, _flags: str, _ignore: list[str], _file_pattern: str, _output_flags: str
+    ) -> None:
 
         super(IgnoringCBuilder2,self).__init__(_flags=_flags, _file_pattern=_file_pattern, _output_flags=_output_flags)
         self._ignore=_ignore
 
-    def get_file_names(self,env):
+    def get_file_names(self, env: CheckerEnvironment) -> list[str]:
         rxarg = re.compile(self.rxarg())
-        ret = [name for (name,content) in env.sources() if rxarg.match(name) and (not name in self._ignore)]
+        ret = [name for (name, _) in env.sources() if rxarg.match(name) and (not name in self._ignore)]
         return ret
 
-    def runFail(self,env,_fail):
+    def runFail(self, env: CheckerEnvironment, _fail: bool) -> CheckerResult:
         if _fail:
             raise TypeError
         return self.run(env)
 
     # Since this checkers instances  will not be saved(), we don't save their results, either
-    def create_result(self, env):
+    def create_result(self, env: CheckerEnvironment) -> CheckerResult:
         assert isinstance(env.solution(), Solution)
         return CheckerResult(checker=self, solution=env.solution())
 
     # override default logbuilder defined in some meta-base-class
-    def logbuilder(self,output,args,env):
+    def logbuilder(
+        self, output: str, args: list[str], env: CheckerEnvironment
+    ) -> str:
         """ Additional adding some logging for bughunting """
         filenames = [name for name in self.get_file_names(env)]
-        solutionfiles = [solutionfile.path() for solutionfile in env.solution().solutionfile_set.all()]
         compilationfiles = set(filenames)
         return self.build_log(output,args,compilationfiles)
 
 class IgnoringCXXBuilder2(CXXBuilder):
-    _ignore = []
+    _ignore: list[str] = []
 
-    def __init__(self,_flags, _ignore, _file_pattern, _output_flags):
+    def __init__(
+        self, _flags: str, _ignore: list[str], _file_pattern: str, _output_flags: str
+    ) -> None:
         super(IgnoringCXXBuilder2,self).__init__(_flags=_flags, _file_pattern=_file_pattern, _output_flags=_output_flags)
         self._ignore=_ignore
 
-    def get_file_names(self,env):
+    def get_file_names(self, env: CheckerEnvironment) -> list[str]:
         rxarg = re.compile(self.rxarg())
-        ret = [name for (name,content) in env.sources() if rxarg.match(name) and (not name in self._ignore)]
+        ret = [name for (name, _) in env.sources() if rxarg.match(name) and (not name in self._ignore)]
         return ret
 
-    def runFail(self,env,_fail):
+    def runFail(self, env: CheckerEnvironment, _fail: bool) -> CheckerResult:
         if _fail:
             raise TypeError
         return self.run(env)
 
 
     # Since this checkers instances  will not be saved(), we don't save their results, either
-    def create_result(self, env):
+    def create_result(self, env: CheckerEnvironment) -> CheckerResult:
         assert isinstance(env.solution(), Solution)
         return CheckerResult(checker=self, solution=env.solution())
 
     # override default logbuilder defined in some meta-base-class
-    def logbuilder(self,output,args,env):
+    def logbuilder(
+        self, output: str, args: list[str], env: CheckerEnvironment
+    ) -> str:
         """ Additional adding some logging for bughunting """
         filenames = [name for name in self.get_file_names(env)]
-        solutionfiles = [solutionfile.path() for solutionfile in env.solution().solutionfile_set.all()]
         compilationfiles = set(filenames)
         return self.build_log(output,args,compilationfiles)
 
@@ -92,17 +98,17 @@ class CUnitChecker2(CheckerWithFile):
 
     # Add fields to configure checker instances. You can use any of the Django fields. (See online documentation)
     # The fields created, task, public, required and always will be inherited from the abstract base class Checker
-    _test_name = models.CharField(
+    _test_name: "models.CharField[str, str]" = models.CharField(
             max_length=100,
             help_text=gettext_lazy("The fully qualified name of the test case executable (with fileending like .exe or .out)"),
             verbose_name=gettext_lazy("TestApp Filename"),
         default=u"TestApp.out"
     )
-    _test_ignore = models.CharField(max_length=4096,
+    _test_ignore: "models.CharField[str, str]" = models.CharField(max_length=4096,
         help_text=gettext_lazy("Regular Expression for ignoring files while compile and link test-code.")+" <br> Play with  RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>",
         default=u"sorry, this feature doesn't work now", blank=True)
 
-    _test_flags = models.CharField(max_length = 1000, blank = True,
+    _test_flags: "models.CharField[str, str]" = models.CharField(max_length = 1000, blank = True,
         default=u"-Wall -Wextra -Wl,--warn-common",
         help_text = gettext_lazy("Compiler and Linker flags for i.e. libraries used while generating TestApp. <br> Don't fill in cunit or cppunit here."))
 
@@ -112,7 +118,7 @@ class CUnitChecker2(CheckerWithFile):
       (u'out', u'MUT: Link solution objects as seperate executable program (*.out, *.exe)'),
     )
     LINK_DICT = {u'out':u'-o' , u'so':u'-shared -fPIC -o' , u'o':u''}
-    link_type = models.CharField(max_length=16, choices=LINK_CHOICES,default="o", help_text = gettext_lazy('How to use solution submission in test-code?'))
+    link_type: "models.CharField[str, str]" = models.CharField(max_length=16, choices=LINK_CHOICES,default="o", help_text = gettext_lazy('How to use solution submission in test-code?'))
 
 
     CUNIT_CHOICES = (
@@ -122,19 +128,19 @@ class CUnitChecker2(CheckerWithFile):
       ('cpp', u'CPP tests'),
     )
     CUNIT_DICT = {u'cunit':u'-lcunit' , u'cppunit':u'-lcppunit' , u'c':u'', u'cpp':u''}
-    cunit_version = models.CharField(max_length=16, choices=CUNIT_CHOICES,default="cunit", verbose_name=gettext_lazy("Unittest type or library"))
+    cunit_version: "models.CharField[str, str]" = models.CharField(max_length=16, choices=CUNIT_CHOICES,default="cunit", verbose_name=gettext_lazy("Unittest type or library"))
 
 
-    _test_par = models.CharField(max_length = 1000,
+    _test_par: "models.CharField[str, str]" = models.CharField(max_length = 1000,
         default=u"",
         help_text = gettext_lazy("Command line parameters for running TestApp"),
         blank=True)
 
     #don't change next two variable names, they are fixed in checker-hierarchie
-    test_description = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
-    name = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
+    test_description: "models.TextField[str, str]" = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
+    name: "models.CharField[str, str]" = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
 
-    _sol_name =  models.CharField(
+    _sol_name: "models.CharField[str, str]" =  models.CharField(
             max_length=100,
             help_text=gettext_lazy("Basisfilename ( = filename without fileending!) for interaction with  MUT (Module-Under-Test)<br>"
             +"The fileending to use gets determined by your choosen Link type.<br>"
@@ -142,7 +148,7 @@ class CUnitChecker2(CheckerWithFile):
         verbose_name=gettext_lazy("MUT Filename"),
         default=u"Solution"
     )
-    _sol_ignore = models.CharField(max_length=4096,
+    _sol_ignore: "models.CharField[str, str]" = models.CharField(max_length=4096,
         help_text=gettext_lazy("Regular Expression for ignoring files while compile CUT and link MUT.<br>"
               +"CUT = Code Under Test - MUT = Module Under Test <br>"
                       +"Play with RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>"
@@ -151,17 +157,19 @@ class CUnitChecker2(CheckerWithFile):
         verbose_name=gettext_lazy("MUT ignore files")
     )
 
-    _sol_flags = models.CharField(max_length = 1000, blank = True,
+    _sol_flags: "models.CharField[str, str]" = models.CharField(max_length = 1000, blank = True,
         default=u"-Wall -Wextra -Wl,--warn-common",
         help_text = gettext_lazy("Compiler and Linker flags used while generating MUT (Module-under-Test)."),
         verbose_name=gettext_lazy("MUT flags")
     )
 
-    def all_own_sibling_instances_filenames(self, env):
+    def all_own_sibling_instances_filenames(
+        self, env: CheckerEnvironment
+    ) -> list[str]:
         assert isinstance(env, CheckerEnvironment)
         #my_solution = env.solution()
         my_task_sibling_checkers = [c for c in self.task.get_checkers() if isinstance(c, self.__class__ ) ]
-        my_sibling_files = []
+        my_sibling_files: list[str] = []
         import zipfile  #via src/utilities/file_operations
         for checker in my_task_sibling_checkers:
             if (checker != self) :
@@ -170,7 +178,6 @@ class CUnitChecker2(CheckerWithFile):
                     with zipfile.ZipFile(checker.file.path) as zip_file:
                         names = zip_file.namelist()
                 except zipfile.BadZipfile:
-                    import string
                     import re
                     cleanfilename = re.sub(r'^CheckerFiles/Task_\d*/'+self.__class__.__name__, '', checker.filename).lstrip('/')
                     names = [cleanfilename]
@@ -179,7 +186,7 @@ class CUnitChecker2(CheckerWithFile):
 
 
 
-    def instance_filenames(self, env):
+    def instance_filenames(self, env: CheckerEnvironment) -> list[str]:
 
         import zipfile  #via src/utilities/file_operations
 
@@ -187,59 +194,58 @@ class CUnitChecker2(CheckerWithFile):
             with zipfile.ZipFile(self.file.path) as zip_file:
                 names = zip_file.namelist()
         except zipfile.BadZipfile:
-                import string
                 import re
                 cleanfilename = re.sub(r'^CheckerFiles/Task_\d*/'+self.__class__.__name__, '', self.filename).lstrip('/')
                 names = [cleanfilename]
         return names
 
 
-    def use_cppBuilder(self):
+    def use_cppBuilder(self) -> bool:
         if 'pp' in self.cunit_version:
             return True
         else:
             return False
 
 
-    def mut_flags(self,env):
+    def mut_flags(self, env: CheckerEnvironment) -> str:
         return self._sol_flags if self._sol_flags else " "
 
 
-    def mut_output_flags(self,env):
+    def mut_output_flags(self, env: CheckerEnvironment) -> str:
                 if self.link_type=='so':
                         return self.LINK_DICT[self.link_type] +u' '+'lib'+self._sol_name+u"."+self.link_type
                 else:
                         return self.LINK_DICT[self.link_type] +u' '+self._sol_name+u"."+self.link_type
 
-    def test_flags(self, env):
+    def test_flags(self, env: CheckerEnvironment) -> str:
         my_unittest_flags = self.CUNIT_DICT[self.cunit_version]
         my_flags_str = self._test_flags +u" "+my_unittest_flags
         return my_flags_str
 
-    def test_output_flags(self,env):
+    def test_output_flags(self, env: CheckerEnvironment) -> str:
         return u'-o '+self._test_name
 
-    def runner(self):
+    def runner(self) -> str:
         #return {'cunit' : 'cuMain.exe', 'cppunit' : 'cxxMain.exe' }[self.cunit_version]
         # cTestrunner is name of shell-script file inside folder checker/scripts
         return "cTestrunner"
 
-    def title(self):
+    def title(self) -> str:
         return u"C/Cpp Unit Test: " + self.name
 
     @staticmethod
-    def description():
+    def description() -> str:
         return u"This Checker runs a C/Cpp Unit Testcases existing in the sandbox. You may want to use CreateFile Checker to create CUnit .c/.cpp and possibly input data files in the sandbox before running the C/CxxBuilder. Unit tests will only be able to read input data files if they are placed in the work/ subdirectory."
 
-    def output_ok(self, output):
+    def output_ok(self, output: str) -> bool:
         return (RXFAIL.search(output) == None)
 
-    def clean(self):
+    def clean(self) -> None:
         #call parents clean
         super(CUnitChecker2, self).clean()
 
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
     # Robert Hartmann : 9.1.2018
     # okay lets play with an Idea:
     # We want to check students solutions
@@ -366,7 +372,7 @@ class CUnitChecker2(CheckerWithFile):
             result.set_log( '<pre>' + escape(self.test_description) + '\n\n==========  Preprocessing =============\n*    Generating  "Testing Executable" *\n======== Failure-Results ==============\n\n</pre><br/>\n'+build_test_result.log )
             return result
 
-        environ = {}
+        environ: dict[str, str] = {}
 
         environ['UPLOAD_ROOT'] = settings.UPLOAD_ROOT
         environ['LANG'] = settings.LANG
@@ -378,7 +384,7 @@ class CUnitChecker2(CheckerWithFile):
 
         cmd_par = self._test_par.split(' ') if self._test_par else []
         cmd = [os.path.join(script_dir,self.runner()),self._test_name] + cmd_par
-        [output, error, exitcode,timed_out, oom_ed] = execute_arglist(cmd, env.tmpdir(),environment_variables=environ,timeout=settings.TEST_TIMEOUT,fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER, extradirs=[script_dir])
+        [output, _, exitcode,timed_out, oom_ed] = execute_arglist(cmd, env.tmpdir(),environment_variables=environ,timeout=settings.TEST_TIMEOUT,fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER, extradirs=[script_dir])
 
         #result = self.create_result(env)
 
@@ -398,7 +404,7 @@ class UnitCheckerCopyForm(AlwaysChangedModelForm):
         model = CUnitChecker2
         fields = '__all__'
 
-    def __init__(self, **args):
+    def __init__(self, **args: Any) -> None:
         """ override default values for the model fields """
         super(UnitCheckerCopyForm, self).__init__(**args)
         #self.fields["_flags"].initial = ""
@@ -407,7 +413,7 @@ class UnitCheckerCopyForm(AlwaysChangedModelForm):
         #self.fields["_file_pattern"].initial = r"^.*\.[jJ][aA][vV][aA]$"
 
 
-    def clean_filename(self):
+    def clean_filename(self) -> str | None:
         filename = self.cleaned_data['filename']
         if (not filename.strip()):
             if 'file' in self.cleaned_data:
@@ -423,10 +429,11 @@ class UnitCheckerCopyForm(AlwaysChangedModelForm):
 
                 if not force:
                     if not (filename == basename):
-                        from django import forms
                         myerrmsg="%s \n %s \n %s"%(gettext_lazy('You should check \"Filename\" value. The correct name could be: '), basename , gettext_lazy('But you can save your given name for renaming file: just continue.'))
-                        myerrmsg=mark_safe(format_html("%s %s"%(myerrmsg,
-							      '<input type="hidden" id="force_save" name="force_save" value="1" />' )))
+                        myerrmsg = format_html(
+                            '{} <input type="hidden" id="force_save" name="force_save" value="1" />',
+                            myerrmsg,
+                        )
                         self.add_error('filename',myerrmsg)
                     else:
                         return filename
@@ -436,9 +443,9 @@ class UnitCheckerCopyForm(AlwaysChangedModelForm):
                 return filename
 
 
-class CUnitChecker2Inline(CheckerInline):
+class CUnitChecker2Inline(CheckerInline[CUnitChecker2]):
     """ This Class defines how the the the checker is represented as inline in the task admin page. """
-    model = CUnitChecker2
+    model: type[CUnitChecker2] = CUnitChecker2
     verbose_name = "C/C++ Unit Checker 2"
     form = UnitCheckerCopyForm
     # graphical layout
@@ -473,5 +480,3 @@ class CUnitChecker2Inline(CheckerInline):
 #class ExampleCheckerInline(CheckerInline):
     #model = ExampleChecker
     #form = ExampleForm
-
-

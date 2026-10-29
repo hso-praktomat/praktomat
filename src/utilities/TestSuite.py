@@ -1,21 +1,29 @@
 from django.test.runner import DiscoverRunner
 from django.test import TestCase as DjangoTestCase
 from django.conf import settings
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.http import HttpResponseBase
 from os.path import dirname, join
 from shutil import rmtree
+from typing import Any
 
 class TestSuiteRunner(DiscoverRunner):
-    testSuiteUploadRoot = join(settings.UPLOAD_ROOT, 'TestSuite')
+    testSuiteUploadRoot: str = join(settings.UPLOAD_ROOT, 'TestSuite')
 
-    def setup_test_environment(self, **kwargs):
+    def setup_test_environment(self, **kwargs: Any) -> None:
         """ Change the upload root to not mess up the production folder """
         super(TestSuiteRunner, self).setup_test_environment(**kwargs)
         settings.UPLOAD_ROOT = self.testSuiteUploadRoot
         # storage object is lazy and is not updated by simply updating the settings
-        from django.core.files.storage import default_storage
-        default_storage.location = self.testSuiteUploadRoot
+        from django.core.files.storage import FileSystemStorage, storages
+        storage = storages['default']
+        if not isinstance(storage, FileSystemStorage):
+            raise TypeError("The test suite requires filesystem storage")
+        storage.location = self.testSuiteUploadRoot
 
-    def setup_databases(self, **kwargs):
+    def setup_databases(
+        self, **kwargs: Any
+    ) -> list[tuple[BaseDatabaseWrapper, str, bool]]:
         """ Prefill database with some testdata. Rollbacks ensure that the database is in the state after create_test_data().
         Rollbacks need to be supported by the database otherwise the db will be flushed after every test.
         This is much quicker than creating everything in setUp() and more flexible than fixtures as you can use files. """
@@ -23,7 +31,7 @@ class TestSuiteRunner(DiscoverRunner):
         create_test_data()
         return x
 
-    def teardown_test_environment(self, **kwargs):
+    def teardown_test_environment(self, **kwargs: Any) -> None:
         super(TestSuiteRunner, self).teardown_test_environment(**kwargs)
         try:
             rmtree(self.testSuiteUploadRoot)
@@ -34,15 +42,20 @@ class TestSuiteRunner(DiscoverRunner):
 
 class TestCase(DjangoTestCase):
 
-    def assertRedirectsToView(self, response, view):
+    def assertRedirectsToView(
+        self, response: HttpResponseBase, view: str
+    ) -> None:
         """ Asserts whether the request was redirected to a specific view function. """
         from urllib.parse import urlparse
         from django.urls import resolve
         self.assertTrue(hasattr(response, 'redirect_chain'),
                         msg="Please use client.get(...,follow=True) with assertRedirectsToView")
-        self.assertTrue(len(response.redirect_chain) > 0,
+        redirect_chain: list[tuple[str, int]] = getattr(
+            response, 'redirect_chain'
+        )
+        self.assertTrue(len(redirect_chain) > 0,
                         msg="No redirection found")
-        url = response.redirect_chain[-1][0]
+        url = redirect_chain[-1][0]
         self.assertEqual(resolve(urlparse(url)[2])[0].__name__, view)
 
 
@@ -57,7 +70,7 @@ from datetime import datetime, timedelta
 
 from django.core.files import File
 
-def create_test_data():
+def create_test_data() -> None:
     """ Fills the test db with objects needed in the unit tests. """
 
     # Users & Tutorials
@@ -98,9 +111,9 @@ def create_test_data():
         solution_file.file.save('GgT.java', File(fd))
 
     # Attestation
-    attestation = Attestation.objects.create(solution = solution, author=tutor) # final, published
+    Attestation.objects.create(solution = solution, author=tutor) # final, published
 
-def dump(obj):
+def dump(obj: object) -> None:
     """ Kinda like obj.__meta__ but shows more, very usefull for testcase debugging. """
     for attr in dir(obj):
         print("obj.%s = %s" % (attr, getattr(obj, attr)))

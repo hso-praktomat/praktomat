@@ -24,13 +24,16 @@
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
+from django.http import HttpRequest, HttpResponseBase
 
 from sessionprofile.models import SessionProfile
 
 
 class SessionProfileMiddleware(object):
 
-    def process_response(self, request, response):
+    def process_response(
+        self, request: HttpRequest, response: HttpResponseBase
+    ) -> HttpResponseBase:
         try:
             # For certain cases (I think 404) the session attribute won't be set
             if hasattr(request, "session"):

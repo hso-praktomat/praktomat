@@ -1,14 +1,15 @@
 from django.contrib import admin
-from django.shortcuts import render
-from django.contrib.auth.admin import UserAdmin
 from django.db import models
-from django.db import transaction
-from django.urls import reverse
+from django.http import HttpRequest as _HttpRequest, HttpResponse as _HttpResponse
+from django.urls import URLPattern as _URLPattern, reverse
 from django.utils.html import format_html
+from django.utils.safestring import SafeString as _SafeString
+import typing as _typing
 
 from tasks.models import Task, MediaFile, HtmlInjector, SubmissionBlacklistEntry, DeadlineExtension
-from solutions.models import Solution, SolutionFile
+from solutions.models import Solution
 from attestation.admin import RatingAdminInline
+from accounts.authentication import require_user
 
 import tasks.views
 
@@ -17,25 +18,37 @@ from timeit import default_timer as timer
 
 admin.autodiscover()
 
-class MediaInline(admin.StackedInline):
-    model = MediaFile
+class MediaInline(
+    admin.StackedInline[MediaFile, Task] if _typing.TYPE_CHECKING else admin.StackedInline
+):
+    model: type[MediaFile] = MediaFile
     extra = 0
 
-class HtmlInjectorInline(admin.StackedInline):
-    model = HtmlInjector
+class HtmlInjectorInline(
+    admin.StackedInline[HtmlInjector, Task] if _typing.TYPE_CHECKING else admin.StackedInline
+):
+    model: type[HtmlInjector] = HtmlInjector
     extra = 0
 
-class SubmissionBlacklistInline(admin.TabularInline):
-    model = SubmissionBlacklistEntry
+class SubmissionBlacklistInline(
+    admin.TabularInline[SubmissionBlacklistEntry, Task]
+    if _typing.TYPE_CHECKING
+    else admin.TabularInline
+):
+    model: type[SubmissionBlacklistEntry] = SubmissionBlacklistEntry
     verbose_name_plural = "Submission Blacklist Entries"
     extra = 0
 
-class DeadlineExtensionInline(admin.TabularInline):
-    model = DeadlineExtension
+class DeadlineExtensionInline(
+    admin.TabularInline[DeadlineExtension, Task]
+    if _typing.TYPE_CHECKING
+    else admin.TabularInline
+):
+    model: type[DeadlineExtension] = DeadlineExtension
     extra = 0
 
-class TaskAdmin(admin.ModelAdmin):
-    model = Task
+class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.ModelAdmin):
+    model: type[Task] = Task
     readonly_fields = ('useful_links',)
     fieldsets = (
         (None, {
@@ -59,7 +72,12 @@ class TaskAdmin(admin.ModelAdmin):
     date_hierarchy = 'publication_date'
     save_on_top = True
 
-    inlines = [SubmissionBlacklistInline] + [DeadlineExtensionInline] + [MediaInline] + [HtmlInjectorInline] + CheckerInline.__subclasses__() + [ RatingAdminInline]
+    # The registry contains different checker model specializations.
+    inlines = (
+        SubmissionBlacklistInline, DeadlineExtensionInline, MediaInline, HtmlInjectorInline,
+        *_typing.cast("list[type[admin.StackedInline[_typing.Any, Task]]]", CheckerInline.__subclasses__()),
+        RatingAdminInline,
+    )
     actions = ['export_tasks', 'run_all_checkers', 'run_all_checkers_on_finals', 'run_all_checkers_on_latest_only_failed', 'check_unchecked_final_solutions', 'delete_attestations', 'unset_all_checker_finished', 'run_all_uploadtime_checkers_on_all']
 
     class Media:
@@ -71,7 +89,9 @@ class TaskAdmin(admin.ModelAdmin):
         )
 
 
-    def export_tasks(self, request, queryset):
+    def export_tasks(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> _HttpResponse:
         """ Export Task action """
         from django.http import HttpResponse
         response = HttpResponse(Task.export_Tasks(queryset).read(), content_type="application/zip")
@@ -79,7 +99,10 @@ class TaskAdmin(admin.ModelAdmin):
         return response
 
 
-    def run_all_checkers_on_finals(self, request, queryset):
+    @admin.action(description="check only finals (Admin)")
+    def run_all_checkers_on_finals(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ Rerun all checker on final solutions including "not always" action """
         start = timer()
         count = 0
@@ -87,9 +110,11 @@ class TaskAdmin(admin.ModelAdmin):
             count += task.check_all_final_solutions()
         end = timer()
         self.message_user(request, "%d final solutions were successfully checked (%d seconds elapsed)." % (count, end-start))
-    run_all_checkers_on_finals.short_description = "check only finals (Admin)"
 
-    def run_all_checkers_on_latest_only_failed(self,request, queryset):
+    @admin.action(description="recheck only latest failed (Admin)")
+    def run_all_checkers_on_latest_only_failed(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ Rerun all checker on latest of only failed solutions including "not always" action """
         start = timer()
         count = 0
@@ -97,16 +122,20 @@ class TaskAdmin(admin.ModelAdmin):
             count += task.check_all_latest_only_failed_solutions()
         end = timer()
         self.message_user(request, "%d users with only failed solutions were checked (%d seconds elapsed)." % (count, end-start))
-    run_all_checkers_on_latest_only_failed.short_description = "recheck only latest failed (Admin)"
 
 
-    def run_all_checkers(self, request, queryset):
+    @admin.action(description="run all checkers (Trainer)")
+    def run_all_checkers(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ Rerun all checker including "not always" action for students with final or latest of only failed solutions """
         self.run_all_checkers_on_finals(request, queryset)
         self.run_all_checkers_on_latest_only_failed(request, queryset)
-    run_all_checkers.short_description = "run all checkers (Trainer)"
 
-    def delete_attestations(self, request, queryset):
+    @admin.action(description="delete attestations (Admin)")
+    def delete_attestations(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ delete given attestations for task solutions """
         from attestation.models import Attestation
         start = timer()
@@ -121,13 +150,16 @@ class TaskAdmin(admin.ModelAdmin):
                         tcount += 1
         end = timer()
         self.message_user(request, "Deleted %d Attestations over %d Tasks: LoopTimer: %d " %(count, tcount, end-start),"warning")
-    delete_attestations.short_description = "delete attestations (Admin)"
 
-    def run_all_uploadtime_checkers_on_all(self, request, queryset):
+    @admin.action(description="recheck all submissions with uploadtime checker (Admin)")
+    def run_all_uploadtime_checkers_on_all(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ Rerun on all solutions all checkers which are running at uploadtime """
+        request.user = require_user(request)
         from checker.basemodels import check_multiple, check_solution
         from accounts.models import User
-        from django.template import Context, loader
+        from django.template import loader
         from django.contrib.sites.requests import RequestSite
         from django.conf import settings
         from django.core.mail import send_mail
@@ -176,7 +208,6 @@ class TaskAdmin(admin.ModelAdmin):
             missing_users_in_new_final_solution_set = task.solution_set.filter(author__in=users_missing_in_new_final_solution).order_by('author','number')
 
             for userid in users_missing_in_new_final_solution :
-                user = User.objects.filter(id=userid)
                 latestfailed_user_solution = missing_users_in_new_final_solution_set.filter(author=userid).latest('number')
                 # Send final solution lost email to current RequestUser tutor/trainer/superuser
                 t = loader.get_template('solutions/submission_final_lost_email.html')
@@ -197,10 +228,12 @@ class TaskAdmin(admin.ModelAdmin):
             self.message_user(request, "Task %s : Checked %d authors lost their finals: LoopTimer: %d seconds elapsed "%(task.title, len(users_missing_in_new_final_solution),(end-start)),"warning")
         allend = timer()
         self.message_user(request, "%d Tasks rechecked : LoopTimer: %d seconds elapsed" % (task_set.count(),allend-allstart))
-    run_all_uploadtime_checkers_on_all.short_description = "recheck all submissions with uploadtime checker (Admin)"
 
 
-    def check_unchecked_final_solutions(self, request, queryset):
+    @admin.action(description="Run checkers for unchecked final solutions (Admin)")
+    def check_unchecked_final_solutions(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ Run all checkers on solutions where all_checker_finished is unset and which were submitted through a deadline extension that has expired """
         start = timer()
         count = 0
@@ -208,10 +241,12 @@ class TaskAdmin(admin.ModelAdmin):
             count += task.check_unchecked_final_solutions()
         end = timer()
         self.message_user(request, "%d final solutions were successfully checked (%d seconds elapsed)." % (count, end-start))
-    check_unchecked_final_solutions.short_description = "Run checkers for unchecked final solutions (Admin)"
 
 
-    def unset_all_checker_finished(self, request, queryset):
+    @admin.action(description="unset all checker finished (Admin)")
+    def unset_all_checker_finished(
+        self, request: _HttpRequest, queryset: models.QuerySet[Task, Task]
+    ) -> None:
         """ Unset task attribute: all_checker_finished """
         start = timer()
         count = 0
@@ -221,28 +256,27 @@ class TaskAdmin(admin.ModelAdmin):
             count += 1
         end = timer()
         self.message_user(request, "State of attribute \"all_checker_finished\" at %d Tasks resetted to \"FALSE\": LoopTimer: %d " % (count, end-start),"warning")
-    unset_all_checker_finished.short_description = "unset all checker finished (Admin)"
 
 
 
-    def get_urls(self):
+    def get_urls(self) -> list[_URLPattern]:
         """ Add URL to task import """
         urls = super(TaskAdmin, self).get_urls()
         from django.urls import re_path
         my_urls = [re_path(r'^import/$', tasks.views.import_tasks, name='task_import')]
         return my_urls + urls
 
-    def attestations_url(self, task):
+    @admin.display(description='Attestations')
+    def attestations_url(self, task: Task) -> _SafeString:
         return format_html ('<a href="{0}">Attestations (User site)</a>',
                             reverse('attestation_list', kwargs={'task_id': task.id}))
-    attestations_url.short_description = 'Attestations'
 
-    def testupload_url(self, task):
+    @admin.display(description='Test Submission')
+    def testupload_url(self, task: Task) -> _SafeString:
         return format_html ('<a href="{0}">Test Submission</a>',
                             reverse('upload_test_solution', kwargs={'task_id': task.id}))
-    testupload_url.short_description = 'Test Submission'
 
-    def useful_links(self, instance):
+    def useful_links(self, instance: Task) -> _SafeString | str:
         if instance.id:
             return format_html (
                 '<a href="{0}">Attestations (including for-user-submission)</a> • ' +

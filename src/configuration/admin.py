@@ -1,14 +1,16 @@
 from django.contrib import admin
-from django.db import models
+from django.http import HttpRequest
+from typing import TYPE_CHECKING
 from .models import Settings, Chunk
 
-class ChunkInline(admin.StackedInline):
-    model = Chunk
+
+class ChunkInline(admin.StackedInline[Chunk, Settings] if TYPE_CHECKING else admin.StackedInline):
+    model: type[Chunk] = Chunk
     fields = ('content',)
     max_num = 0        # don't allow adds
     can_delete = False
 
-class SettingsAdmin(admin.ModelAdmin):
+class SettingsAdmin(admin.ModelAdmin[Settings] if TYPE_CHECKING else admin.ModelAdmin):
 
     fieldsets = (
             ('Registration', {
@@ -42,7 +44,7 @@ class SettingsAdmin(admin.ModelAdmin):
         )
     inlines = [ChunkInline]
 
-    def has_add_permission(self, request):
+    def has_add_permission(self, request: HttpRequest) -> bool:
         return False
 
 admin.site.register(Settings, SettingsAdmin)

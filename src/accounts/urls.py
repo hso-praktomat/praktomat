@@ -1,4 +1,5 @@
-from django.urls import *
+from django.urls import re_path
+from django.urls.resolvers import URLPattern
 from django.views.generic.base import TemplateView
 
 from django.conf import settings   # for switching via ACCOUNT_CHANGE_POSSIBLE
@@ -7,13 +8,12 @@ import accounts.shib_views
 import accounts.views
 
 # Uncomment the next two lines to enable the admin:
-from django.contrib import admin
 
 # for some reason include('django.contrib.auth.urls') wouldn't work with {% url ... %} aka reverse()
 from django.contrib.auth import views as auth_views
 
 # TODO check if URLS are working after solving merge conflicts
-urlpatterns = [
+urlpatterns: list[URLPattern] = [
     re_path(r'^shib_login/$', accounts.shib_views.shib_login, name='shib_login'),
     re_path(r'^shib_hello/$', accounts.shib_views.shib_hello, name='shib_hello'),
     re_path(r'^login/$', auth_views.LoginView.as_view(), {'template_name': 'registration/login.html'}, name='login'),

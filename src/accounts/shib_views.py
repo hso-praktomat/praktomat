@@ -1,8 +1,15 @@
 import datetime
+from collections.abc import Mapping
+from typing import Any as _Any
 
 from codecs import decode, encode
 
-from django.http import HttpResponseRedirect, HttpResponseForbidden
+from django.http import (
+    HttpRequest as _HttpRequest,
+    HttpResponseBase as _HttpResponseBase,
+    HttpResponseForbidden,
+    HttpResponseRedirect,
+)
 from django.template import loader
 from django.shortcuts import render, resolve_url
 from django.contrib.auth import login
@@ -11,13 +18,14 @@ from django.db import transaction
 
 from accounts.models import User
 from django.contrib.auth.models import Group
-from accounts.forms import MyRegistrationForm
 from accounts.decorators import *
 
 from configuration import get_settings
 
-def parse_attributes(META):
-    shib_attrs = {}
+def parse_attributes(
+    META: Mapping[str, object],
+) -> tuple[dict[str, str | None], bool]:
+    shib_attrs: dict[str, str | None] = {}
     error = False
     for header, attr in settings.SHIB_ATTRIBUTE_MAP.items():
         required, name = attr
@@ -25,10 +33,9 @@ def parse_attributes(META):
         value = None
         if values:
             # If multiple attributes releases just care about the 1st one
-            try:
-                value = values.split(';')[0]
-            except:
-                value = values
+            if not isinstance(values, str):
+                raise TypeError(f"Expected a string Shibboleth header: {header}")
+            value = values.split(';')[0]
 
         if not value or value == '':
             if required:
@@ -39,12 +46,14 @@ def parse_attributes(META):
     return shib_attrs, error
 
 
-def render_forbidden(request, template_name, context):
+def render_forbidden(
+    request: _HttpRequest, template_name: str, context: dict[str, _Any]
+) -> HttpResponseForbidden:
     return HttpResponseForbidden(loader.render_to_string(template_name, context, request))
 
 @shibboleth_support_required
-def shib_hello(request):
-    context = {}
+def shib_hello(request: _HttpRequest) -> _HttpResponseBase:
+    context: dict[str, object] = {}
     if 'next' in request.GET:
         context['next'] = request.GET['next']
     context['title'] = "Login via shibboleth"
@@ -53,7 +62,7 @@ def shib_hello(request):
 
 @shibboleth_support_required
 @transaction.atomic
-def shib_login(request):
+def shib_login(request: _HttpRequest) -> _HttpResponseBase:
     attr, error = parse_attributes(request.META)
 
     was_redirected = False
@@ -64,33 +73,34 @@ def shib_login(request):
                'was_redirected': was_redirected}
     if error:
         return render_forbidden(request, 'registration/shib_error.html', context)
-    try:
-        username = attr[settings.SHIB_USERNAME]
-        # TODO this should log a misconfiguration.
-    except:
+    username = attr.get(settings.SHIB_USERNAME)
+    if not username:
         return render_forbidden(request, 'registration/shib_error.html', context)
 
-    if not attr[settings.SHIB_USERNAME] or attr[settings.SHIB_USERNAME] == '':
+    mat_number = attr.get('matriculationNumber')
+    try:
+        number = int(mat_number) if mat_number is not None else None
+    except ValueError:
         return render_forbidden(request, 'registration/shib_error.html', context)
 
     try:
-        user = User.objects.get(username=attr[settings.SHIB_USERNAME])
+        user = User.objects.get(username=username)
     except User.DoesNotExist:
         try:
-            if attr['matriculationNumber'] is not None:
-                user = User.objects.get(mat_number=attr['matriculationNumber'])
+            if number is not None:
+                user = User.objects.get(mat_number=number)
             else:
                 raise User.DoesNotExist
-        except:
+        except User.DoesNotExist:
             if get_settings().new_users_via_sso:
                 if get_settings().deny_registration_from < datetime.datetime.now():
-                    extra_context = {}
+                    extra_context: dict[str, object] = {}
                     extra_context['deny_registration_from'] = get_settings().deny_registration_from
                     extra_context['admins'] = User.objects.filter(is_superuser=True)
-                    extra_context['trainers'] = Group.objects.get(name="Trainer").user_set.all()
+                    extra_context['trainers'] = User.objects.filter(groups=Group.objects.get(name="Trainer"))
                     return render(request, 'registration/registration_form.html', extra_context)
                 user = User.objects.create_user(
-                    attr[settings.SHIB_USERNAME], '',
+                    username, '',
                     last_login=datetime.datetime.now())
                 user_group = Group.objects.get(name='User')
                 user.groups.add(user_group)
@@ -104,7 +114,7 @@ def shib_login(request):
     user.first_name = attr['first_name']          if attr['first_name'] is not None else user.first_name
     user.last_name = attr['last_name']            if attr['last_name']  is not None else user.last_name
     user.email = attr['email']                    if attr['email']      is not None else user.email
-    user.mat_number = attr['matriculationNumber'] if attr['matriculationNumber'] is not None else user.mat_number
+    user.mat_number = number if number is not None else user.mat_number
     user.programme  = attr['programme']           if attr['programme']  is not None else user.programme
     user.save()
 

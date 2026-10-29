@@ -1,10 +1,10 @@
-import zipfile
 import tempfile
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render, get_object_or_404
 from django.http import Http404
+from django.http import HttpRequest
 from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
 from django.views.decorators.cache import cache_control
@@ -19,20 +19,23 @@ from datetime import datetime, timedelta
 
 from tasks.models import Task, HtmlInjector
 from attestation.models import Attestation
-from solutions.models import Solution, SolutionFile, get_solutions_zip, ConfirmationMessage
+from solutions.models import Solution, get_solutions_zip, ConfirmationMessage
 from solutions.forms import SolutionUploadForm, SolutionFormSet
 from accounts.views import access_denied
 from accounts.models import User
+from accounts.authentication import require_user
 from configuration import get_settings
-from checker.basemodels import CheckerResult
+from checker.basemodels import Checker
 from checker.basemodels import check_solution
-from django.db import transaction
 
 from utilities.safeexec import execute_arglist
 
 @login_required
 @cache_control(must_revalidate=True, no_cache=True, no_store=True, max_age=0) #reload the page from the server even if the user used the back button
-def solution_list(request, task_id, user_id=None):
+def solution_list(
+    request: HttpRequest, task_id: str, user_id: str | None = None
+) -> HttpResponse:
+    request.user = require_user(request)
     has_extended_rights = request.user.is_trainer or request.user.is_superuser or (request.user.is_tutor and get_settings().tutors_can_edit_solutions)
     if user_id and not has_extended_rights:
         return access_denied(request)
@@ -42,9 +45,11 @@ def solution_list(request, task_id, user_id=None):
     solutions = task.solution_set.filter(author = author).order_by('-id')
     final_solution = task.final_solution(author)
 
-    if user_id and request.user.is_tutor and not author in request.user.tutored_users():
-        # Tutor not responsible for this user
-        return access_denied(request)
+    if user_id and request.user.is_tutor:
+        tutored_users = request.user.tutored_users()
+        if tutored_users is None or author not in tutored_users:
+            # Tutor not responsible for this user
+            return access_denied(request)
 
     if task.publication_date >= datetime.now() and not request.user.is_trainer:
         raise Http404
@@ -92,13 +97,11 @@ def solution_list(request, task_id, user_id=None):
             try:
                 formset.save() # Handle UnicodeEncodeError while saving solution
             except UnicodeError as inst:
-                import sys
-                extyp, exvalue, ectb = sys.exc_info()
                 exnow = datetime.now() # reinserted
                 dt_string = exnow.strftime("%d/%m/%Y %H:%M:%S")
                 # Send Encoding Error to user via mail
                 myRequestUser = User.objects.filter(id=request.user.id)
-                myerrmsg = " %s => %s " % (extyp.__name__, exvalue) if exvalue else " %s " %(extyp.__name__,)
+                myerrmsg = " %s => %s " % (type(inst).__name__, inst)
                 t = loader.get_template('solutions/submission_upload_UnicodeError_email.html')
                 c = {
                       'protocol' : request.is_secure() and "https" or "http",
@@ -151,7 +154,7 @@ def solution_list(request, task_id, user_id=None):
                         tmp.write(t.render(c))
                         tmp.flush()
                         tmp.seek(0)
-                        environ = {}
+                        environ: dict[str, str] = {}
                         environ['LANG'] = settings.LANG
                         environ['LANGUAGE'] = settings.LANGUAGE
                         [signed_mail, __, __, __, __]  = execute_arglist(["openssl", "smime", "-sign", "-signer", settings.CERTIFICATE, "-inkey", settings.PRIVATE_KEY, "-in", tmp.name], ".", environment_variables=environ, unsafe=True)
@@ -179,7 +182,8 @@ def solution_list(request, task_id, user_id=None):
 
 
 @login_required
-def test_upload(request, task_id):
+def test_upload(request: HttpRequest, task_id: str) -> HttpResponse:
+    request.user = require_user(request)
     if not request.user.is_trainer and not request.user.is_tutor and not request.user.is_superuser:
         return access_denied(request)
 
@@ -200,7 +204,8 @@ def test_upload(request, task_id):
     return render(request, "solutions/solution_test_upload.html", {"formset": formset, "task":task})
 
 @login_required
-def test_upload_student(request, task_id):
+def test_upload_student(request: HttpRequest, task_id: str) -> HttpResponse:
+    request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
     if task.publication_date >= datetime.now():
         raise Http404
@@ -220,7 +225,10 @@ def test_upload_student(request, task_id):
     return render(request, "solutions/solution_test_upload.html", {"formset": formset, "task":task})
 
 @login_required
-def solution_detail(request, solution_id, full):
+def solution_detail(
+    request: HttpRequest, solution_id: str, full: bool
+) -> HttpResponse:
+    request.user = require_user(request)
     solution = get_object_or_404(Solution, pk=solution_id)
     if not (solution.author == request.user or request.user.is_trainer or request.user.is_superuser or (solution.author.tutorial and solution.author.tutorial.tutors.filter(id=request.user.id))):
         return access_denied(request)
@@ -266,7 +274,13 @@ def solution_detail(request, solution_id, full):
                      )
 
 @login_required
-def solution_download(request, solution_id, include_checker_files, include_artifacts):
+def solution_download(
+    request: HttpRequest,
+    solution_id: str,
+    include_checker_files: bool,
+    include_artifacts: bool,
+) -> HttpResponse:
+    request.user = require_user(request)
     solution = get_object_or_404(Solution, pk=solution_id)
     allowed_tutor = request.user.is_tutor and solution.author.tutorial in request.user.tutored_tutorials.all()
     allowed_user = solution.author == request.user and not include_checker_files and not include_artifacts
@@ -280,7 +294,13 @@ def solution_download(request, solution_id, include_checker_files, include_artif
     return response
 
 @login_required
-def solution_download_for_task(request, task_id, include_checker_files, include_artifacts):
+def solution_download_for_task(
+    request: HttpRequest,
+    task_id: str,
+    include_checker_files: bool,
+    include_artifacts: bool,
+) -> HttpResponse:
+    request.user = require_user(request)
     if not (request.user.is_tutor or request.user.is_trainer or request.user.is_superuser):
         return access_denied(request)
 
@@ -294,7 +314,8 @@ def solution_download_for_task(request, task_id, include_checker_files, include_
     return response
 
 @login_required
-def jplag(request, task_id):
+def jplag(request: HttpRequest, task_id: str) -> HttpResponse:
+    request.user = require_user(request)
     if not (request.user.is_staff):
         return access_denied(request)
     task = get_object_or_404(Task, pk=task_id)
@@ -308,30 +329,34 @@ def jplag(request, task_id):
     return render(request, "solutions/jplag.html", {"task":task, "jplag_lang": jplag_lang})
 
 @login_required
-def checker_result_list(request, task_id):
+def checker_result_list(request: HttpRequest, task_id: str) -> HttpResponse:
+    request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
     if not request.user.is_trainer and not request.user.is_superuser:
         return access_denied(request)
     else:
-        users_with_checkerresults = [(user, dict(checkerresults), final_solution)              \
-        for user           in User.objects.filter(groups__name='User').order_by('mat_number')          \
-        for final_solution in Solution.objects.filter(author=user, final=True, task=task).values() \
-        for checkerresults in [[ (result.checker, result) for result in CheckerResult.objects.all().filter(solution=final_solution['id'])]] ]
+        users_with_checkerresults = [
+            (user, {result.require_checker(): result for result in final_solution.checkerresult_set.all()}, final_solution)
+            for user in User.objects.filter(groups__name='User').order_by('mat_number')
+            for final_solution in Solution.objects.filter(author=user, final=True, task=task)
+        ]
 
-        checkers_seen = set([])
+        checker_set: set[Checker] = set()
         for _, results, _  in users_with_checkerresults:
-            checkers_seen |= set(results.keys())
-        checkers_seen = sorted(checkers_seen, key=lambda checker: checker.order)
+            checker_set.update(results)
+        checkers_seen = sorted(checker_set, key=lambda checker: checker.order)
 
-        for i, (user, results, final_solution) in enumerate(users_with_checkerresults):
-            users_with_checkerresults[i] = (user,
-                                            [results[checker] if checker in results else None for (checker) in checkers_seen],
-                                            final_solution)
+        rows = [
+            (user, [results.get(checker) for checker in checkers_seen], final_solution)
+            for user, results, final_solution in users_with_checkerresults
+        ]
 
-        return render(request, "solutions/checker_result_list.html", {"users_with_checkerresults": users_with_checkerresults,  'checkers_seen':checkers_seen, "task":task})
+        return render(request, "solutions/checker_result_list.html", {"users_with_checkerresults": rows, 'checkers_seen':checkers_seen, "task":task})
 
 @staff_member_required
-def solution_run_checker(request, solution_id):
+def solution_run_checker(
+    request: HttpRequest, solution_id: str
+) -> HttpResponse:
     solution = Solution.objects.get(pk=solution_id)
     check_solution(solution, True)
     return HttpResponseRedirect(reverse('solution_detail_full', args=[solution_id]))

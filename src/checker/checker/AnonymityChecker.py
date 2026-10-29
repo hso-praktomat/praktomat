@@ -2,22 +2,17 @@
 AnonymityChecker.
 """
 
-import os
-import string
 import re
-import tempfile
-import fnmatch
 
-from django.db import models
 from django.utils.translation import gettext
-from checker.basemodels import Checker
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
-from django.template.defaultfilters import escape
+from django.utils.html import escape
 
 
 # Helpers
 
-def word(s):
+def word(s: str) -> str:
     """Return a regular expression that matches the word S"""
     if not s:
         s =     r"\bxyzzy9332\b" # Some word that never occurs
@@ -31,7 +26,7 @@ def word(s):
     s = re.sub(r"\belse\b",     r"\bxyzzy9332\b", s)
     return r'\b' + s + r'\b'
 
-def line(content, match):
+def line(content: str, match: re.Match[str]) -> str:
     """Report occurrences of MATCH in CONTENT within their line"""
     start_of_line = match.start()
     while start_of_line > 0 and content[start_of_line - 1] != '\n':
@@ -59,18 +54,18 @@ def line(content, match):
 
 class AnonymityChecker(Checker):
 
-    def title(self):
+    def title(self) -> str:
         """Returns the title for this checker category."""
         # _de("Anonymitaet sicherstellen")
         return gettext("Ensure anonymous submission")
 
     @staticmethod
-    def description():
+    def description() -> str:
         """ Returns a description for this Checker. """
         #_de(u"Diese Prüfung ist bestanden, wenn alle eingereichten Dateien weder Ihren Vor- noch Ihre Nachnamen enthalten.")
         return gettext("This check fails if a submitted file contains your first or last name.")
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         result = self.create_result(env)
         log = ""
         passed = 1
@@ -122,8 +117,8 @@ Please remove your name and user id and submit again.""")
 
 
 from checker.admin import CheckerInline
-class AnonymityCheckerInline(CheckerInline):
-    model = AnonymityChecker
+class AnonymityCheckerInline(CheckerInline[AnonymityChecker]):
+    model: type[AnonymityChecker] = AnonymityChecker
 fieldsets = (
               (None, {
                       'fields': ("public"),
