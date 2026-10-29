@@ -1,0 +1,3 @@
+pyright==1.1.414
+django-stubs==6.0.9
+types-Pygments==2.21.0.20260819

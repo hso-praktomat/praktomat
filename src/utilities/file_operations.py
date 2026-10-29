@@ -1,21 +1,29 @@
 import os
 import grp
 import tempfile
+from collections.abc import Callable
 from django.conf import settings
+from django.core.files import File
 from utilities import encoding
-import shutil
 import zipfile
 
-gid = None
+gid: int | None = None
 if (settings.USEPRAKTOMATTESTER):
     gid = grp.getgrnam('praktomat').gr_gid
 
 
-def makedirs(path):
+def require_file_name(file: "File[bytes]") -> str:
+    name = file.name
+    if not name:
+        raise ValueError("A file name is required.")
+    return name
+
+
+def makedirs(path: str) -> None:
     if os.path.exists(path):
         return
     else:
-        (head, tail) = os.path.split(path)
+        (head, _) = os.path.split(path)
         makedirs(head)
         os.mkdir(path)
         if (gid):
@@ -23,7 +31,12 @@ def makedirs(path):
         os.chmod(path, 0o770)
 
 
-def create_file(path, content, override=True, binary=False):
+def create_file(
+    path: str,
+    content: str | bytes,
+    override: bool = True,
+    binary: bool = False,
+) -> None:
     """ """
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -36,6 +49,8 @@ def create_file(path, content, override=True, binary=False):
                 raise Exception('File already exists')
     with open(path, 'wb') as fd:
         if binary:
+            if not isinstance(content, bytes):
+                raise TypeError("binary content must be bytes")
             fd.write(content)
         else:
             fd.write(encoding.get_utf8(encoding.get_unicode(content)))
@@ -46,7 +61,12 @@ def create_file(path, content, override=True, binary=False):
         os.chmod(path, 0o770)
 
 
-def copy_file(from_path, to_path, to_is_directory=False, override=True):
+def copy_file(
+    from_path: str,
+    to_path: str,
+    to_is_directory: bool = False,
+    override: bool = True,
+) -> None:
     """ """
     if to_is_directory:
         to_path = os.path.join(to_path, os.path.basename(from_path))
@@ -54,10 +74,9 @@ def copy_file(from_path, to_path, to_is_directory=False, override=True):
         create_file(to_path, fd.read(), override=override, binary=True)
 
 
-def create_tempfolder(path):
+def create_tempfolder(path: str) -> str:
     makedirs(path)
-    tempfile.tempdir = path
-    new_tmpdir = tempfile.mkdtemp()
+    new_tmpdir = tempfile.mkdtemp(dir=path)
     if (gid):
         os.chown(new_tmpdir, -1, gid)
     os.chmod(new_tmpdir, 0o770)
@@ -66,7 +85,12 @@ def create_tempfolder(path):
 class InvalidZipFile(Exception):
     pass
 
-def unpack_zipfile_to(zipfilename, to_path, override_cb=None, file_cb=None):
+def unpack_zipfile_to(
+    zipfilename: str,
+    to_path: str,
+    override_cb: Callable[[str], object] | None = None,
+    file_cb: Callable[[str], object] | None = None,
+) -> None:
     """
     Extracts a zipfile to the given location, trying to safeguard against wrong paths
 
@@ -77,21 +101,17 @@ def unpack_zipfile_to(zipfilename, to_path, override_cb=None, file_cb=None):
     """
     if not zipfile.is_zipfile(zipfilename):
         raise InvalidZipFile("File %s is not a zipfile." % zipfilename)
-    zip = zipfile.ZipFile(zipfilename, 'r')
+    root = os.path.realpath(to_path)
+    with zipfile.ZipFile(zipfilename, 'r') as zip:
+        if zip.testzip():
+            raise InvalidZipFile("File %s is invalid." % zipfilename)
 
-    if zip.testzip():
-        raise InvalidZipFile("File %s is invalid." % zipfilename)
-
-    # zip.extractall would not protect against ..-paths,
-    # it would do so from python 2.7.4 on.
-    for finfo in zip.infolist():
-        dest = os.path.join(to_path, finfo.filename)
-
-        # This check is from http://stackoverflow.com/a/10077309/946226
-        if not os.path.realpath(os.path.abspath(dest)).startswith(to_path):
-            raise InvalidZipFile("File %s contains illegal path %s." % (zipfilename, finfo.filename))
-        if override_cb is not None and os.path.exists(dest):
-            override_cb(finfo.filename)
-        zip.extract(finfo, to_path)
-        if file_cb is not None and os.path.isfile(os.path.join(to_path, finfo.filename)):
-            file_cb(finfo.filename)
+        for finfo in zip.infolist():
+            dest = os.path.realpath(os.path.join(root, finfo.filename))
+            if os.path.isabs(finfo.filename) or os.path.commonpath((root, dest)) != root:
+                raise InvalidZipFile("File %s contains illegal path %s." % (zipfilename, finfo.filename))
+            if override_cb is not None and os.path.exists(dest):
+                override_cb(finfo.filename)
+            zip.extract(finfo, root)
+            if file_cb is not None and os.path.isfile(dest):
+                file_cb(finfo.filename)

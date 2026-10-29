@@ -1,14 +1,15 @@
 import os
-from os.path import *
+from os.path import abspath, exists
 import time
 import subprocess
-import signal
 import string
-import resource
 import psutil
 import uuid
 
 from copy import deepcopy
+from contextlib import ExitStack
+from collections.abc import Mapping, Sequence
+from typing import NamedTuple, TypedDict
 
 from django.conf import settings
 
@@ -17,38 +18,53 @@ from django.conf import settings
 # TODO: should kill child or grandchild processes, but didn't if they are running as other user;
 #       wherefor it is necessary to use "ulimit -t 60" command in shell-scripts called by praktomat checkers:
 #       forcing script exit with error after 60 seconds
-def kill_proc_tree(pid, including_parent=False):
+def kill_proc_tree(pid: int, including_parent: bool = False) -> None:
 	parent = psutil.Process(pid)
-	# just for debugging in development vm
-        #f = open('workfile.rh', 'a', 0)
-	f = None
-	if f is not None:
-		f.write("\n inside kill_proc_tree : " +str(parent.pid()) +" :"  +str(parent.cmdline())+"\n")
-
 	children = parent.children(recursive=True)
 	for child in children:
-		if f is not None:
-			f.write("\n try kill: "+str(child.pid())+":"+str(child.cmdline())+"\n")
 		child.kill()
-		if f is not None:
-			f.write("\n kill returned\n ")
 	psutil.wait_procs(children, timeout=5)
 	if including_parent:
 		parent.kill()
 		parent.wait(5)
 
-def execute_arglist(args, working_directory, environment_variables={}, timeout=None, maxmem=None, fileseeklimit=None, extradirs=[], unsafe=False, error_to_output=True, filenumberlimit=128
-                    ,mount_extra_directories=False,
-):
-    """ Wrapper to execute Commands with the praktomat testuser. Expects Command as list of arguments, the first being the executable to run. """
+class ExecutionResult(NamedTuple):
+    output: str
+    error: bytes | None
+    exitcode: int
+    timed_out: bool
+    oom_ed: bool
+
+
+class DockerVolume(TypedDict):
+    container: str
+    dir: str
+    volume: str
+
+
+def execute_arglist(
+    args: list[str],
+    working_directory: str,
+    environment_variables: Mapping[str, str] | None = None,
+    timeout: float | None = None,
+    maxmem: int | None = None,
+    fileseeklimit: int | None = None,
+    extradirs: Sequence[str] = (),
+    unsafe: bool = False,
+    error_to_output: bool = True,
+    filenumberlimit: int = 128,
+    mount_extra_directories: bool = False,
+) -> ExecutionResult:
+    """Execute an argument list and return an immutable five-item ExecutionResult."""
     assert isinstance(args, list)
 
-    command = args[:]
-
-    environment = os.environ
+    environment_variables = environment_variables if environment_variables is not None else {}
+    environment = os.environ.copy()
     environment.update(environment_variables)
-    if fileseeklimit is not None:
-        fileseeklimitbytes = fileseeklimit * 1024
+    fileseeklimitbytes = fileseeklimit * 1024 if fileseeklimit is not None else None
+    container_name: str | None = None
+    volumes: list[DockerVolume] = []
+    use_tester = not unsafe and settings.USEPRAKTOMATTESTER
 
     sudo_prefix = ["sudo", "-E", "-u", "tester"]
 
@@ -57,20 +73,20 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
     # (see comment in RscriptChecker.py),
     # even if it does not use it.
     prlimit_prefix = ['prlimit', '--nofile=%d' % filenumberlimit]
-    if fileseeklimit is not None:
+    if fileseeklimitbytes is not None:
         prlimit_prefix += ['--fsize=%d' % fileseeklimitbytes]
 
     command = prlimit_prefix
 
     if unsafe:
         pass
-    elif settings.USEPRAKTOMATTESTER:
+    elif use_tester:
         #command = sudo_prefix
         #fixed: 22.11.2016, Robert Hartmann , H-BRS
         command += deepcopy(sudo_prefix)
     elif settings.USESAFEDOCKER:
         docker_ulimits = [f"nofile={filenumberlimit}"]
-        if fileseeklimit is not None:
+        if fileseeklimitbytes is not None:
             docker_ulimits += [f"fsize={fileseeklimitbytes}"]
 
         safe_docker_cmd, container_name, volumes = safe_docker(
@@ -87,62 +103,93 @@ def execute_arglist(args, working_directory, environment_variables={}, timeout=N
 
     # TODO: Dont even read in output longer than fileseeklimit. This might be most conveniently done by supplying a file like object instead of PIPE
 
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT if error_to_output else subprocess.PIPE,
-        cwd=working_directory,
-        env=environment,
-        start_new_session=True)
-
-    timed_out = False
-    oom_ed = False
     try:
-        [output, error] = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        timed_out = True
-		# http://bencane.com/2014/04/01/understanding-the-kill-command-and-how-to-terminate-processes-in-linux/
-        term_cmd = ["pkill", "-TERM", "-s", str(process.pid)]
-        int_cmd  = ["pkill","-INT","-s",str(process.pid)]
-        hup_cmd  = ["pkill","-HUP","-s",str(process.pid)]
-        kill_cmd = ["pkill", "-KILL", "-s", str(process.pid)]
-        if not unsafe and settings.USEPRAKTOMATTESTER:
-            term_cmd = sudo_prefix + term_cmd
-            int_cmd = sudo_prefix + int_cmd
-            hup_cmd = sudo_prefix + hup_cmd
-            kill_cmd = sudo_prefix + kill_cmd
-        if not unsafe and settings.USESAFEDOCKER:
-            docker_kill_cmd = ["sudo", "docker", "kill", container_name]
-            subprocess.call(docker_kill_cmd)
-        if unsafe or not settings.USESAFEDOCKER or process.poll() is None:
-            # For Docker: in case the "docker kill didn't help"
-            subprocess.call(term_cmd)
-            time.sleep(5)
-            subprocess.call(int_cmd)
-            time.sleep(9)
-            subprocess.call(hup_cmd)
-            time.sleep(5)
-            subprocess.call(kill_cmd)
-            time.sleep(5)
-            if process.poll() is None:
-                #if we are here, than we retry to kill the subprocesses in an other way
-                kill_proc_tree(pid=process.pid)
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT if error_to_output else subprocess.PIPE,
+            cwd=working_directory,
+            env=environment,
+            start_new_session=True)
+
+        timed_out = False
+        oom_ed = False
+        try:
+            [output, error] = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            term_cmd = ["pkill", "-TERM", "-s", str(process.pid)]
+            int_cmd  = ["pkill","-INT","-s",str(process.pid)]
+            hup_cmd  = ["pkill","-HUP","-s",str(process.pid)]
+            kill_cmd = ["pkill", "-KILL", "-s", str(process.pid)]
+            if use_tester:
+                term_cmd = sudo_prefix + term_cmd
+                int_cmd = sudo_prefix + int_cmd
+                hup_cmd = sudo_prefix + hup_cmd
+                kill_cmd = sudo_prefix + kill_cmd
+            if container_name is not None:
+                docker_kill_cmd = ["sudo", "docker", "kill", container_name]
+                subprocess.call(docker_kill_cmd)
+            if container_name is None or process.poll() is None:
+                # Fall back to process cleanup if killing the container did not help.
+                subprocess.call(term_cmd)
                 time.sleep(5)
-                process.kill()
-        [output, error] = process.communicate()
-        #killpg(process.pid, signal.SIGKILL)
+                subprocess.call(int_cmd)
+                time.sleep(9)
+                subprocess.call(hup_cmd)
+                time.sleep(5)
+                subprocess.call(kill_cmd)
+                time.sleep(5)
+                if process.poll() is None:
+                    kill_proc_tree(pid=process.pid)
+                    time.sleep(5)
+                    process.kill()
+            [output, error] = process.communicate()
 
-    # These exit codes originate from the original safe-docker script
-    if not unsafe and settings.USESAFEDOCKER and not timed_out and (process.returncode == 255 or process.returncode == 137):
-        oom_ed = True
+        # These exit codes originate from the original safe-docker script.
+        if container_name is not None and not timed_out and process.returncode in (255, 137):
+            oom_ed = True
 
-    if not unsafe and settings.USESAFEDOCKER:
-        safe_docker_cleanup(volumes)
+        assert process.returncode is not None
+        return ExecutionResult(output.decode('utf-8'), error, process.returncode, timed_out, oom_ed)
+    finally:
+        if container_name is not None:
+            safe_docker_cleanup(volumes)
 
-    return [output.decode('utf-8'), error, process.returncode, timed_out, oom_ed]
+
+def _requires_task_id(template: string.Template) -> bool:
+    return any(
+        (match.group('named') or match.group('braced')) == 'TASK_ID_CUSTOM'
+        for match in template.pattern.finditer(template.template)
+    )
 
 
-def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_directory, mount_extra_directories=False,):
+def safe_docker(
+    environment_variables: Mapping[str, str],
+    extra_dirs: Sequence[str],
+    maxmem: int | None,
+    ulimits: list[str],
+    working_directory: str,
+    mount_extra_directories: bool = False,
+) -> tuple[list[str], str, list[DockerVolume]]:
+    with ExitStack() as rollback:
+        result = _safe_docker(
+            environment_variables, extra_dirs, maxmem, ulimits,
+            working_directory, mount_extra_directories, rollback,
+        )
+        rollback.pop_all()
+        return result
+
+
+def _safe_docker(
+    environment_variables: Mapping[str, str],
+    extra_dirs: Sequence[str],
+    maxmem: int | None,
+    ulimits: list[str],
+    working_directory: str,
+    mount_extra_directories: bool,
+    rollback: ExitStack,
+) -> tuple[list[str], str, list[DockerVolume]]:
     cmd = ["sudo", "docker", "run", "--rm", "--sig-proxy",
         "--tmpfs", "/tmp", "--tmpfs", "/run", "--tmpfs", "/home"]
 
@@ -155,8 +202,10 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
         if ":" in d:
             raise Exception(f"extra directory 'f{d}' contains a ':'")
 
-    volumes = []
-    def add_dir(path, read_only, volumes):
+    volumes: list[DockerVolume] = []
+    def add_dir(
+        path: str, read_only: bool, volumes: list[DockerVolume]
+    ) -> list[str]:
         ro_flag = ""
         if read_only:
             ro_flag = ":ro"
@@ -177,34 +226,42 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
             ["sudo", "docker", "volume", "create", volume_name],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            check=True,
+        )
+        rollback.callback(
+            subprocess.run, ["sudo", "docker", "volume", "rm", volume_name],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
         )
         subprocess.run(
             ["sudo", "docker", "run", "-d", f"--volume={volume_name}:{path}", "--name",
                 helper_name, "busybox", "sleep", "infinity"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            check=True,
+        )
+        rollback.callback(
+            subprocess.run, ["sudo", "docker", "container", "rm", "-f", helper_name],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
         )
         subprocess.run(
             ["sudo", "docker", "cp", f"{path}.", f"{helper_name}:{path}"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            check=True,
         )
         subprocess.run(
             ["sudo", "docker", "exec", helper_name, "chown", "-R", f"{uid}:{gid}", path],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            check=True,
         )
         subprocess.run(
             ["sudo", "docker", "kill", helper_name],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            check=True,
         )
-        volumes += [{"container": helper_name, "dir": path, "volume": volume_name}]
+        volumes.append({"container": helper_name, "dir": path, "volume": volume_name})
         return [f"--volume={volume_name}:{path}{ro_flag}"]
 
     if settings.DOCKER_CONTAINER_HOST_NET:
@@ -232,7 +289,7 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
         external_dir = None
         tmpl = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR)
         var_id = "TASK_ID_CUSTOM"
-        requires_task_id_custom = var_id in tmpl.get_identifiers()
+        requires_task_id_custom = _requires_task_id(tmpl)
         if requires_task_id_custom:
             task_id_custom = environment_variables.get(var_id)
             if task_id_custom is not None and task_id_custom != "":
@@ -257,7 +314,7 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
                 tmpl = string.Template(external_dir)
                 var_id = "TASK_ID_CUSTOM"
 
-                if var_id in tmpl.get_identifiers():
+                if _requires_task_id(tmpl):
                     task_id_custom = environment_variables.get(var_id)
                     if task_id_custom:
                         external_dir = tmpl.substitute(TASK_ID_CUSTOM=task_id_custom)
@@ -282,27 +339,20 @@ def safe_docker(environment_variables, extra_dirs, maxmem, ulimits, working_dire
     return cmd, container_name, volumes
 
 
-def safe_docker_cleanup(volumes):
-    for volume in volumes:
-        helper_name = volume["container"]
-        volume_name = volume["volume"]
-        path = volume["dir"]
-        if not settings.DOCKER_DISCARD_ARTEFACTS:
-            subprocess.run(
-                ["sudo", "docker", "cp", f"{helper_name}:{path}.", path],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
+def safe_docker_cleanup(volumes: Sequence[DockerVolume]) -> None:
+    with ExitStack() as cleanup:
+        for volume in volumes:
+            cleanup.callback(
+                subprocess.run, ["sudo", "docker", "volume", "rm", volume["volume"]],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
             )
-        subprocess.run(
-            ["sudo", "docker", "container", "rm", helper_name],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        subprocess.run(
-            ["sudo", "docker", "volume", "rm", volume_name],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+            cleanup.callback(
+                subprocess.run, ["sudo", "docker", "container", "rm", volume["container"]],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+            )
+        if not settings.DOCKER_DISCARD_ARTEFACTS:
+            for volume in volumes:
+                subprocess.run(
+                    ["sudo", "docker", "cp", f"{volume['container']}:{volume['dir']}.", volume["dir"]],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+                )

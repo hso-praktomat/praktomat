@@ -1,23 +1,22 @@
-import os.path
 import os
 
 from django.db import models
 from django.utils.translation import gettext_lazy
-from django.core.exceptions import ValidationError
-from checker.basemodels import Checker
-from utilities.file_operations import *
-from utilities.encoding import *
 from django.utils.html import escape
-from django.contrib import admin
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
 
 class KeepFileChecker(Checker):
-    filename = models.CharField(max_length=500, blank=True, help_text=gettext_lazy("The name of the file to preserve (e.g. out.txt)"))
+    filename: "models.CharField[str, str]" = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text=gettext_lazy("The name of the file to preserve (e.g. out.txt)"),
+    )
 
-    def title(self):
+    def title(self) -> str:
         return "Keep file %s" % self.filename
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         path = os.path.join(env.tmpdir(), self.filename)
 
         result = self.create_result(env)
@@ -31,5 +30,5 @@ class KeepFileChecker(Checker):
         return result
 
 from checker.admin import    CheckerInline
-class KeepFileCheckerInline(CheckerInline):
-    model = KeepFileChecker
+class KeepFileCheckerInline(CheckerInline[KeepFileChecker]):
+    model: type[KeepFileChecker] = KeepFileChecker

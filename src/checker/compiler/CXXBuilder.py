@@ -2,6 +2,9 @@
 A C++ compiler for construction.
 """
 
+from typing import Any
+
+from checker.basemodels import CheckerEnvironment
 from checker.compiler.Builder import Compiler
 from django.conf import settings
 
@@ -13,25 +16,25 @@ class CXXBuilder(Compiler):
     _language                = "C++"
     #_rx_warnings            = r"^([^ :]*:[^:].*)$"
 
-    def pre_run(self,env):
+    def pre_run(self, env: CheckerEnvironment) -> str:
         return self.compiler()
 
 
 
-    def post_run(self,env):
+    def post_run(self, env: CheckerEnvironment) -> tuple[bool, str]:
         passed = True
         log = ""
-        return [passed,log]
+        return passed, log
 
 
-    def connected_flags(self, env):
+    def connected_flags(self, env: CheckerEnvironment) -> list[str]:
         return self.search_path() + self.flags()
 
 
 from checker.admin import CheckerInline, AlwaysChangedModelForm
 
 class CheckerForm(AlwaysChangedModelForm):
-    def __init__(self, **args):
+    def __init__(self, **args: Any) -> None:
         """ override default values for the model fields """
         super(CheckerForm, self).__init__(**args)
         self.fields["_flags"].initial = "-Wall -Wextra"
@@ -42,7 +45,7 @@ class CheckerForm(AlwaysChangedModelForm):
         self.fields["_file_pattern"].initial = r"^[a-zA-Z0-9_]*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$"
         self.fields["required"].initial = True
 
-class CXXBuilderInline(CheckerInline):
-    model = CXXBuilder
+class CXXBuilderInline(CheckerInline[CXXBuilder]):
+    model: type[CXXBuilder] = CXXBuilder
     form = CheckerForm
     verbose_name = "C++ Compiler"

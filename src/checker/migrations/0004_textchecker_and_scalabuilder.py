@@ -1,4 +1,7 @@
 from django.db import migrations, models
+from typing import cast
+
+# Preserve historical byte metadata; current stubs only accept text.
 
 
 class Migration(migrations.Migration):
@@ -33,7 +36,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='textchecker',
             name='choices',
-            field=models.IntegerField(default=1, verbose_name=b'Select:', choices=[(0, b'The text must not be in the solution'), (1, b'The text has to be in the solution')]),
+            field=models.IntegerField(default=1, verbose_name=cast(str, b'Select:'), choices=[(0, b'The text must not be in the solution'), (1, b'The text has to be in the solution')]),
         ),
         migrations.AlterField(
             model_name='textchecker',

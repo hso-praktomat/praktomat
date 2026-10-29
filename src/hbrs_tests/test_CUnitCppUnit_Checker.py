@@ -2,40 +2,45 @@ from os.path import dirname, join
 from os import environ as os_environ
 
 from django.test import TestCase
+from django.db.models import Field
 from django.urls import reverse
 
 from django.contrib.admin.sites import AdminSite
 from unittest import skipIf
 
 from checker.checker.CUnitChecker_v2 import UnitCheckerCopyForm
-from checker.checker.CUnitChecker_v2 import CUnitChecker2Inline
 from checker.checker.CUnitChecker_v2 import CUnitChecker2
 from solutions.models import Solution
 from accounts.models import User
 from tasks.models import Task
-from tasks.admin import TaskAdmin
 from attestation.models import RatingScale, RatingScaleItem
 
 
 class ModelCUnitCppUnitCheckerTests(TestCase):
 
+    def field_label(self, checker: CUnitChecker2, name: str) -> str:
+        field = checker._meta.get_field(name)
+        self.assertIsInstance(field, Field)
+        assert isinstance(field, Field)
+        return str(field.verbose_name)
+
     @classmethod
-    def setUpTestData(cls):
-        cls.Student = User.objects.create_user(username='c_cpp', first_name="C" , last_name="CPP", email='user@praktomat.local', password='demo', is_staff=False, is_superuser=False)
+    def setUpTestData(cls) -> None:
+        cls.Student: User = User.objects.create_user(username='c_cpp', first_name="C" , last_name="CPP", email='user@praktomat.local', password='demo', is_staff=False, is_superuser=False)
         cls.Student.mat_number = 424242
 
 
-    def setUp(self):
-        self.student=self.__class__.Student
-        self.trainer=User.objects.get(username="trainer")
+    def setUp(self) -> None:
+        self.student: User = self.__class__.Student
+        self.trainer: User = User.objects.get(username="trainer")
 
 
-    def teatDown(self):
+    def teatDown(self) -> None:
         self.client.logout()
 
 
-    def __myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(self,taskZipPath):
-        self.site = AdminSite()
+    def __myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(self, taskZipPath: str) -> int:
+        self.site: AdminSite = AdminSite()
         self.client.login(username='trainer', password='demo')
         taskID = -1
         with open(taskZipPath, 'rb') as f:
@@ -79,7 +84,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.client.logout()
         return taskID
 
-    def __myTestHelper_student_uploads_Solution(self, solutionZipPath, taskID):
+    def __myTestHelper_student_uploads_Solution(self, solutionZipPath: str, taskID: int) -> bool:
         self.assertIn('_auth_user_id', self.client.session) # check if one user is logged in
         self.assertEqual(int(self.client.session['_auth_user_id']), self.student.id) # check if correct student has logged in
         response = self.client.get('/tasks/')
@@ -117,63 +122,63 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         return openedfile;
 
 
-    def test_CUnitCppUnit_Checker_model_TestApp_label(self):
+    def test_CUnitCppUnit_Checker_model_TestApp_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_test_name').verbose_name
+        field_label = self.field_label(c, '_test_name')
         self.assertEqual(field_label, 'TestApp Filename')
 
-    def test_CUnitCppUnit_Checker_model_TestIgnore_label(self):
+    def test_CUnitCppUnit_Checker_model_TestIgnore_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_test_ignore').verbose_name
+        field_label = self.field_label(c, '_test_ignore')
         self.assertEqual(field_label, ' test ignore')
 
-    def test_CUnitCppUnit_Checker_model_TestFlags_label(self):
+    def test_CUnitCppUnit_Checker_model_TestFlags_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_test_flags').verbose_name
+        field_label = self.field_label(c, '_test_flags')
         self.assertEqual(field_label, ' test flags')
 
-    def test_CUnitCppUnit_Checker_model_TestLinkType_label(self):
+    def test_CUnitCppUnit_Checker_model_TestLinkType_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('link_type').verbose_name
+        field_label = self.field_label(c, 'link_type')
         self.assertEqual(field_label, 'link type')
 
-    def test_CUnitCppUnit_Checker_model_Test_UnitTestLib_label(self):
+    def test_CUnitCppUnit_Checker_model_Test_UnitTestLib_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('cunit_version').verbose_name
+        field_label = self.field_label(c, 'cunit_version')
         self.assertEqual(field_label, 'Unittest type or library')
 
-    def test_CUnitCppUnit_Checker_model_Test_parameter_label(self):
+    def test_CUnitCppUnit_Checker_model_Test_parameter_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_test_par').verbose_name
+        field_label = self.field_label(c, '_test_par')
         self.assertEqual(field_label, ' test par')
 
-    def test_CUnitCppUnit_Checker_model_TestDescription_label(self):
+    def test_CUnitCppUnit_Checker_model_TestDescription_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('test_description').verbose_name
+        field_label = self.field_label(c, 'test_description')
         self.assertEqual(field_label, 'test description')
 
-    def test_CUnitCppUnit_Checker_model_TestName_label(self):
+    def test_CUnitCppUnit_Checker_model_TestName_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('name').verbose_name
+        field_label = self.field_label(c, 'name')
         self.assertEqual(field_label, 'name')
 
-    def test_CUnitCppUnit_Checker_model_Test_MUT_Filename_label(self):
+    def test_CUnitCppUnit_Checker_model_Test_MUT_Filename_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_sol_name').verbose_name
+        field_label = self.field_label(c, '_sol_name')
         self.assertEqual(field_label, 'MUT Filename')
 
-    def test_CUnitCppUnit_Checker_model_Test_MUT_IgnoreFiles_label(self):
+    def test_CUnitCppUnit_Checker_model_Test_MUT_IgnoreFiles_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_sol_ignore').verbose_name
+        field_label = self.field_label(c, '_sol_ignore')
         self.assertEqual(field_label, 'MUT ignore files')
 
-    def test_CUnitCppUnit_Checker_model_Test_MUT_Flags_label(self):
+    def test_CUnitCppUnit_Checker_model_Test_MUT_Flags_label(self) -> None:
         c = CUnitChecker2()
-        field_label = c._meta.get_field('_sol_flags').verbose_name
+        field_label = self.field_label(c, '_sol_flags')
         self.assertEqual(field_label, 'MUT flags')
 
     @skipIf('CI' in os_environ, "Since I have no time to figure out how path-information in cTestrunner has to be set for GitHub Actions, I skip this test for now")
-    def test_task_solutionview_student_upload_C_app(self):
+    def test_task_solutionview_student_upload_C_app(self) -> None:
         taskpath = join(dirname(__file__), 'test_C_app_Task' , 'TestC_app_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
         self.client.login(username='c_cpp', password='demo')
@@ -184,7 +189,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertTrue(value_C_app_Task)
 
     @skipIf('CI' in os_environ, "Since I have no time to figure out how path-information in cTestrunner has to be set for GitHub Actions, I skip this test for now")
-    def test_task_solutionview_student_upload_C_funcLib(self):
+    def test_task_solutionview_student_upload_C_funcLib(self) -> None:
         taskpath = join(dirname(__file__), 'test_C_funcLib_Task' , 'TestC_funcLib_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
         self.client.login(username='c_cpp', password='demo')
@@ -195,7 +200,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertTrue(value_C_funcLib_Task)
 
 
-    def test_task_solutionview_student_upload_CPP_app(self):
+    def test_task_solutionview_student_upload_CPP_app(self) -> None:
         taskpath = join(dirname(__file__), 'test_CPP_app_Task' , 'TestCPP_app_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
         self.client.login(username='c_cpp', password='demo')
@@ -207,7 +212,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
 
 
 
-    def test_task_solutionview_student_upload_CPP_method(self):
+    def test_task_solutionview_student_upload_CPP_method(self) -> None:
         taskpath = join(dirname(__file__), 'test_CPP_method_Task' , 'TestCPP_Method_TaskExport.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
         self.client.login(username='c_cpp', password='demo')
@@ -218,7 +223,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertTrue(value_CPP_method_Task)
 
 
-    def test_taskAdmin_changeCUnitCppUnit_UnitCheckerCopyForm_RenameFile(self):
+    def test_taskAdmin_changeCUnitCppUnit_UnitCheckerCopyForm_RenameFile(self) -> None:
         taskpath = join(dirname(__file__), 'test_C_funcLib_Task' , 'TestC_funcLib_TaskExport_RenameFileTest_but_no_new_upload.zip')
         taskid = self.__myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(taskpath)
         self.client.login(username='trainer', password='demo')
@@ -232,33 +237,33 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         # but at least it should be possible to safe a different value in CharField as file name,
         # just for using the given filename inside the sandbox.
         # Therefor we test the form:
-        initialdata=None
+        initialdata: dict[str, object] | None = None
         for x in response.context['inline_admin_formsets'] :
-            if "CUnitChecker2FormSet" in str(type(x.formset)):
-               for form in x.formset:
-                  initialdata = form.initial.copy()
-        formN = UnitCheckerCopyForm(initial=initialdata)
+            for form in x.formset:
+                if isinstance(form, UnitCheckerCopyForm):
+                    initialdata = dict(form.initial)
+        self.assertIsNotNone(initialdata, 'Expected the checker inline form in the admin response')
+        assert initialdata is not None
         formFalse = UnitCheckerCopyForm(initial=initialdata, data={
                                'filename' :CUnitChecker2.objects.get(task_id=taskid).filename,
                                'task': CUnitChecker2.objects.get(task_id=taskid).task.id,
                                'cunit_version': CUnitChecker2.objects.get(task_id=taskid).cunit_version,
-                               '_sol_name': CUnitChecker2.objects.get(task_id=taskid)._sol_name,
-                               '_test_name': CUnitChecker2.objects.get(task_id=taskid)._test_name,
+                               '_sol_name': initialdata['_sol_name'],
+                               '_test_name': initialdata['_test_name'],
                                'file': initialdata.copy()['file'],
                                'test_description': CUnitChecker2.objects.get(task_id=taskid).test_description,
                                'order': CUnitChecker2.objects.get(task_id=taskid).order,
                                'link_type':CUnitChecker2.objects.get(task_id=taskid).link_type,
                                'name':CUnitChecker2.objects.get(task_id=taskid).name,
                                })
-        temp = str(formFalse.errors['filename'])
         self.assertIn('The correct name could be', str(formFalse.errors['filename'])) #formFalse.data['filename'] should have an error message in formFalse.errors['filename']
         self.assertFalse(formFalse.is_valid())
         formTrue = UnitCheckerCopyForm(initial=initialdata, data={
                                'filename' :CUnitChecker2.objects.get(task_id=taskid).filename,
                                'task': CUnitChecker2.objects.get(task_id=taskid).task.id,
                                'cunit_version': CUnitChecker2.objects.get(task_id=taskid).cunit_version,
-                               '_sol_name': CUnitChecker2.objects.get(task_id=taskid)._sol_name,
-                               '_test_name': CUnitChecker2.objects.get(task_id=taskid)._test_name,
+                               '_sol_name': initialdata['_sol_name'],
+                               '_test_name': initialdata['_test_name'],
                                'file': initialdata['file'],
                                'test_description': CUnitChecker2.objects.get(task_id=taskid).test_description,
                                'order': CUnitChecker2.objects.get(task_id=taskid).order,
@@ -290,7 +295,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         #cunitchecker2_set-0-_sol_ignore
         #cunitchecker2_set-0-_sol_flags
 
-    def test_taskAdmin_action_runallcheckers_onTaskWithNoSolutionUploads(self):
+    def test_taskAdmin_action_runallcheckers_onTaskWithNoSolutionUploads(self) -> None:
         """
         Testing run_all_checkers action
         App is content_app, model is content
@@ -316,7 +321,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertIn("0 final solutions were successfully checked".encode("utf-8"),response.content)
 
 
-    def test_taskAdmin_action_runallcheckers_onTaskWithOneSolutionUploads(self):
+    def test_taskAdmin_action_runallcheckers_onTaskWithOneSolutionUploads(self) -> None:
         """
         Testing run_all_checkers action
         App is content_app, model is content

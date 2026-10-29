@@ -2,15 +2,14 @@
 Dump files containing input, expected output and the shell script running diff.
 """
 
-import os, re
+import os
 
 import os.path
 
-from django.db import models
 from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-#from django.utils.encoding import force_unicode
-from checker.basemodels import Checker, CheckerFileField, CheckerResult, truncated_log
+from django.utils.encoding import force_str
+from checker.basemodels import Checker, CheckerEnvironment, CheckerFileField, CheckerResult
 from django.core.exceptions import ValidationError
 from utilities.safeexec import execute_arglist
 from utilities.file_operations import *
@@ -25,26 +24,26 @@ class DiffChecker(Checker):
     output_file = CheckerFileField(blank=True, help_text=gettext_lazy("The file containing the output for the program."))
 
 
-    def clean(self):
+    def clean(self) -> None:
         super(DiffChecker, self).clean()
         if (not self.shell_script or not self.input_file or not self.output_file): raise ValidationError("Robert says: DiffChecker have to have an Shell script, an Inputfile and an Outputfile")
 
-    def title(self):
+    def title(self) -> str:
         """ Returns the title for this checker category. """
         return u"Ausgaben mit 'diff' prüfen."
 
     @staticmethod
-    def description():
+    def description() -> str:
         """ Returns a description for this Checker. """
         return u"Diese Prüfung wird bestanden, wenn erwartete und tatsächliche Ausgabe übereinstimmen."
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         """ Runs tests in a special environment. Here's the actual work.
         This runs the check in the environment ENV, returning a CheckerResult. """
 
         # Setup
         test_dir     = env.tmpdir()
-        environ = {}
+        environ: dict[str, str] = {}
         if self.input_file:
             input_path = os.path.join(test_dir, os.path.basename(self.input_file.path))
             environ['INPUTFILE'] = os.path.basename(self.input_file.path)
@@ -53,7 +52,8 @@ class DiffChecker(Checker):
             output_path = os.path.join(test_dir, os.path.basename(self.output_file.path))
             environ['OUTPUTFILE'] = os.path.basename(self.output_file.path)
             copy_file(self.output_file.path, output_path)
-        replace = [(u'PROGRAM',env.program())] if env.program() else []
+        program = env.program()
+        replace = [('PROGRAM', program)] if program else []
         replace +=[("JAVA",settings.JVM_SECURE)]
         #copy_file_to_directory(self.shell_script.path, test_dir, replace=replace)
         copy_file(self.shell_script.path, test_dir, to_is_directory=True)
@@ -64,11 +64,11 @@ class DiffChecker(Checker):
                 content = encoding.get_unicode(fd.read())
                 for (old, new) in replace:
                         content = content.replace(old, new)
-        with open(to_path, 'w') as fd:
+        with open(to_path, 'wb') as fd:
                 fd.write(encoding.get_utf8(content))
 
 
-        args = ["sh",  os.path.basename(self.shell_script.name)]
+        args = ["sh", os.path.basename(require_file_name(self.shell_script))]
         #environ['USER'] = unicode(env.user().get_full_name()).encode('utf-8')
         environ['USER'] = env.user().username # gets overwritten with praktomat-test-user's name, therefore:
         environ['AUTHOR'] = env.solution().author.username # will not be overwritten!
@@ -80,7 +80,7 @@ class DiffChecker(Checker):
 
         #[output, error, exitcode,_] = execute_arglist(args, working_directory=test_dir, environment_variables=environ)
 
-        [output, error, exitcode,timed_out, oom_ed] = execute_arglist(
+        [output, _, exitcode, _, _] = execute_arglist(
                             args,
                             working_directory=test_dir,
                             environment_variables=environ,
@@ -90,7 +90,7 @@ class DiffChecker(Checker):
                             filenumberlimit=settings.TEST_MAXFILENUMBER,
                             extradirs = [script_dir],
                             )
-        output = force_unicode(output, errors='replace')
+        output = force_str(output, errors='replace')
         #TODO this is just a workaround for the deprecation of Java Security Manager (since java 17)
         # the warnings occur because the java (alias-)script ../scripts/java that is called by Praktomat sets the command line option to use java security manager
         # problem is that these warning occur also in the output of the JUnit-checker and irritate the students
@@ -108,5 +108,5 @@ class DiffChecker(Checker):
 
 from checker.admin import    CheckerInline
 
-class DiffCheckerInline(CheckerInline):
-    model = DiffChecker
+class DiffCheckerInline(CheckerInline[DiffChecker]):
+    model: type[DiffChecker] = DiffChecker

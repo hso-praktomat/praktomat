@@ -1,44 +1,48 @@
-import shutil, os, re, subprocess
+import os
 from django.conf import settings
 
 from django.db import models
 from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-from checker.basemodels import Checker, CheckerFileField
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 from utilities.safeexec import execute_arglist
 from utilities.file_operations import *
 
 
 class RChecker(Checker):
-    r_script = models.CharField(max_length=100, help_text=gettext_lazy("R script to execute. If left blank, it will run any *.R file, as long as there is only one."), blank=True)
-    require_plots = models.BooleanField(
+    r_script: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        help_text=gettext_lazy(
+            "R script to execute. If left blank, it will run any *.R file, as long as there is only one."
+        ),
+        blank=True,
+    )
+    require_plots: "models.BooleanField[bool, bool]" = models.BooleanField(
         default = False,
         help_text = gettext_lazy("Require the script to create an Rplots.pdf file.")
         )
-    keep_plots = models.BooleanField(
+    keep_plots: "models.BooleanField[bool, bool]" = models.BooleanField(
         default = True,
         help_text = gettext_lazy("If the R script creates a Rplots.pdf file, keep it.")
         )
 
 
 
-    def title(self):
+    def title(self) -> str:
         """ Returns the title for this checker category. """
         return "R-Checker"
 
 
     @staticmethod
-    def description():
+    def description() -> str:
         """ Returns a description for this Checker. """
         return "Runs a submitted R script using the Rscript tool"
 
 
-    def run(self, env):
-        thys = [('"%s"' % os.path.splitext(name__[0])[0]) for name__ in env.sources()]
-
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         R_files = [
             name
-            for (name, content) in env.sources()
+            for (name, _content) in env.sources()
             if os.path.splitext(name)[1] == '.R'
             ]
 
@@ -73,12 +77,12 @@ class RChecker(Checker):
                 scriptname = R_files[0]
 
         args = ["Rscript", scriptname]
-        environ = {}
+        environ: dict[str, str] = {}
         environ['LANG'] = settings.LANG
         environ['LANGUAGE'] = settings.LANGUAGE
         environ['TASK_ID_CUSTOM'] = env.task().custom_id
         environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
-        (output, error, exitcode, timed_out, oom_ed) = execute_arglist(
+        (output, _, exitcode, timed_out, oom_ed) = execute_arglist(
             args,
             working_directory=env.tmpdir(),
             environment_variables=environ,
@@ -121,5 +125,5 @@ class RChecker(Checker):
 
 from checker.admin import    CheckerInline
 
-class RCheckerInline(CheckerInline):
-    model = RChecker
+class RCheckerInline(CheckerInline[RChecker]):
+    model: type[RChecker] = RChecker

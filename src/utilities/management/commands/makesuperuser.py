@@ -2,17 +2,19 @@
 Management utility to make a super a superuser.
 """
 
+from typing import Any
+
 from django.contrib.auth.models import User
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 class Command(BaseCommand):
-    help = 'Make a user a superuser.'
+    help: str = 'Make a user a superuser.'
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument('--username', dest='username', default=None,
                             help='Specifies the username of the existing user (mail address for shibboleth users).')
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         username = options.get('username', None)
         verbosity = int(options.get('verbosity', 1))
 

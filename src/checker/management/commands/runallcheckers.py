@@ -1,19 +1,24 @@
+from typing import Any
+
 from django.core.management.base import BaseCommand
+from django.core.management.base import CommandParser
+from django.db.models import QuerySet
 from tasks.models import Task
 
 class Command(BaseCommand):
     help = 'Run all checkers for expired tasks where not all checkers are finished.'
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument(
             '--secondary-check',
             action='store_true',
             help='nightly checkers run',
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         secondary_check = options['secondary_check']
-        for task in Task.objects.all():
+        tasks: QuerySet[Task, Task] = Task.objects.all()
+        for task in tasks:
             if not task.expired():
                 continue
             if not task.all_checker_finished:

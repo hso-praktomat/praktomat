@@ -37,7 +37,6 @@ ALLOWED_HOSTS = [
 # files created at runtime.
 
 # Example: "/home/media/media.lawrence.com/"
-UPLOAD_ROOT = join(dirname(dirname(dirname(__file__))), 'data')
 UPLOAD_ROOT = join(dirname(PRAKTOMAT_PATH), "debug-data/")
 
 
@@ -78,7 +77,6 @@ DATABASES = {
 #sudo -u postgres createdb -O praktomat praktomat_devel
 
 
-PRIVATE_KEY = join(dirname(dirname(dirname(__file__))), 'examples', 'certificates', 'privkey.pem')
 CERTIFICATE = join(dirname(dirname(dirname(__file__))), 'examples', 'certificates', 'signer.pem')
 
 #overwrite to use the same settings from local.py
@@ -134,7 +132,6 @@ NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL = 2
 
 # Various extra files and versions
 
-JPLAGJAR = join(dirname(dirname(dirname(__file__))), 'jplag.jar')
 JPLAGJAR = '/opt/praktomat-addons/jplag.jar'
 
 #CHECKSTYLEALLJAR = '/srv/praktomat/contrib/checkstyle-5.7-all.jar'
@@ -146,9 +143,18 @@ LANGUAGE = "en_US:en"
 
 # Finally load defaults for missing settings.
 from . import defaults
+MIDDLEWARE: list[str] = [
+    'django.middleware.common.CommonMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'accounts.middleware.AuthenticationMiddleware',
+    'accounts.middleware.LogoutInactiveUserMiddleware',
+    'accounts.middleware.DisclaimerAcceptanceMiddleware',
+]
 defaults.load_defaults(globals())
 
 # To get exceptions logged as well:
-MIDDLEWARE += [
-        'utilities.exceptionlogger.ExceptionLoggingMiddleware',
-    ]
+MIDDLEWARE.extend([
+    'utilities.exceptionlogger.ExceptionLoggingMiddleware',
+])

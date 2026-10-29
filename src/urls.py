@@ -1,10 +1,6 @@
-from django.urls import re_path, include
+from django.urls import URLPattern, URLResolver, re_path, include
 from django.views.generic.base import RedirectView
-from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from django.urls import reverse
-import sys
-import os
 
 import django.contrib.admindocs.urls
 import tasks.views
@@ -24,7 +20,7 @@ favicon_view_static = RedirectView.as_view(url=settings.BASE_PATH+'static/favico
 favicon_view = RedirectView.as_view(url=staticfiles_storage.url('favicon.ico'), permanent=True)
 
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     #favicon.ico
     re_path('favicon.ico', favicon_view),
     re_path(r'^.*favicon\.ico$', favicon_view_static),

@@ -1,10 +1,11 @@
 import tempfile
 import zipfile
+from collections.abc import Iterable as _Iterable
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render, get_object_or_404
-from django.http import Http404
+from django.http import Http404, HttpRequest as _HttpRequest
 from django.http import HttpResponseRedirect, HttpResponse
 from datetime import datetime
 from django import forms
@@ -18,19 +19,18 @@ from tasks.models import Task
 from solutions.forms import ModelSolutionFormSet
 from solutions.models import Solution, SolutionFile
 from accounts.models import User
-from accounts.views import access_denied
-from attestation.models import Attestation
+from accounts.authentication import require_user
 from attestation.views import user_task_attestation_map
 from configuration import get_settings
 
 @login_required
-def taskList(request):
+def taskList(request: _HttpRequest) -> HttpResponse:
+    user = require_user(request)
+    request.user = user
     now = django.utils.timezone.now()
     tasks = Task.objects.filter(publication_date__lte = now).order_by('submission_date', 'title')
-    try:
-        tutors = request.user.tutorial.tutors.all()
-    except:
-        tutors = None
+    tutorial = request.user.tutorial
+    tutors = tutorial.tutors.all() if tutorial is not None else None
     trainers = User.objects.filter(groups__name="Trainer")
 
     # we only have a single user here, so the rating_list only contains a single row;
@@ -38,8 +38,8 @@ def taskList(request):
     (_, attestations, threshold, calculated_grade) = user_task_attestation_map([request.user], tasks)[0]
     attestations = list(map(lambda a, b: (a,)+b, tasks, attestations))
 
-    def tasksWithSolutionsAndDeadlineExtension(tasks):
-        return [{'task': t, 'final_solution': t.final_solution(request.user), 'expired': t.expired_for_user(request.user), 'submission_date': t.submission_date_for_user(request.user)} for t in tasks]
+    def tasksWithSolutionsAndDeadlineExtension(tasks: _Iterable[Task]) -> list[dict[str, object]]:
+        return [{'task': t, 'final_solution': t.final_solution(user), 'expired': t.expired_for_user(user), 'submission_date': t.submission_date_for_user(user)} for t in tasks]
 
     return render(request,
                   'tasks/task_list.html',
@@ -56,7 +56,8 @@ def taskList(request):
                   })
 
 @login_required
-def taskDetail(request, task_id):
+def taskDetail(request: _HttpRequest, task_id: str) -> HttpResponse:
+    request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
 
     if task.publication_date >= datetime.now() and not request.user.is_trainer:
@@ -72,31 +73,31 @@ def taskDetail(request, task_id):
                   })
 
 class ImportForm(forms.Form):
-    file = forms.FileField()
-    is_template = forms.BooleanField(initial=True,
+    file: forms.FileField = forms.FileField()
+    is_template: forms.BooleanField = forms.BooleanField(initial=True,
                                      required=False,
                                      help_text="Enabled if the imported task is just used as template to create another task. If disabled, the publication date and the rating scale are also imported. This means that students might see the task immediately, and rating scales might be duplicated.")
 
 @staff_member_required
-def import_tasks(request):
+def import_tasks(request: _HttpRequest) -> HttpResponse | HttpResponseRedirect:
     """ View in the admin """
+    request.user = require_user(request)
     if request.method == 'POST':
         form = ImportForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                Task.import_Tasks(form.files['file'], request.user, form.cleaned_data['is_template'])
+                Task.import_Tasks(form.cleaned_data['file'], request.user, form.cleaned_data['is_template'])
                 messages.success(request, "The import was successful.")
                 return HttpResponseRedirect(reverse('admin:tasks_task_changelist'))
             except Exception as e:
-                from django.forms.utils import ErrorList
                 msg = "An Error occurred. The import file was probably malformed: %s" % str(e)
-                form._errors["file"] = ErrorList([msg])
+                form.add_error("file", msg)
     else:
         form = ImportForm()
     return render(request, 'admin/tasks/task/import.html', {'form': form, 'title':"Import Task"  })
 
 @staff_member_required
-def download_final_solutions(request, task_id):
+def download_final_solutions(request: _HttpRequest, task_id: str) -> HttpResponse:
     """ download all final solutions of a task from the admin interface """
     zip_file = tempfile.SpooledTemporaryFile()
     zip = zipfile.ZipFile(zip_file, 'w')
@@ -111,8 +112,9 @@ def download_final_solutions(request, task_id):
 
 
 @staff_member_required
-def model_solution(request, task_id):
+def model_solution(request: _HttpRequest, task_id: str) -> HttpResponse:
     """ View in the admin """
+    request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
 
     if request.method == "POST":

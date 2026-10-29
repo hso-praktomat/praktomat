@@ -29,36 +29,35 @@ match = re.match(r'''
 
 if match:
     if match.group('algo1') is not None:
-        SITE_NAME = 'Algorithmen I '
+        site_name = 'Algorithmen I '
     elif match.group('cram') is not None:
-        SITE_NAME = 'CRAM '
+        site_name = 'CRAM '
     elif match.group('birap') is not None:
-        SITE_NAME = 'BIRAP '
+        site_name = 'BIRAP '
     elif match.group('mlfds') is not None:
-        SITE_NAME = 'MLFDS '
+        site_name = 'MLFDS '
     elif match.group('tba') is not None:
-        SITE_NAME = 'Theorembeweiser '
+        site_name = 'Theorembeweiser '
     elif match.group('pp') is not None:
-        SITE_NAME = 'Programmierparadigmen '
+        site_name = 'Programmierparadigmen '
     elif match.group('iimb') is not None:
-        SITE_NAME = 'Informatik im Maschinenbau '
+        site_name = 'Informatik im Maschinenbau '
     else:
-        SITE_NAME = 'Programmieren '
+        site_name = 'Programmieren '
 
     if match.group('abschluss'):
-        SITE_NAME += "Abschlussaufgaben "
+        site_name += "Abschlussaufgaben "
 
     year = int(match.group('year'))
     if match.group('semester') == "WS":
-        SITE_NAME += "Wintersemester %d/%d" % (year, year+1)
+        site_name += "Wintersemester %d/%d" % (year, year+1)
     else:
-        SITE_NAME += "Sommersemester %d" % year
+        site_name += "Sommersemester %d" % year
 
-    if match.group('mirror') is not None:
-        SITE_NAME += " (Mirror)"
-        MIRROR = True
-    else:
-        MIRROR = False
+    MIRROR = match.group('mirror') is not None
+    if MIRROR:
+        site_name += " (Mirror)"
+    SITE_NAME = site_name
 
 else:
     raise NotImplementedError("Autoconfig for PRAKTOMAT_ID %s not possible", PRAKTOMAT_ID)
@@ -83,23 +82,18 @@ TEST_MAXLOGSIZE=512
 
 TEST_MAXFILESIZE=512
 
-TEST_TIMEOUT=180
+TEST_TIMEOUT = 600 if (
+    any(course in PRAKTOMAT_ID for course in ('cram', 'birap', 'tba'))
+    or "Programmieren" in SITE_NAME or "Programmierung" in SITE_NAME
+) else 180
 
 if "cram" in PRAKTOMAT_ID:
-    TEST_TIMEOUT=600
     TEST_MAXMEM=200
-
-if "birap" in PRAKTOMAT_ID:
-    TEST_TIMEOUT=600
-
-if "tba" in PRAKTOMAT_ID:
-    TEST_TIMEOUT=600
 
 if "Programmieren" in SITE_NAME or "Programmierung" in SITE_NAME:
     # Rating overview needs one POST parameter per student
     # and the default value (1000) might be too low
     DATA_UPLOAD_MAX_NUMBER_FIELDS = 2000
-    TEST_TIMEOUT=600
 
 # Absolute path to the directory that shall hold all uploaded files as well as
 # files created at runtime.
@@ -122,11 +116,13 @@ ADMINS = [
 SERVER_EMAIL = 'praktomat@i44vm3.info.uni-karlsruhe.de'
 
 
+EMAIL_BACKEND = (
+    'django.core.mail.backends.filebased.EmailBackend'
+    if MIRROR else 'django.core.mail.backends.smtp.EmailBackend'
+)
 if MIRROR:
-    EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
     EMAIL_FILE_PATH = join(UPLOAD_ROOT, "sent-mails")
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
     EMAIL_HOST = "localhost"
     EMAIL_PORT = 25
 
@@ -219,20 +215,15 @@ USESAFEDOCKER = True
 MOD_XSENDFILE_V1_0 = True
 
 # Our VM has 4 cores, so lets try to use them
-NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL = 6
 # But not with Isabelle, which is memory bound
-if match and match.group('tba') is not None:
-    NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL = 1
+NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL = 1 if match and match.group('tba') is not None else 6
 
 
 
 # Various extra files and versions
 
-JPLAGJAR = join(dirname(dirname(dirname(__file__))), 'jplag.jar')
 JPLAGJAR = '/opt/praktomat-addons/jplag.jar'
 
-CHECKSTYLEALLJAR = '/srv/praktomat/contrib/checkstyle-5.7-all.jar'
-CHECKSTYLEALLJAR = '/opt/praktomat-addons/checkstyle-6.15-all.jar'
 CHECKSTYLEALLJAR = '/opt/praktomat-addons/ws2020/checkstyle-8.14-all.jar'
 
 LANG = "en_US.UTF-8"
