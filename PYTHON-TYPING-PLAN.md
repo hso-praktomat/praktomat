@@ -823,7 +823,13 @@ Verification:
 - Python 3.10 grammar parsing passes for all 227 files. Runtime tests were run
   on Python 3.12/Django 5.2, not an actual Python 3.10 interpreter. The workflow
   YAML parses and its Python 3.10 interpreter/strict command were checked
-  locally; a hosted GitHub Actions execution has not been run from this session.
+  locally. The first hosted GitHub Actions run for PR #99 subsequently exposed
+  one Python 3.10-only `reportUnknownMemberType` diagnostic on Matplotlib's
+  partially typed `Figure.subplots` overload set. A narrow `_StatisticsFigure`
+  protocol now types the default single-axes call at that third-party boundary,
+  preserving runtime behavior. The full local strict command is green and all
+  17 task-statistics tests pass after the change; the hosted check must be
+  rerun on the updated commit to verify the fix there.
 - The legacy `sessionprofile` app and middleware remain disabled in the default
   settings. Attempting to include its runtime suite in that configuration fails
   at model import because the app is not installed; it is not part of the

@@ -48,6 +48,10 @@ class _StatisticsAxes(Protocol):
     def legend(self, handles: Sequence[Line2D], labels: Sequence[str]) -> object: ...
 
 
+class _StatisticsFigure(Protocol):
+    def subplots(self) -> _StatisticsAxes: ...
+
+
 class _PNGCanvas(Protocol):
     def print_png(self, filename_or_obj: BytesIO) -> None: ...
 
@@ -92,7 +96,7 @@ def boxblot_to_graphic_list(
         user_uploads[status] = max(fliers['uploads'])
 
     figure = Figure()
-    axes = cast(_StatisticsAxes, figure.subplots())
+    axes = cast(_StatisticsFigure, figure).subplots()
     axes.set_title(
         "Task %d : %s\n Submitters passed Posttest: %d \n Submitters passed Pretest but failed Posttest: %d\n Submitters failed Pretest: %d\n Uploads accepted: %d\n Uploads rejected: %d"
         % (
