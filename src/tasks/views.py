@@ -16,7 +16,7 @@ from django.conf import settings
 
 from tasks.models import Task
 from solutions.forms import ModelSolutionFormSet
-from solutions.models import Solution, SolutionFile
+from solutions.models import Solution, SolutionFile, solution_metadata_json
 from accounts.models import User
 from accounts.views import access_denied
 from attestation.models import Attestation
@@ -100,8 +100,11 @@ def download_final_solutions(request, task_id):
     """ download all final solutions of a task from the admin interface """
     zip_file = tempfile.SpooledTemporaryFile()
     zip = zipfile.ZipFile(zip_file, 'w')
-    for solution_file in SolutionFile.objects.filter(solution__task=task_id):
-        if solution_file.solution.final:
+    for solution in Solution.objects.filter(task_id=task_id, final=True).prefetch_related('solutionfile_set'):
+        zip.writestr(
+            'praktomat-metadata/solution_%s/metadata.json' % solution.pk,
+            solution_metadata_json(solution))
+        for solution_file in solution.solutionfile_set.all():
             zip.write(solution_file.file.path, solution_file.file.name)
     zip.close()
     zip_file.seek(0)

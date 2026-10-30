@@ -10,6 +10,32 @@ Resources
 * Running Checkers for Praktomat with docker: https://github.com/hso-praktomat/praktomat-checkers
 * Moderated [mailing list] for Praktomat administrators: praktomat-users@lists.kit.edu.
 
+Solution downloads and LLM consent
+=================================
+
+Individual solution downloads and task-wide downloads include a `metadata.json`
+file in each solution's project directory, alongside the `solution/` directory.
+This applies to downloads with artifacts or checker files as well.
+
+```json
+{
+  "solution_id": 123,
+  "allow_llm_upload": true
+}
+```
+
+`allow_llm_upload` is a JSON boolean: `true` means that consent to uploading this
+particular solution to an LLM for evaluation was given; `false` means it was not.
+The value reflects the consent stored for that solution at download time.
+Submitted source files are unchanged, including any submitted `metadata.json`,
+which remains inside `solution/`.
+
+The admin interface's "Download Final Solutions" keeps its existing source-file
+paths and stores the same metadata separately at
+`praktomat-metadata/solution_<solution_id>/metadata.json`, avoiding collisions
+with submitted files. Task-wide downloads still contain only final solutions,
+with the existing access restrictions unchanged.
+
 Python 3.10
 ==========
   The Praktomat currently requires at least Python 3.10. Older versions of Python may or may not work. Use them at your own risk.

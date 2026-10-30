@@ -1,10 +1,14 @@
 from os.path import dirname, join
 from datetime import datetime, timedelta
+from io import BytesIO
+import json
+import zipfile
 
 from utilities.TestSuite import TestCase
+from django.core.files.base import ContentFile
 from django.urls import reverse
 
-from solutions.models import Solution
+from solutions.models import Solution, SolutionFile
 from tasks.models import Task
 
 class TestUserViews(TestCase):
@@ -34,6 +38,31 @@ class TestStaffViews(TestCase):
     def test_get_task_import(self):
         response = self.client.get(reverse('admin:task_import'))
         self.assertEqual(response.status_code, 200)
+
+    def test_final_solution_download_includes_metadata(self):
+        solution = self.task.solution_set.first()
+        solution.final = True
+        solution.save()
+        source = SolutionFile(solution=solution)
+        source.file.save('metadata.json', ContentFile(b'{"student_file": true}'))
+        draft = Solution.objects.create(task=self.task, author=solution.author)
+        for consent in [True, False]:
+            with self.subTest(consent=consent):
+                solution.allow_llm_upload = consent
+                solution.save()
+                response = self.client.get(reverse(
+                    'download_final_solutions', args=[self.task.pk]))
+                self.assertEqual(response.status_code, 200)
+                with zipfile.ZipFile(BytesIO(response.content)) as archive:
+                    metadata_path = 'praktomat-metadata/solution_%s/metadata.json'
+                    self.assertEqual(
+                        json.loads(archive.read(metadata_path % solution.pk)),
+                        {'solution_id': solution.pk, 'allow_llm_upload': consent})
+                    self.assertNotIn(metadata_path % draft.pk, archive.namelist())
+                    for source in solution.solutionfile_set.all():
+                        with source.file.open('rb') as original:
+                            self.assertEqual(
+                                archive.read(source.file.name), original.read())
 
     def test_post_task_import(self):
         path = join(dirname(dirname(dirname(__file__))), 'examples', 'Tasks', 'AMI', 'TaskExport.zip')
