@@ -841,6 +841,33 @@ Verification:
 schema drift are recorded above; they are not suppressed by the passing type
 check or treated as successful runtime validation.
 
+### Hosted runtime follow-up (PR #99)
+
+Run 41429731207 passes strict Pyright but fails all five runtime matrix jobs.
+Python 3.11-3.14 report only a missing `LANGUAGE` environment variable; Python
+3.10 additionally fails two new export tests because its `SpooledTemporaryFile`
+does not provide the `seekable` attribute required by `ZipFile` member reads.
+The export endpoint already reads the returned stream as bytes; the tests now
+wrap those bytes in `BytesIO` before inspecting ZIP contents, preserving all
+XML/model/file assertions without changing the production export contract.
+
+The workflow sets `LANGUAGE=en_US:en` at runtime-job scope for both normal and
+coverage steps, rather than relying on checker subprocesses to mutate the host
+environment. Both steps now include `utilities.tests` and use the explicit
+module selectors from the README; this expands their selection from 289 to 323
+tests. No skips or relaxed assertions were added.
+
+Validation: the original archive-read failure reproduces on actual Python
+3.10.22 in a disposable official Python container, and reading the exported
+bytes through `BytesIO` succeeds there. Locally, strict Pyright remains clean
+and all 28 task/locale tests pass. The full CI-mode selection passes on rerun:
+320 passed, three existing skips. The first full attempt encountered a C++
+upload 404; that test passes in isolation and in the subsequent full run, so
+this unrelated intermittent result is not claimed to be fixed. Local Django
+tests use Python 3.12; the hosted Python 3.10-3.14 matrix and coverage steps
+still need to run against the updated commit. Workflow YAML validation confirms
+the two steps inherit `LANGUAGE` and have identical test selectors.
+
 ### Bundle order and original sizing
 
 The order below is a dependency-level plan, not a strict file-by-file sequence.

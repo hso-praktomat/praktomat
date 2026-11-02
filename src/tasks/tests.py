@@ -86,7 +86,7 @@ class TestTaskExport(TestCase):
     def test_empty_export_contains_only_empty_xml(self) -> None:
         with Task.export_Tasks(Task.objects.none()) as archive:
             self.assertEqual(archive.tell(), 0)
-            with ZipFile(archive) as output:
+            with ZipFile(BytesIO(archive.read())) as output:
                 self.assertEqual(output.namelist(), ['data.xml'])
                 self.assertEqual(
                     list(serializers.deserialize('xml', output.read('data.xml').decode())),
@@ -109,7 +109,7 @@ class TestTaskExport(TestCase):
 
         with Task.export_Tasks(Task.objects.filter(pk=task.pk)) as archive:
             self.assertEqual(archive.tell(), 0)
-            with ZipFile(archive) as output:
+            with ZipFile(BytesIO(archive.read())) as output:
                 records = list(serializers.deserialize(
                     'xml', output.read('data.xml').decode()
                 ))

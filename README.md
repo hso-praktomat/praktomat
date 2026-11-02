@@ -298,7 +298,9 @@ LANGUAGE=en_US:en python -m django test utilities.tests accounts.tests attestati
 ```
 
 Set `LANGUAGE` explicitly for the host-locale tests; checker subprocess environment
-overrides no longer modify the parent process. The settings/execution regressions
+overrides no longer modify the parent process. The CI runtime matrix sets
+`LANGUAGE=en_US:en` for both normal and coverage runs and includes the utilities
+tests in both selections. The settings/execution regressions
 can also run independently without database fixtures or real Docker processes:
 
 ```bash

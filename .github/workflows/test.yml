@@ -29,6 +29,8 @@ jobs:
   test:
     name: Run tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    env:
+      LANGUAGE: en_US:en
     strategy:
       fail-fast: false
       matrix:
@@ -78,9 +80,9 @@ jobs:
         ls -la --time-style=long-iso ..
     - name: Run tests
       run: |
-        ./src/manage-test.py test accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests
+        ./src/manage-test.py test utilities.tests accounts.tests attestation.tests checker.tests configuration.tests solutions.tests tasks.tests taskstatistics.tests hbrs_tests --noinput
     - name: Run test with code coverage
       run: |
-        coverage run --branch --omit='*/node_modules/*,*/migrations/*' --source='./src' ./src/manage-test.py test accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests
+        coverage run --branch --omit='*/node_modules/*,*/migrations/*' --source='./src' ./src/manage-test.py test utilities.tests accounts.tests attestation.tests checker.tests configuration.tests solutions.tests tasks.tests taskstatistics.tests hbrs_tests --noinput
     - name: Coverage report
       run: coverage report
