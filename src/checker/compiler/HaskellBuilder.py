@@ -3,7 +3,9 @@ A Haskell compiler.
 """
 
 import os, re
-import string
+from typing import Any
+
+from checker.basemodels import CheckerEnvironment, CheckerResult
 from checker.compiler.Builder import Builder
 from django.conf import settings
 from django.template.loader import get_template
@@ -19,27 +21,29 @@ class HaskellBuilder(Builder):
     _compiler    = settings.GHC
     _language    = "Haskell"
     _env            = {}
-    _detected_main  = None
+    _detected_main: str | None = None
 
 
-    def main_module(self, env):
+    def main_module(self, env: CheckerEnvironment) -> str:
         if self._detected_main:
             return self._detected_main
         raise self.NotFoundError("A module Main containing the function main :: IO () could not be found.")
 
-    def libs(self):
+    def libs(self) -> list[str]:
         required_libs = super(HaskellBuilder, self).libs()
         return [x for l in [["-package", lib] for lib in required_libs] for x in l]
 
-    def flags(self, env):
+    def flags(self, env: CheckerEnvironment) -> list[str]:
         """ Always use -v1, since we grep the output for linked binaries, if any"""
         return (self._flags.split(" ") if self._flags else []) + ["-v1"]
 
-    def build_log(self, output, args, filenames):
+    def build_log(
+        self, output: str, args: list[str], filenames: set[str]
+    ) -> str:
         t = get_template('checker/compiler/haskell_builder_report.html')
         return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         """ Build it. """
         result = self.create_result(env)
 
@@ -75,7 +79,7 @@ class HaskellBuilder(Builder):
 from checker.admin import CheckerInline, AlwaysChangedModelForm
 
 class CheckerForm(AlwaysChangedModelForm):
-    def __init__(self, **args):
+    def __init__(self, **args: Any) -> None:
         """ override default values for the model fields """
         super(CheckerForm, self).__init__(**args)
         self.fields["_flags"].initial = "-XSafe"
@@ -83,6 +87,6 @@ class CheckerForm(AlwaysChangedModelForm):
         #self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^.*\.[hH][sS]$"
 
-class HaskellBuilderInline(CheckerInline):
-    model = HaskellBuilder
+class HaskellBuilderInline(CheckerInline[HaskellBuilder]):
+    model: type[HaskellBuilder] = HaskellBuilder
     form = CheckerForm

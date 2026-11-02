@@ -1,25 +1,33 @@
 from django.contrib import admin
+from django.db.models import QuerySet as _QuerySet
+from django.http import HttpRequest as _HttpRequest
 from solutions.models import Solution, SolutionFile
 from checker.basemodels import CheckerResult
 from checker.basemodels import check_multiple
-from django.conf import settings
 from django.urls import reverse
-from django.db import transaction
 from django.db.models import Max
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils.safestring import SafeString as _SafeString
+import typing as _typing
 
 
+def _boolean_annotation(solution: Solution, name: str) -> bool:
+    value: object = getattr(solution, name)
+    if isinstance(value, (bool, int)) and value in (0, 1):
+        return bool(value)
+    raise TypeError(f"Expected a boolean query annotation for {name}")
 
-class CheckerResultInline(admin.TabularInline):
-    model = CheckerResult
+
+class CheckerResultInline(admin.TabularInline[CheckerResult, Solution] if _typing.TYPE_CHECKING else admin.TabularInline):
+    model: type[CheckerResult] = CheckerResult
     extra = 0
     can_delete = False
     fields = ["checker", "passed", "log"]
     readonly_fields = ["checker", "passed", "log"]
 
-class SolutionFileInline(admin.TabularInline):
-    model = SolutionFile
+class SolutionFileInline(admin.TabularInline[SolutionFile, Solution] if _typing.TYPE_CHECKING else admin.TabularInline):
+    model: type[SolutionFile] = SolutionFile
     extra = 0
     can_delete = False
     fields = ["file", "mime_type"]
@@ -30,13 +38,17 @@ class IsLatestOfOnlyFailedFilter(admin.SimpleListFilter):
     title = 'latest of only failed'
     parameter_name = 'latest_of_only_failed'
 
-    def lookups(self, request, model_admin):
+    def lookups(
+        self, request: _HttpRequest, model_admin: "admin.ModelAdmin[Solution]"
+    ) -> tuple[tuple[str, str], tuple[str, str]]:
         return (
           ('Yes','Yes'),
           ('No','No'),
         )
 
-    def queryset(self, request, queryset):
+    def queryset(
+        self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
+    ) -> _QuerySet[Solution, Solution]:
         value = self.value()
 
         if value == 'Yes':
@@ -80,8 +92,8 @@ class IsLatestOfOnlyFailedFilter(admin.SimpleListFilter):
 
 
 
-class SolutionAdmin(admin.ModelAdmin):
-    model = Solution
+class SolutionAdmin(admin.ModelAdmin[Solution] if _typing.TYPE_CHECKING else admin.ModelAdmin):
+    model: type[Solution] = Solution
     list_display = ["edit", "view_url", "download_url", "run_checker_url", "task", "show_author", "number", "creation_date", "final", "accepted", "tests_failed", "all_checker_finished", "latest_of_only_failed", "plagiarism"]
     list_filter = ["task", "author", "author__groups", "creation_date" , IsLatestOfOnlyFailedFilter ,"final", "accepted", "warnings", "plagiarism"]
     fieldsets = ((None, {
@@ -91,20 +103,23 @@ class SolutionAdmin(admin.ModelAdmin):
     inlines = [CheckerResultInline, SolutionFileInline]
     actions = ['run_checkers', 'run_checkers_all', 'mark_plagiarism', 'mark_no_plagiarism']
 
-    def get_readonly_fields(self, request, obj=None):
+    def get_readonly_fields(
+        self, request: _HttpRequest, obj: Solution | None = None
+    ) -> list[str] | tuple[str, ...]:
         # If obj exists (Edit mode), make task and author readonly
         if obj:
-            return self.readonly_fields + ["task", "author"]
+            return list(self.readonly_fields) + ["task", "author"]
         # On creation (obj=None), all fields defined in fieldsets are editable
         return self.readonly_fields
 
     #for sorting computed values "tests_failed" and "latest of only failed" which are not stored in database,
     #wie have to implement the behavior of get_queryset to simulate a return of SQL's ORDER BY
 
-    def get_queryset(self, request):
+    def get_queryset(
+        self, request: _HttpRequest
+    ) -> _QuerySet[Solution, Solution]:
         queryset = super(SolutionAdmin,self).get_queryset(request)
-        from django.db.models import BooleanField
-        from django.db.models import Exists, OuterRef , F , Value
+        from django.db.models import Exists, OuterRef
         from django.db.models.expressions import RawSQL
 
         #example snipplet 1
@@ -173,21 +188,27 @@ class SolutionAdmin(admin.ModelAdmin):
 
 
 
-    def run_checkers_all(self, request, queryset):
+    @admin.action(description="Run Checkers (including those not run at submission) for selected solution ")
+    def run_checkers_all(
+        self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
+    ) -> None:
         """ Run Checkers (including those not run at submission) for selected solution """
         check_multiple(queryset, True)
         self.message_user(request, "Checkers (including those not run at submission) for selected solutions were successfully run.")
 
-    run_checkers_all.short_description = "Run Checkers (including those not run at submission) for selected solution "
 
-    def run_checkers(self, request, queryset):
+    @admin.action(description="Run Checkers (only those also run at submission) for selected solutions")
+    def run_checkers(
+        self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
+    ) -> None:
         """ Run Checkers (only those also run at submission) for selected solutions"""
         check_multiple(queryset, False)
         self.message_user(request, "Checkers (only those also run at submission) for selected solutions were successfully run.")
 
-    run_checkers.short_description = "Run Checkers (only those also run at submission) for selected solutions"
 
-    def mod_plagiarism(self, queryset, value):
+    def mod_plagiarism(
+        self, queryset: _QuerySet[Solution, Solution], value: bool
+    ) -> int:
         count = 0
         for s in queryset:
             if s.plagiarism != value:
@@ -196,41 +217,44 @@ class SolutionAdmin(admin.ModelAdmin):
                 count += 1
         return count
 
-    def mark_plagiarism(self, request, queryset):
+    @admin.action(description="Mark as plagiated")
+    def mark_plagiarism(
+        self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
+    ) -> None:
         count = self.mod_plagiarism(queryset, True)
         self.message_user(request, "%d solutions marked as plagiated" % count)
-    mark_plagiarism.short_description = "Mark as plagiated"
 
-    def mark_no_plagiarism(self, request, queryset):
+    @admin.action(description="Mark as not plagiated")
+    def mark_no_plagiarism(
+        self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
+    ) -> None:
         count = self.mod_plagiarism(queryset, False)
         self.message_user(request, "%d solutions marked as not plagiated" % count)
-    mark_no_plagiarism.short_description = "Mark as not plagiated"
 
 
-    def edit(self, solution):
+    @admin.display(description='Edit (Admin Site)')
+    def edit(self, solution: Solution) -> str:
         return 'Edit'
-    edit.short_description = 'Edit (Admin Site)'
 
-    def view_url(self, solution):
+    @admin.display(description='View (User Site)')
+    def view_url(self, solution: Solution) -> _SafeString:
         return mark_safe('<a href="%s">View</a>' % (reverse('solution_detail_full', args=[solution.id])))
-    view_url.short_description = 'View (User Site)'
 
-    def download_url(self, solution):
+    @admin.display(description='Download')
+    def download_url(self, solution: Solution) -> _SafeString:
         return mark_safe('<a href="%s">Download</a>' % (reverse('solution_download', args=[solution.id])))
-    download_url.short_description = 'Download'
 
-    def run_checker_url(self, solution):
+    @admin.display(description='Run Checker (incl. those run at submission)')
+    def run_checker_url(self, solution: Solution) -> _SafeString:
         return mark_safe('<a href="%s">Run Checkers</a>' % (reverse('solution_run_checker', args=[solution.id])))
-    run_checker_url.short_description = 'Run Checker (incl. those run at submission)'
 
-    def show_author(self, instance):
+    @admin.display(description='Solution author', ordering='author')
+    def show_author(self, instance: Solution) -> _SafeString:
         return format_html('<a href="{0}">{1}</a>',
                            reverse('admin:accounts_user_change', args=(instance.author.pk,)),
                            instance.author)
-    show_author.short_description = 'Solution author'
-    show_author.admin_order_field = 'author'
 
-    def useful_links(self, instance):
+    def useful_links(self, instance: Solution) -> _SafeString | str:
         if instance.pk:
             return format_html ('<a href="{0}">Attestations of this solution</a> • <a href="{1}">User Site view of this solution</a>',
                 reverse('admin:attestation_attestation_changelist') + ("?solution__exact=%d" % instance.pk),
@@ -239,15 +263,15 @@ class SolutionAdmin(admin.ModelAdmin):
         else:
             return ""
 
-    def tests_failed(self,solution):
+    @admin.display(boolean=True, ordering='_tests_failed_computed_for_sorting')
+    def tests_failed(self, solution: Solution) -> bool:
         #return CheckerResult.objects.filter(solution=solution,passed=False).exists();
         #since we had annotated the queryset already, for sorting this computed column, just reuse that annotated values for visualisation
-        return solution._tests_failed_computed_for_sorting
-    tests_failed.boolean = True
-    tests_failed.admin_order_field = '_tests_failed_computed_for_sorting'
+        return _boolean_annotation(solution, '_tests_failed_computed_for_sorting')
 
 
-    def latest_of_only_failed(self, solution):
+    @admin.display(boolean=True, ordering='_latest_of_only_failed_computed_for_sorting')
+    def latest_of_only_failed(self, solution: Solution) -> bool:
         # ToDo ... perhaps to slow for many solutions ... rethink about it using subqueries:
         # https://hansonkd.medium.com/the-dramatic-benefits-of-django-subqueries-and-annotations-4195e0dafb16
         # https://medium.com/kolonial-no-product-tech/pushing-the-orm-to-its-limits-d26d87a66d28
@@ -259,9 +283,7 @@ class SolutionAdmin(admin.ModelAdmin):
         #on Admin Solution change listview the green circle is "Yes"
         # => here "Yes" means "latest of only failed solution" and that is not a "positive" information
         # => therfor it would be better to change the symbolic - like mentioned in https://github.com/KITPraktomatTeam/Praktomat/issues/315
-        return solution._latest_of_only_failed_computed_for_sorting
-    latest_of_only_failed.boolean = True
-    latest_of_only_failed.admin_order_field = '_latest_of_only_failed_computed_for_sorting'
+        return _boolean_annotation(solution, '_latest_of_only_failed_computed_for_sorting')
 
 
 admin.site.register(Solution, SolutionAdmin)

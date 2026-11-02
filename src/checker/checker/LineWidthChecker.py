@@ -7,32 +7,32 @@ import re
 from django.db import models
 from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-from checker.basemodels import Checker
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
 class LineWidthChecker(Checker):
 
-    max_line_length = models.IntegerField(default = 80, help_text=gettext_lazy("The maximum length of a line of code."))
-    tab_width =  models.IntegerField(default = 4, help_text=gettext_lazy("The amount of characters a tab represents."))
-    include = models.CharField(max_length=100, blank = True, default=".*", help_text=gettext_lazy("Regular expression describing the filenames to be checked. Case insensitive. Blank: use all files."))
-    exclude = models.CharField(max_length=100, blank = True, default=r".*\.txt$", help_text=gettext_lazy("Regular expression describing included filenames, which shall be excluded. Case insensitive. Blank: use all files."))
+    max_line_length: "models.IntegerField[int, int]" = models.IntegerField(default=80, help_text=gettext_lazy("The maximum length of a line of code."))
+    tab_width: "models.IntegerField[int, int]" = models.IntegerField(default=4, help_text=gettext_lazy("The amount of characters a tab represents."))
+    include: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, default=".*", help_text=gettext_lazy("Regular expression describing the filenames to be checked. Case insensitive. Blank: use all files."))
+    exclude: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, default=r".*\.txt$", help_text=gettext_lazy("Regular expression describing included filenames, which shall be excluded. Case insensitive. Blank: use all files."))
 
-    def title(self):
+    def title(self) -> str:
         """ Returns the title for this checker category. """
         return "Maximale Zeilenbreite (%d Zeichen)" % self.max_line_length
 
     @staticmethod
-    def description():
+    def description() -> str:
         """ Returns a description for this Checker. """
         s = "Diese Prüfung ist bestanden, wenn keine Zeile des Programmtext breiter als die angegebene Anzahl Zeichen ist."
         return s
 
-    def setup_line(self, line, env):
+    def setup_line(self, line: str, env: CheckerEnvironment) -> str:
         """ This is a helper procedure.     Expand tabs and likewise. """
         line = line.replace("\r", "")
         line = line.expandtabs(self.tab_width)
         return line
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         """ Here's the actual work.     This runs the check in the environment ENV,
         returning a CheckerResult. """
         result = self.create_result(env)
@@ -78,5 +78,5 @@ class LineWidthChecker(Checker):
         return result
 
 from checker.admin import CheckerInline
-class LineWidthCheckerInline(CheckerInline):
-    model = LineWidthChecker
+class LineWidthCheckerInline(CheckerInline[LineWidthChecker]):
+    model: type[LineWidthChecker] = LineWidthChecker

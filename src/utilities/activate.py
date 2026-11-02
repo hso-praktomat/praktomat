@@ -1,7 +1,9 @@
+import os
+
 from accounts.models import User
 from django.core.exceptions import ObjectDoesNotExist
 
-def activate(matfilename):
+def activate(matfilename: str | bytes | os.PathLike[str] | os.PathLike[bytes] | int) -> None:
     with open(matfilename, 'r') as f:
         matnummers=f.readlines()
         for matnummer in [int(nr) for nr in matnummers]:

@@ -6,6 +6,11 @@ import accounts.models
 
 class Migration(migrations.Migration):
 
+    _tutors: "models.ManyToManyField[models.Model, models.Model]" = models.ManyToManyField(
+        help_text='The tutors in charge of the tutorium.',
+        related_name='tutored_tutorials', to='accounts.User',
+    )
+
     dependencies = [
         ('auth', '0006_require_contenttypes_0002'),
     ]
@@ -39,6 +44,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='tutorial',
             name='tutors',
-            field=models.ManyToManyField(help_text='The tutors in charge of the tutorium.', related_name='tutored_tutorials', to='accounts.User'),
+            field=_tutors,
         ),
     ]

@@ -4,10 +4,9 @@ Generate some simple lexical statistics.
 
 import string
 
-from django.db import models
 from django.utils.translation import gettext
 from django.utils.html import escape
-from checker.basemodels import Checker
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
 class LineCounter(Checker):
     """ Lexical Statistics of the sources.
@@ -16,18 +15,18 @@ class LineCounter(Checker):
         - number of files
         - lines, lines of code and lines of comment """
 
-    def title(self):
+    def title(self) -> str:
         """ Returns the title for this checker category. """
         # _de("Lexikalische Statistik")
         return gettext("Lexical statistics")
 
     @staticmethod
-    def description():
+    def description() -> str:
         """ Returns a description for this Checker. """
         # _de(u"Diese Prüfung wird immer bestanden.")
         return gettext("This check is always passed.")
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         """ Here's the actual work.     This runs the check in the environment ENV,
         returning a CheckerResult. """
 
@@ -167,5 +166,5 @@ class LineCounter(Checker):
         return result
 
 from checker.admin import CheckerInline
-class LineCounterInline(CheckerInline):
-    model = LineCounter
+class LineCounterInline(CheckerInline[LineCounter]):
+    model: type[LineCounter] = LineCounter

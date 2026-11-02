@@ -1,9 +1,22 @@
 import re
-from pygments.lexers.theorem import IsabelleLexer
-from pygments.lexer import RegexLexer, inherit, bygroups, words
-from pygments.token import *
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Protocol, cast
+from pygments import lexer as lexer_module
+from pygments.lexer import RegexLexer, inherit, words
+from pygments.token import Comment, Keyword, String, Text
 
-from . import encoding
+# The unstubbed IsabelleLexer only adds token rules to RegexLexer, not methods.
+if TYPE_CHECKING:
+    from pygments.lexer import RegexLexer as IsabelleLexer
+else:
+    from pygments.lexers.theorem import IsabelleLexer
+
+
+class _ByGroups(Protocol):
+    def __call__(self, *tokens: tuple[str, ...]) -> object: ...
+
+
+bygroups = cast(_ByGroups, getattr(lexer_module, 'bygroups'))
 
 __all__ = ['IsarLexer']
 
@@ -43,13 +56,17 @@ class IsarLexer(IsabelleLexer):
         ],
     }
 
-    def get_tokens_unprocessed(self, text):
-        for index, token, value in RegexLexer.get_tokens_unprocessed(self, text):
+    def get_tokens_unprocessed(
+        self, text: str, stack: Iterable[str] = ("root",)
+    ):
+        for index, token, value in RegexLexer.get_tokens_unprocessed(
+            self, text, stack=stack
+        ):
             value = isar_decode(value)
             yield index, token, value
 
 
-def isar_decode(raw):
+def isar_decode(raw: str) -> str:
     global symbol_table
     if symbol_table is None:
         symbol_table = {}
@@ -63,19 +80,19 @@ def isar_decode(raw):
                 if n < 0x10000:
                     symbol_table[m.group(1)] = chr(n)
 
-    if isinstance(raw, str):
-        raw = encoding.get_unicode(raw)
-    def repl(m):
-        if m.group(0) in symbol_table:
-            return symbol_table[m.group(0)]
+    symbols = symbol_table
+
+    def repl(m: re.Match[str]) -> str:
+        if m.group(0) in symbols:
+            return symbols[m.group(0)]
         else:
             return m.group(0)
     return re.sub(r"\\<[\^a-zA-Z]+>", repl, raw)
 
 
 # ~~/etc/symbols from Isabelle2016
-symbol_table = None
-symbols_raw = r"""
+symbol_table: dict[str, str] | None = None
+symbols_raw: str = r"""
 \<zero>                 code: 0x01d7ec  group: digit
 \<one>                  code: 0x01d7ed  group: digit
 \<two>                  code: 0x01d7ee  group: digit

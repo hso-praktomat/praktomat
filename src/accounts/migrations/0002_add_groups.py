@@ -1,6 +1,9 @@
-from django.db import migrations, models
+from django.apps.registry import Apps
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db import migrations
 
-def add_groups(apps, schema_editor):
+
+def add_groups(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     Group = apps.get_model("auth", "Group")
     trainer = Group.objects.get_or_create(name="Trainer")[0]
     Permissions = apps.get_model("auth", "Permission")

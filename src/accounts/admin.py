@@ -3,9 +3,14 @@ from django.utils.translation import gettext_lazy
 from django.contrib import admin, messages
 from django.contrib.auth.models import User as UserBase, Group
 from django.contrib.auth.admin import UserAdmin as UserBaseAdmin, GroupAdmin as GroupBaseAdmin
-from django.db.models import Count
+from django.db.models import Count, QuerySet as _QuerySet
 from django.db.transaction import atomic
+from django.forms import ModelForm as _ModelForm
+from django.http import HttpRequest as _HttpRequest, HttpResponse as _HttpResponse
 from django.shortcuts import get_object_or_404
+from django.urls import URLPattern as _URLPattern
+from django.utils.safestring import SafeString as _SafeString
+import typing as _typing
 from accounts.models import User, Tutorial
 from accounts.forms import AdminUserCreationForm, AdminUserChangeForm
 
@@ -16,8 +21,8 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 
 
-class UserAdmin(UserBaseAdmin):
-    model = User
+class UserAdmin(UserBaseAdmin[User] if _typing.TYPE_CHECKING else UserBaseAdmin):
+    model: type[User] = User
 
     # add active status
     list_display = ('username', 'first_name', 'last_name', 'mat_number', 'tutorial', 'is_active', 'accepted_disclaimer', 'is_trainer', 'is_tutor', 'is_coordinator', 'email', 'date_joined', 'is_failed_attempt', 'programme' )
@@ -39,35 +44,41 @@ class UserAdmin(UserBaseAdmin):
     form = AdminUserChangeForm
     add_form = AdminUserCreationForm
 
-    def is_trainer(self, user):
+    @admin.display(boolean=True)
+    def is_trainer(self, user: User) -> bool:
         return user.is_trainer
-    is_trainer.boolean = True
 
-    def is_tutor(self, user):
+    @admin.display(boolean=True)
+    def is_tutor(self, user: User) -> bool:
         return user.is_tutor
-    is_tutor.boolean = True
 
-    def is_coordinator(self, user):
+    @admin.display(boolean=True)
+    def is_coordinator(self, user: User) -> bool:
         return user.is_coordinator
-    is_coordinator.boolean = True
 
-    def is_failed_attempt(self, user):
+    @admin.display(boolean=True)
+    def is_failed_attempt(self, user: User) -> bool:
         successfull = [ u for u in User.objects.all().filter(mat_number=user.mat_number) if u.is_active]
         return (not successfull)
-    is_failed_attempt.boolean = True
 
-    def set_active(self, request, queryset):
+    def set_active(
+        self, request: _HttpRequest, queryset: _QuerySet[User, User]
+    ) -> None:
         """ Set active action """
         queryset.update(is_active=True)
         self.message_user(request, "Users were successfully activated.")
 
-    def set_inactive(self, request, queryset):
+    def set_inactive(
+        self, request: _HttpRequest, queryset: _QuerySet[User, User]
+    ) -> None:
         """ Set inactive action """
         queryset.update(is_active=False)
         self.message_user(request, "Users were successfully inactivated.")
 
     @atomic
-    def set_tutor(self, request, queryset):
+    def set_tutor(
+        self, request: _HttpRequest, queryset: _QuerySet[User, User]
+    ) -> None:
         """ Change students to tutors """
         tutor_group = Group.objects.get(name='Tutor')
         user_group = Group.objects.get(name='User')
@@ -78,7 +89,9 @@ class UserAdmin(UserBaseAdmin):
         self.message_user(request, "Users were successfully made to tutors.")
 
     @atomic
-    def distribute_to_tutorials(self, request, queryset):
+    def distribute_to_tutorials(
+        self, request: _HttpRequest, queryset: _QuerySet[User, User]
+    ) -> None:
         """ Distribute selected users evenly to all tutorials """
         users = list(queryset)
         for user in users:
@@ -93,14 +106,16 @@ class UserAdmin(UserBaseAdmin):
             user.save()
         self.message_user(request, "All users were successfully distributed.")
 
-    def export_users(self, request, queryset):
+    def export_users(
+        self, request: _HttpRequest, queryset: _QuerySet[User, User]
+    ) -> _HttpResponse:
         from django.http import HttpResponse
         data = User.export_user(queryset)
         response = HttpResponse(data, content_type="application/xml")
         response['Content-Disposition'] = 'attachment; filename=user_export.xml'
         return response
 
-    def get_urls(self):
+    def get_urls(self) -> list[_URLPattern]:
         """ Add URL to user import """
         urls = super(UserAdmin, self).get_urls()
         from django.urls import re_path
@@ -110,7 +125,7 @@ class UserAdmin(UserBaseAdmin):
         my_urls += [re_path(r'^import_user_texts/$', accounts.views.import_user_texts, name='import_user_texts')]
         return my_urls + urls
 
-    def useful_links(self, instance):
+    def useful_links(self, instance: User) -> _SafeString | str:
         if instance.pk:
             return format_html (
                 '<a href="{1}">Solutions by {0}</a> • <a href="{2}">Attestations for {0}</a> • <a href="{3}">Attestations by {0}</a>',
@@ -122,7 +137,13 @@ class UserAdmin(UserBaseAdmin):
         else:
             return ""
 
-    def save_model(self, request, obj, form, change):
+    def save_model(
+        self,
+        request: _HttpRequest,
+        obj: User,
+        form: "_ModelForm[User]",
+        change: bool,
+    ) -> None:
         """ give a user both superuser and staff rights if he obtains the trainer role """
         if change:
             was_trainer = get_object_or_404(User, pk=obj.id).is_trainer
@@ -160,7 +181,7 @@ admin.site.unregister(UserBase)
 admin.site.register(User, UserAdmin)
 
 class GroupAdmin(GroupBaseAdmin):
-    def get_urls(self):
+    def get_urls(self) -> list[_URLPattern]:
         """ Add URL to user import """
         urls = super(GroupAdmin, self).get_urls()
         from django.urls import re_path
@@ -170,8 +191,10 @@ class GroupAdmin(GroupBaseAdmin):
 admin.site.unregister(Group)
 admin.site.register(Group, GroupAdmin)
 
-class TutorialAdmin(admin.ModelAdmin):
-    model = Tutorial
+class TutorialAdmin(
+    admin.ModelAdmin[Tutorial] if _typing.TYPE_CHECKING else admin.ModelAdmin
+):
+    model: type[Tutorial] = Tutorial
     list_display = ('name', 'view_url', 'tutors_flat',)
 
     class Media:
@@ -179,8 +202,8 @@ class TutorialAdmin(admin.ModelAdmin):
             "all": ("styles/admin_style.css",)
         }
 
-    def view_url(self, tutorial):
+    @admin.display(description='View (Tutor Site)')
+    def view_url(self, tutorial: Tutorial) -> _SafeString:
         return mark_safe('<a href="%s">View</a>' % (reverse('tutorial_overview', args=[tutorial.id])))
-    view_url.short_description = 'View (Tutor Site)'
 
 admin.site.register(Tutorial, TutorialAdmin)

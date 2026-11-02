@@ -1,14 +1,28 @@
+from typing import Any
+
 from django.db import models
 from django.db.models import signals
+from django.db.models.fields.files import FieldFile
 
 class DeletingFileField(models.FileField):
     """ FileField subclass that deletes the referenced file when the model object itself is deleted. This was the default behavior in django 1.2 but was dropped in 1.2.5 because of possible data loss in rollbacks or if you referenced the file in another model. Changing the file will non the less leave orphaned files."""
-    def contribute_to_class(self, cls, name):
-        super(DeletingFileField, self).contribute_to_class(cls, name)
+    def contribute_to_class(
+        self, cls: type[models.Model], name: str, **kwargs: Any
+    ) -> None:
+        super(DeletingFileField, self).contribute_to_class(
+            cls, name, **kwargs
+        )
         signals.post_delete.connect(self.delete_file, sender=cls)
 
-    def delete_file(self, instance, sender, **kwargs):
+    def delete_file(
+        self,
+        instance: models.Model,
+        sender: type[models.Model],
+        **kwargs: object,
+    ) -> None:
         file = getattr(instance, self.attname)
+        if not isinstance(file, FieldFile):
+            raise TypeError(f"Expected a stored file for {self.attname}")
         # If no other object of this type references the file,
         # and it's not the default value for future objects,
         # delete it from the backend.

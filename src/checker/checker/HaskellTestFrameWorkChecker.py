@@ -1,15 +1,13 @@
 import re
 
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-from django.contrib import admin
 from django.template.loader import get_template
-from checker.basemodels import Checker, CheckerFileField, truncated_log
-from checker.admin import    CheckerInline, AlwaysChangedModelForm
+from checker.basemodels import CheckerEnvironment, CheckerResult, truncated_log
+from checker.admin import CheckerInline
 from solutions.models import Solution
-from checker.basemodels import CheckerResult
-from utilities.file_operations import *
 from utilities.safeexec import execute_arglist
 from utilities import encoding
 
@@ -21,24 +19,35 @@ RXFAIL       = re.compile(r"^(.*)(FAILURES!!!|your program crashed|cpu time limi
 
 
 class IgnoringHaskellBuilder(HaskellBuilder):
-    _ignore = []
+    _ignore: list[str] = []
 
-    def get_file_names(self, env):
+    def set_ignored_files(self, filenames: list[str]) -> None:
+        self._ignore = filenames
+
+    def get_file_names(self, env: CheckerEnvironment) -> list[str]:
         rxarg = re.compile(self.rxarg())
-        return [name for (name, content) in env.sources() if rxarg.match(name) and (not name in self._ignore)]
+        return [
+            name
+            for name, _ in env.sources()
+            if rxarg.match(name) and name not in self._ignore
+        ]
 
-    def create_result(self, env):
+    def create_result(self, env: CheckerEnvironment) -> CheckerResult:
         assert isinstance(env.solution(), Solution)
         result = CheckerResult(checker=self, solution=env.solution())
         return result
 
 class TestOnlyBuildingBuilder(HaskellBuilder):
-    _testsuite_filename = ""
+    _testsuite_filename: str = ""
 
-    def get_file_names(self, env):
+    def set_testsuite_filename(self, filename: str) -> None:
+        self._testsuite_filename = filename
+
+    def get_file_names(self, env: CheckerEnvironment) -> list[str]:
+        _ = env
         return [self._testsuite_filename]
 
-    def create_result(self, env):
+    def create_result(self, env: CheckerEnvironment) -> CheckerResult:
         assert isinstance(env.solution(), Solution)
         result = CheckerResult(checker=self, solution=env.solution())
         return result
@@ -46,38 +55,69 @@ class TestOnlyBuildingBuilder(HaskellBuilder):
 class HaskellTestFrameWorkChecker(CheckerWithFile):
     """ Checker for Haskell TestFrameWork Tests. """
 
-    test_description = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is unfolded."))
-    name = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
-    ignore = models.CharField(max_length=4096, help_text=gettext_lazy("space-separated list of files to be ignored during compilation"), default="", blank=True)
-    require_safe = models.BooleanField(default = True, help_text=gettext_lazy("Is a submission required to be Safe (according to GHCs Safe-Mode)?"))
+    test_description: "models.TextField[str, str]" = models.TextField(
+        help_text=gettext_lazy(
+            "Description of the Testcase. To be displayed on Checker Results page "
+            "when checker is unfolded."
+        )
+    )
+    name: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        help_text=gettext_lazy(
+            "Name of the Testcase. To be displayed as title on Checker Results page"
+        ),
+    )
+    ignore: "models.CharField[str, str]" = models.CharField(
+        max_length=4096,
+        help_text=gettext_lazy("space-separated list of files to be ignored during compilation"),
+        default="",
+        blank=True,
+    )
+    require_safe: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=True,
+        help_text=gettext_lazy(
+            "Is a submission required to be Safe (according to GHCs Safe-Mode)?"
+        ),
+    )
 
-    TESTCASE_CHOICES = ( ("DL", "Download-Link only"), ("NO", "Do not make the testcases source available"), ("FULL", "Also copy the source into the report"))
-    include_testcase_in_report = models.CharField(max_length=4, choices=TESTCASE_CHOICES, default = "DL", help_text=gettext_lazy("Make the testcases source available via the checkers result report?"))
+    TESTCASE_CHOICES: tuple[tuple[str, str], ...] = (
+        ("DL", "Download-Link only"),
+        ("NO", "Do not make the testcases source available"),
+        ("FULL", "Also copy the source into the report"),
+    )
+    include_testcase_in_report: "models.CharField[str, str]" = models.CharField(
+        max_length=4,
+        choices=TESTCASE_CHOICES,
+        default="DL",
+        help_text=gettext_lazy(
+            "Make the testcases source available via the checkers result report?"
+        ),
+    )
 
-    _add_to_environment = False
+    _add_to_environment: bool = False
 
-    def title(self):
+    def title(self) -> str:
         return "Haskell test-framework test: " + self.name
 
     @staticmethod
-    def description():
+    def description() -> str:
         return "This Checker runs a test-framework testcase existing in the sandbox. You may want to use CreateFile Checker to create test-framework .hs and possibly input data files in the sandbox."
 
-    def output_ok(self, output):
-        return (RXFAIL.search(output) == None)
+    def output_ok(self, output: str) -> bool:
+        return RXFAIL.search(output) is None
 
-    def module_name(self):
+    def module_name(self) -> str | None:
         if not self.filename.endswith(".hs"):
             return None
 
         return (self.path_relative_to_sandbox().replace('/', '.'))[:-3]
 
-    def module_binary_name(self):
+    def module_binary_name(self) -> str | None:
         if not self.filename.endswith(".hs"):
             return None
         return (self.path_relative_to_sandbox())[:-3]
 
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
         filecopy_result = self.run_file(env)
         if filecopy_result:
             # if there is a checker result, file copying has failed
@@ -85,7 +125,9 @@ class HaskellTestFrameWorkChecker(CheckerWithFile):
 
         if self.require_safe:
             safe_builder = IgnoringHaskellBuilder(_flags="-XSafe", _file_pattern = r"^.*\.[hH][sS]$", _main_required=False)
-            safe_builder._ignore=self.ignore.split(" ") + [self.path_relative_to_sandbox()]
+            safe_builder.set_ignored_files(
+                self.ignore.split(" ") + [self.path_relative_to_sandbox()]
+            )
             safe_build_result = safe_builder.run(env)
             if not safe_build_result.passed:
                 result = self.create_result(env)
@@ -93,8 +135,10 @@ class HaskellTestFrameWorkChecker(CheckerWithFile):
                 result.set_log('<pre>' + escape(self.test_description) + '\n\n======== Test Results  (Safe) ======\n\n</pre><br/>\n'+safe_build_result.log)
                 return result
 
-            test_builder = TestOnlyBuildingBuilder(_flags="-main-is "+self.module_name(), _libs="test-framework test-framework-quickcheck2 test-framework-hunit")
-            test_builder._testsuite_filename=self.path_relative_to_sandbox()
+            module_name = self.module_name()
+            assert module_name is not None
+            test_builder = TestOnlyBuildingBuilder(_flags="-main-is "+module_name, _libs="test-framework test-framework-quickcheck2 test-framework-hunit")
+            test_builder.set_testsuite_filename(self.path_relative_to_sandbox())
             test_build_result = test_builder.run(env)
 
             if not test_build_result.passed:
@@ -103,7 +147,9 @@ class HaskellTestFrameWorkChecker(CheckerWithFile):
                 result.set_log('<pre>' + escape(self.test_description) + '\n\n======== Test Results (Building all) ======\n\n</pre><br/>\n'+test_build_result.log)
                 return result
 
-        environ = {}
+        module_binary_name = self.module_binary_name()
+        assert module_binary_name is not None
+        environ: dict[str, str] = {}
 
         environ['UPLOAD_ROOT'] = settings.UPLOAD_ROOT
         environ['LANG'] = settings.LANG
@@ -111,8 +157,15 @@ class HaskellTestFrameWorkChecker(CheckerWithFile):
         environ['TASK_ID_CUSTOM'] = env.task().custom_id
         environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
 
-        cmd = ["./"+self.module_binary_name(), "--maximum-generated-tests=1000"]
-        [output, error, exitcode, timed_out, oom_ed] = execute_arglist(cmd, env.tmpdir(), environment_variables=environ, timeout=settings.TEST_TIMEOUT, fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER)
+        cmd = ["./" + module_binary_name, "--maximum-generated-tests=1000"]
+        [output, _, exitcode, timed_out, oom_ed] = execute_arglist(
+            cmd,
+            env.tmpdir(),
+            environment_variables=environ,
+            timeout=settings.TEST_TIMEOUT,
+            fileseeklimit=settings.TEST_MAXFILESIZE,
+            filenumberlimit=settings.TEST_MAXFILENUMBER,
+        )
 
         result = self.create_result(env)
 
@@ -129,7 +182,7 @@ class HaskellTestFrameWorkChecker(CheckerWithFile):
         result.set_passed_with_warning(result.passed and truncated)
         return result
 
-class HaskellTestFrameWorkCheckerInline(CheckerInline):
+class HaskellTestFrameWorkCheckerInline(CheckerInline[HaskellTestFrameWorkChecker]):
     """ This Class defines how the the the checker is represented as inline in the task admin page. """
-    model = HaskellTestFrameWorkChecker
+    model: type[HaskellTestFrameWorkChecker] = HaskellTestFrameWorkChecker
     form = CopyForm

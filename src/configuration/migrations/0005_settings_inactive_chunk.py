@@ -1,6 +1,9 @@
-from django.db import migrations, models
+from django.apps.registry import Apps
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db import migrations
 
-def settings_inactive_chunk(apps, schema_editor):
+
+def settings_inactive_chunk(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     Chunk = apps.get_model("configuration", "Chunk")
     Chunk.objects.get_or_create(key="inactive user")[0].save()
 

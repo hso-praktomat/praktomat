@@ -1,9 +1,12 @@
 from django import template
 from django.conf import settings
+from django.template.base import Parser, Token
+from django.template.context import Context
 
-register = template.Library()
+register: template.Library = template.Library()
 
-def do_get_motd(parser, token):
+
+def do_get_motd(parser: Parser, token: Token) -> "MotdNode":
     # split_contents() knows not to split quoted strings.
     tokens = token.split_contents()
     if len(tokens) != 1:
@@ -11,10 +14,10 @@ def do_get_motd(parser, token):
     return MotdNode()
 
 class MotdNode(template.Node):
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
-    def render(self, context):
+    def render(self, context: Context) -> str:
         if not settings.SYSADMIN_MOTD_URL:
             return ''
         return '<iframe src="%s" id="motd" onLoad="resize(\'motd\')" width="100%%"> </iframe>' % settings.SYSADMIN_MOTD_URL

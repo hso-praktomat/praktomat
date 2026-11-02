@@ -3,9 +3,34 @@ name: Run tests
 on: [push, pull_request]
 
 jobs:
+  typing:
+    name: Strict Pyright (Python 3.10 target)
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+        cache: pip
+        cache-dependency-path: |
+          requirements.txt
+          requirements-dev.txt
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y swig libsasl2-dev libldap2-dev libssl-dev apache2-dev
+    - name: Install Python and typing dependencies
+      run: |
+        python -m venv .venv
+        .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
+    - name: Run strict Pyright
+      run: .venv/bin/python -m pyright --project . --warnings
+
   test:
     name: Run tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    env:
+      LANGUAGE: en_US:en
     strategy:
       fail-fast: false
       matrix:
@@ -55,9 +80,9 @@ jobs:
         ls -la --time-style=long-iso ..
     - name: Run tests
       run: |
-        ./src/manage-test.py test accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests
+        ./src/manage-test.py test utilities.tests accounts.tests attestation.tests checker.tests configuration.tests solutions.tests tasks.tests taskstatistics.tests hbrs_tests --noinput
     - name: Run test with code coverage
       run: |
-        coverage run --branch --omit='*/node_modules/*,*/migrations/*' --source='./src' ./src/manage-test.py test accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests
+        coverage run --branch --omit='*/node_modules/*,*/migrations/*' --source='./src' ./src/manage-test.py test utilities.tests accounts.tests attestation.tests checker.tests configuration.tests solutions.tests tasks.tests taskstatistics.tests hbrs_tests --noinput
     - name: Coverage report
       run: coverage report

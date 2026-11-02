@@ -6,7 +6,6 @@ Created on Dec 14, 2009
 import datetime
 from django.core.management.base import BaseCommand
 from django.contrib.sessions.models import Session
-from django.db import transaction
 
 from sessionprofile.models import SessionProfile
 
@@ -17,7 +16,7 @@ class Command(BaseCommand):
     """
 
 
-    def handle_noargs(self, **options):
+    def handle_noargs(self, **options: object) -> None:
         '''
         This purges inactive sessions from both the django session table and the 
         sessionprofile table used by the django-phpBB single sign-on code. 
@@ -29,5 +28,3 @@ class Command(BaseCommand):
         
         # Delete the session objects which correspond to an expired sessions
         Session.objects.filter(expire_date__lt=current_time).delete()
-        
-        transaction.commit_unless_managed()

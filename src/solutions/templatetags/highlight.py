@@ -1,12 +1,25 @@
 from django import template
 from django.template.defaultfilters import stringfilter
-from django.utils.safestring import mark_safe
+from django.utils.safestring import SafeString as _SafeString, mark_safe
 from django.utils.html import escape
 import re
+from collections.abc import Callable
+from importlib import import_module
+from typing import cast
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
-from pygments.lexers import get_lexer_by_name, guess_lexer, guess_lexer_for_filename, ClassNotFound
-from pygments.lexers._mapping import LEXERS
+from pygments.lexer import Lexer as _Lexer
+from pygments import lexers
+from pygments.util import ClassNotFound
+
+
+# These registry/keyword-option APIs are absent or incomplete in types-Pygments.
+LEXERS = cast(
+    dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]],
+    getattr(import_module('pygments.lexers._mapping'), 'LEXERS'),
+)
+guess_lexer = cast(Callable[[str], _Lexer], getattr(lexers, 'guess_lexer'))
+guess_lexer_for_filename = cast(Callable[[str, str], _Lexer], getattr(lexers, 'guess_lexer_for_filename'))
 
 
 # This is a hack to register our Isabelle Lexer without patching pygments or using setuptools' entry_points.
@@ -14,24 +27,26 @@ LEXERS['IsarLexer'] = ('utilities.isar_lexer', 'Isabelle/Isar', ('isabelle',), (
 
 register = template.Library()
 
-def get_lexer(value, arg):
+def get_lexer(value: str, arg: str | None) -> _Lexer:
     if arg is None:
         return guess_lexer(value)
     return guess_lexer_for_filename(arg, value) #get_lexer_by_name(arg)
 
 @register.filter(name='highlight')
 @stringfilter
-def colorize(value, arg=None):
+def colorize(value: str, arg: str | None = None) -> _SafeString:
     try:
-        return mark_safe(highlight(value, get_lexer(value, arg), HtmlFormatter()))
+        formatter: HtmlFormatter[str] = HtmlFormatter()
+        return mark_safe(highlight(value, get_lexer(value, arg), formatter))
     except ClassNotFound:
         return mark_safe("<pre>%s</pre>" % escape(value))
 
 @register.filter(name='highlight_table')
 @stringfilter
-def colorize_table(value, arg=None):
+def colorize_table(value: str, arg: str | None = None) -> _SafeString:
     try:
-        return mark_safe(highlight(value, get_lexer(value, arg), HtmlFormatter(linenos='table')))
+        formatter: HtmlFormatter[str] = HtmlFormatter(linenos='table')
+        return mark_safe(highlight(value, get_lexer(value, arg), formatter))
     except ClassNotFound:
         return mark_safe("<pre>%s</pre>" % escape(value))
 
@@ -60,13 +75,13 @@ DIFF_CHAR_CLASSES = {'+': 'addedChar', '-': 'deletedChar', '^': 'changedChar'}
 rx_html_char = re.compile(r'&(?:\w+|#x?[0-9a-fA-F]+);|.', re.DOTALL)
 
 
-def _split_diff(diff):
+def _split_diff(diff: str) -> list[list[str]]:
     """Split difflib.Differ output into [marker, text, char_markers] records.
 
     A "? " line does not describe a line of its own, it annotates the preceding
     line column by column, so it is merged into that line's record.
     """
-    records = []
+    records: list[list[str]] = []
     for raw in diff.splitlines():
         marker, text = (raw[:1] or ' '), raw[2:]
         if marker == '?':
@@ -77,7 +92,7 @@ def _split_diff(diff):
     return records
 
 
-def _highlight_lines(texts, filename):
+def _highlight_lines(texts: list[str], filename: str | None) -> list[str]:
     """Highlight the given source lines, returning one HTML snippet per line."""
     source = "\n".join(texts)
     try:
@@ -85,7 +100,8 @@ def _highlight_lines(texts, filename):
     except ClassNotFound:
         return [escape(text) for text in texts]
 
-    lines = highlight(source, lexer, HtmlFormatter(nowrap=True)).split("\n")
+    formatter: HtmlFormatter[str] = HtmlFormatter(nowrap=True)
+    lines = highlight(source, lexer, formatter).split("\n")
     if lines and lines[-1] == '':
         lines.pop()     # trailing newline appended by Pygments
     if len(lines) != len(texts):
@@ -96,14 +112,14 @@ def _highlight_lines(texts, filename):
     return lines
 
 
-def _mark_characters(html_line, char_markers):
+def _mark_characters(html_line: str, char_markers: str) -> str:
     """Wrap the characters marked by a difflib "? " line in a span.
 
     char_markers holds one character per column of the *plain text* line, while
     the highlighted line additionally contains tags (skipped) and HTML entities
     (counted as a single character).
     """
-    result = []
+    result: list[str] = []
     column = 0
     pos = 0
     while pos < len(html_line):
@@ -118,13 +134,14 @@ def _mark_characters(html_line, char_markers):
 
         # Collect all following characters that are marked the same way, so
         # that one span is enough for a whole marked word.
-        chars = []
+        chars: list[str] = []
         css_class = DIFF_CHAR_CLASSES.get(char_markers[column] if column < len(char_markers) else ' ')
         while pos < len(html_line) and html_line[pos] != '<':
             marker = char_markers[column] if column < len(char_markers) else ' '
             if DIFF_CHAR_CLASSES.get(marker) != css_class:
                 break
             match = rx_html_char.match(html_line, pos)
+            assert match is not None
             chars.append(match.group())
             column += 1
             pos = match.end()
@@ -135,7 +152,9 @@ def _mark_characters(html_line, char_markers):
 
 @register.filter(name='highlight_diff_table')
 @stringfilter
-def colorize_diff_table(value, arg=None):
+def colorize_diff_table(
+    value: str, arg: str | None = None
+) -> _SafeString:
     """Render difflib.Differ output as a syntax highlighted table."""
     records = _split_diff(value)
     if not records:
@@ -143,7 +162,7 @@ def colorize_diff_table(value, arg=None):
 
     html_lines = _highlight_lines([text for _, text, _ in records], arg)
 
-    code = []
+    code: list[str] = []
     for (marker, _text, char_markers), html_line in zip(records, html_lines):
         if char_markers:
             html_line = _mark_characters(html_line, char_markers)

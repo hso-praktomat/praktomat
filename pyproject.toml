@@ -1,0 +1,8 @@
+[tool.pyright]
+include = ["src", "documentation/ExampleChecker.py"]
+extraPaths = ["src"]
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"

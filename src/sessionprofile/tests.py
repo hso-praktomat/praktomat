@@ -22,7 +22,6 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 
-from django.core import mail
 from django.test import TestCase
 
 from django.contrib.auth.models import User
@@ -32,29 +31,29 @@ from sessionprofile.models import SessionProfile
 
 class TestSessionProfileMaintained(TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         super(TestCase, self).setUp()
 
-        self.user = User.objects.create_user(
+        self.user: User = User.objects.create_user(
             "harold",
             "harold@example.com",
             "p455w0rd"
         )
 
 
-    def assertLoggedIn(self):
+    def assertLoggedIn(self) -> None:
         self.assertNotEqual(self.client.session.get("_auth_user_id"), None)
 
-    def assertNotLoggedIn(self):
+    def assertNotLoggedIn(self) -> None:
         self.assertEqual(self.client.session.get("_auth_user_id"), None)
 
 
-    def testProfileCreatedAndMaintained(self):
-        def GetSessionID():
+    def testProfileCreatedAndMaintained(self) -> None:
+        def GetSessionID() -> str:
             return self.client.cookies["sessionid"].value
 
         # Harold is not logged in.
-        page = self.client.get("/admin/")
+        self.client.get("/admin/")
         self.assertNotLoggedIn()
 
         # There is no username associated with his session in the django_session table.
@@ -63,7 +62,7 @@ class TestSessionProfileMaintained(TestCase):
 
         # He logs in.
         self.client.login(username="harold", password="p455w0rd")
-        page = self.client.get("/admin/")
+        self.client.get("/admin/")
 
         # His username is now associated with his session.
         sessionProfile = SessionProfile.objects.get(session__session_key=GetSessionID())
@@ -71,7 +70,7 @@ class TestSessionProfileMaintained(TestCase):
 
         # He logs out
         self.client.logout()
-        page = self.client.get("/admin/")
+        self.client.get("/admin/")
 
         # The session is disassociated.
         sessionProfile = SessionProfile.objects.get(session__session_key=GetSessionID())

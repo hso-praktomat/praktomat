@@ -1,16 +1,12 @@
 from django.core import management
-from django.core.management.base import BaseCommand, CommandError
-from django.conf import settings
-from django.db import models
+from django.core.management.base import BaseCommand
 
 from os.path import join, dirname as dir
-import shutil
-import tempfile
 
 class Command(BaseCommand):
-    help = 'Updates the vector images in documentation/modelgraph. Requires installation of graphviz and pygraphviz.'
+    help: str = 'Updates the vector images in documentation/modelgraph. Requires installation of graphviz and pygraphviz.'
 
-    def handle_noargs(self, **options):
+    def handle_noargs(self, **options: object) -> None:
         export_folder = join(dir(dir(dir(dir(dir(__file__))))), "documentation", "model_graph")
         management.call_command('graph_models', 'tasks', outputfile=join(export_folder, 'tasks.svg'))
         management.call_command('graph_models', 'tasks', outputfile=join(export_folder, 'tasks.gif'))
