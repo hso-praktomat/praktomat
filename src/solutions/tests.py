@@ -1,12 +1,19 @@
 from os.path import dirname, join
 from datetime import datetime, timedelta
 import difflib
+import json
+import zipfile
+from io import BytesIO
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from utilities.TestSuite import TestCase
+from django.core.files.base import ContentFile
 from django.test.client import Client
 from django.urls import reverse
 
-from solutions.models import Solution
+from accounts.models import User, Tutorial
+from solutions.models import Solution, SolutionFile, path_for_task, path_for_user
 from solutions.templatetags.highlight import colorize_diff_table
 from tasks.models import Task
 
@@ -94,6 +101,122 @@ class TestViews(TestCase):
     def test_get_solution(self):
         response = self.client.get(reverse('solution_detail', args=[self.task.solution_set.all()[0].id]))
         self.assertEqual(response.status_code, 200)
+
+
+class TestSolutionDownloadMetadata(TestCase):
+    def setUp(self):
+        self.solution = Solution.objects.first()
+        self.solution.final = True
+        self.solution.allow_llm_upload = True
+        self.solution.save()
+        author = User.objects.create_user(
+            'second-user', tutorial=self.solution.author.tutorial)
+        self.other_solution = Solution.objects.create(
+            task=self.solution.task, author=author, final=True,
+            allow_llm_upload=False)
+        self.draft = Solution.objects.create(
+            task=self.solution.task, author=author, allow_llm_upload=True)
+
+    def metadata_path(self, solution):
+        return '%s/%s/metadata.json' % (
+            path_for_task(solution.task), path_for_user(solution.author))
+
+    def test_task_downloads_include_metadata_for_each_final_solution(self):
+        variants = [
+            'solution_download_for_task',
+            'solution_download_for_task_artifacts',
+            'solution_download_for_task_full',
+        ]
+        with TemporaryDirectory() as sandbox, self.settings(SANDBOX_DIR=sandbox), patch('tempfile.tempdir', sandbox):
+            for username in ['tutor', 'trainer']:
+                self.client.login(username=username, password='demo')
+                for variant in variants:
+                    with self.subTest(username=username, variant=variant):
+                        response = self.client.get(reverse(
+                            variant, args=[self.solution.task_id]))
+                        self.assertEqual(response.status_code, 200)
+                        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+                            for solution in [self.solution, self.other_solution]:
+                                metadata = json.loads(archive.read(
+                                    self.metadata_path(solution)))
+                                self.assertEqual(metadata, {
+                                    'solution_id': solution.pk,
+                                    'allow_llm_upload': solution.allow_llm_upload,
+                                })
+                                self.assertIs(
+                                    metadata['allow_llm_upload'], solution.allow_llm_upload)
+                            self.assertEqual(len([
+                                name for name in archive.namelist()
+                                if name.endswith('/metadata.json')
+                            ]), 2)
+                            source = self.solution.solutionfile_set.first()
+                            source_path = self.metadata_path(self.solution).replace(
+                                'metadata.json', 'solution/' + source.path())
+                            with source.file.open('rb') as original:
+                                self.assertEqual(
+                                    archive.read(source_path), original.read())
+
+    def test_individual_downloads_include_true_and_false(self):
+        variants = [
+            'solution_download',
+            'solution_download_artifacts',
+            'solution_download_full',
+        ]
+        self.client.login(username='trainer', password='demo')
+        with TemporaryDirectory() as sandbox, self.settings(SANDBOX_DIR=sandbox), patch('tempfile.tempdir', sandbox):
+            for solution in [self.solution, self.other_solution]:
+                for variant in variants:
+                    with self.subTest(solution=solution.pk, variant=variant):
+                        response = self.client.get(reverse(variant, args=[solution.pk]))
+                        self.assertEqual(response.status_code, 200)
+                        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+                            self.assertEqual(
+                                json.loads(archive.read(self.metadata_path(solution))),
+                                {'solution_id': solution.pk,
+                                 'allow_llm_upload': solution.allow_llm_upload})
+
+    def test_tutor_download_does_not_include_other_tutorial(self):
+        self.other_solution.author.tutorial = Tutorial.objects.create(name='Other')
+        self.other_solution.author.save()
+        self.client.login(username='tutor', password='demo')
+        response = self.client.get(reverse(
+            'solution_download_for_task', args=[self.solution.task_id]))
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            self.assertIn(self.metadata_path(self.solution), archive.namelist())
+            self.assertNotIn(self.metadata_path(self.other_solution), archive.namelist())
+
+    def test_student_cannot_download_all_solutions(self):
+        self.client.login(username='user', password='demo')
+        response = self.client.get(reverse(
+            'solution_download_for_task', args=[self.solution.task_id]))
+        self.assertEqual(response.status_code, 403)
+
+    def test_submitted_metadata_file_is_preserved(self):
+        source = SolutionFile(solution=self.solution)
+        source.file.save('metadata.json', ContentFile(b'{"student_file": true}'))
+        self.client.login(username='user', password='demo')
+        response = self.client.get(reverse(
+            'solution_download', args=[self.solution.pk]))
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            metadata_path = self.metadata_path(self.solution)
+            self.assertEqual(
+                json.loads(archive.read(metadata_path)),
+                {'solution_id': self.solution.pk, 'allow_llm_upload': True})
+            self.assertEqual(
+                archive.read(metadata_path.replace(
+                    'metadata.json', 'solution/metadata.json')),
+                b'{"student_file": true}')
+
+    def test_task_without_final_solutions_has_empty_archive(self):
+        self.solution.task.solution_set.update(final=False)
+        self.client.login(username='trainer', password='demo')
+        response = self.client.get(reverse(
+            'solution_download_for_task', args=[self.solution.task_id]))
+        self.assertEqual(response.status_code, 200)
+        with zipfile.ZipFile(BytesIO(response.content)) as archive:
+            self.assertEqual(archive.namelist(), [])
 
 
 def test_concurrently(times):

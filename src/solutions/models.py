@@ -1,4 +1,5 @@
 import zipfile
+import json
 import tempfile
 import shutil
 import os, re
@@ -231,6 +232,13 @@ class DummyFile:
         self.path = path
 
 
+def solution_metadata_json(solution):
+    return json.dumps({
+        'solution_id': solution.pk,
+        'allow_llm_upload': solution.allow_llm_upload,
+    }, indent=2) + '\n'
+
+
 def get_solutions_zip(solutions,include_copy_checker_files=False,include_artifacts=False):
     zip_file = tempfile.TemporaryFile()
     zip = zipfile.ZipFile(zip_file, 'w', allowZip64 = True)
@@ -279,6 +287,8 @@ def get_solutions_zip(solutions,include_copy_checker_files=False,include_artifac
         # We need to pass unicode strings to ZipInfo to ensure that it sets bit
         # 11 appropriately if the filename contains non-ascii characters.
         assert isinstance(base_name, str)
+
+        zip.writestr(base_name + 'metadata.json', solution_metadata_json(solution))
 
         checkstyle_checker_files = []
         script_checker_files     = []
