@@ -19,10 +19,25 @@ from checker.checker.ScriptChecker import ScriptChecker, ScriptCheckerInline
 from checker.checker.TextChecker import TextChecker, TextCheckerInline
 from tasks.admin import TaskAdmin
 from solutions.models import Solution
-from tasks.models import MediaFile, Task
+from tasks.models import DeadlineExtension, MediaFile, SubmissionBlacklistEntry, Task
 
 
 class TestTaskAdminContracts(TestCase):
+    def test_expired_for_user_accepts_user_and_user_id(self) -> None:
+        task = Task.objects.get(pk=1)
+        user = User.objects.get(username='user')
+
+        SubmissionBlacklistEntry.objects.create(task=task, user=user)
+        self.assertTrue(task.expired_for_user(user))
+        self.assertTrue(task.expired_for_user(user.id))
+
+        SubmissionBlacklistEntry.objects.filter(task=task, user=user).delete()
+        DeadlineExtension.objects.create(
+            task=task, user=user, timestamp=datetime.now() + timedelta(days=1),
+        )
+        self.assertFalse(task.expired_for_user(user))
+        self.assertFalse(task.expired_for_user(user.id))
+
     def test_import_failure_is_rendered_as_a_file_error(self) -> None:
         from django.core.files.uploadedfile import SimpleUploadedFile
         self.client.force_login(User.objects.get(username='trainer'))

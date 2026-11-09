@@ -90,11 +90,12 @@ class Task(models.Model):
         """returns whether the task has expired"""
         return self.submission_date + get_settings().deadline_tolerance < datetime.now()
 
-    def expired_for_user(self, user: User) -> bool:
-        """returns whether the task has expired for a certain user"""
-        if SubmissionBlacklistEntry.objects.filter(task=self, user=user).exists():
+    def expired_for_user(self, user: User | int) -> bool:
+        """Return whether the task has expired for a user or user ID."""
+        user_id = user.id if isinstance(user, User) else user
+        if SubmissionBlacklistEntry.objects.filter(task=self, user_id=user_id).exists():
             return True
-        for deadline_extension in DeadlineExtension.objects.filter(task=self, user=user):
+        for deadline_extension in DeadlineExtension.objects.filter(task=self, user_id=user_id):
             return deadline_extension.timestamp + get_settings().deadline_tolerance < datetime.now()
         return self.expired()
 
