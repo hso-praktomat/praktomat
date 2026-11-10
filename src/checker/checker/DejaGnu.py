@@ -72,8 +72,8 @@ class DejaGnuTester(Checker, DejaGnu):
         help_text=gettext_lazy(
             "In den folgenden DejaGnu-Testfällen werden typischerweise Funktionen "
             "aufgerufen, die beim vorherigen Schritt <EM>Tests einrichten</EM> "
-            "definiert wurden. Siehe auch den Abschnitt <EM>How to write a test "
-            'case</EM> im <A TARGET="_blank" HREF="http://www.gnu.org/manual/'
+            "definiert wurden.     Siehe    auch den Abschnitt <EM>How to write a "
+            'test case</EM> im <A TARGET="_blank" HREF="http://www.gnu.org/manual/'
             'dejagnu/">DejaGnu-Handbuch</A>.'
         )
     )
@@ -200,8 +200,11 @@ class DejaGnuSetup(Checker, DejaGnu):
             'dejagnu.html">DejaGnu-Testrahmen</A>, um die Programme zu testen. '
             "Die in dieser Datei enthaltenen Definitionen gelten für alle Testfälle "
             "dieser Aufgabe. Sie werden beim Testen in die DejaGnu-Datei "
-            "<TT>default.exp</TT> geschrieben. Die Variablen PROGRAM und JAVA werden "
-            "mit dem Programmnamen bzw. dem Pfad zur Java-Runtime ersetzt."
+            "<TT>default.exp</TT> geschrieben. (Vergl. hierzuden Abschnitt <EM>Target "
+            'dependent procedures</EM> im    <A HREF="http://www.gnu.org/manual/'
+            'dejagnu/" TARGET="_blank">DejaGnu-Handbuch</A>.) Die Variablen '
+            "PROGRAM und JAVA werden mit dem Programmnamen bzw. dem Pfad zur "
+            "Java-Runtime ersetzt."
         )
     )
 

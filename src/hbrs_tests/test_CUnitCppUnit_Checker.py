@@ -38,7 +38,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.student: User = self.__class__.Student
         self.trainer: User = User.objects.get(username="trainer")
 
-    def teatDown(self) -> None:
+    def tearDown(self) -> None:
         self.client.logout()
 
     def __myTestHelper_taskAdmin_load_and_store_Task_with_CUnitCppUnit_Checker(self, taskZipPath: str) -> int:

@@ -153,7 +153,7 @@ def execute_arglist(
             oom_ed = True
 
         assert process.returncode is not None
-        return ExecutionResult(output.decode("utf-8"), error, process.returncode, timed_out, oom_ed)
+        return ExecutionResult(output.decode("utf-8", errors="replace"), error, process.returncode, timed_out, oom_ed)
     finally:
         if container_name is not None:
             safe_docker_cleanup(volumes)
@@ -218,7 +218,7 @@ def _safe_docker(
         raise Exception("working directory contains a ':'")
     for d in extra_dirs:
         if ":" in d:
-            raise Exception(f"extra directory 'f{d}' contains a ':'")
+            raise Exception(f"extra directory '{d}' contains a ':'")
 
     volumes: list[DockerVolume] = []
 

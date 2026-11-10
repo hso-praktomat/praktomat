@@ -2,11 +2,14 @@ import os
 import subprocess
 import tempfile
 import zipfile
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 from django.core.files.base import ContentFile
+from django.core.management import call_command
 from django.http import Http404, HttpResponse
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
@@ -54,6 +57,37 @@ class TestHTTPFileResponses(SimpleTestCase):
             for view in (sendfile, forbidden):
                 with self.subTest(view=view), self.assertRaises(Http404):
                     view(request, "missing.txt")
+
+
+class TestManagementCommands(SimpleTestCase):
+    def test_install_demo_db_command_dispatches_handle(self) -> None:
+        with (
+            TemporaryDirectory() as upload_root,
+            patch(
+                "utilities.management.commands.install_demo_db.shutil.make_archive",
+                return_value="/tmp/backup.zip",
+            ) as make_archive,
+            patch("utilities.management.commands.install_demo_db.shutil.rmtree") as remove_support,
+            patch("utilities.management.commands.install_demo_db.shutil.copytree") as copy_demo,
+            patch("utilities.management.commands.install_demo_db.shutil.copy") as copy_backup,
+            override_settings(UPLOAD_ROOT=upload_root),
+            redirect_stdout(StringIO()),
+        ):
+            call_command("install_demo_db")
+
+        make_archive.assert_called_once()
+        remove_support.assert_called_once_with(upload_root)
+        copy_demo.assert_called_once()
+        copy_backup.assert_called_once_with("/tmp/backup.zip", upload_root)
+
+    def test_update_model_graph_command_dispatches_handle(self) -> None:
+        with (
+            patch("utilities.management.commands.update_model_graph.management.call_command") as graph_command,
+            redirect_stdout(StringIO()),
+        ):
+            call_command("update_model_graph")
+
+        self.assertEqual(graph_command.call_count, 14)
 
 
 class TestFileOperations(SimpleTestCase):
@@ -298,6 +332,15 @@ class TestExecutionOptions(SimpleTestCase):
         )
 
     @patch("utilities.safeexec.subprocess.Popen")
+    def test_plain_execution_replaces_non_utf8_output(self, popen: Mock) -> None:
+        popen.return_value.communicate.return_value = (b"output\xff", None)
+        popen.return_value.returncode = 0
+
+        result = execute_arglist(["program"], "/work")
+
+        self.assertEqual(result.output, "output\ufffd")
+
+    @patch("utilities.safeexec.subprocess.Popen")
     def test_environment_changes_do_not_leak_to_host(self, popen: Mock) -> None:
         popen.return_value.communicate.return_value = (b"", None)
         popen.return_value.returncode = 0
@@ -457,7 +500,7 @@ class TestDockerOptions(SimpleTestCase):
     def test_invalid_mount_paths_are_rejected_before_launch(self) -> None:
         with self.assertRaisesRegex(Exception, "working directory"):
             safe_docker({}, [], None, [], "/invalid:path")
-        with self.assertRaisesRegex(Exception, "extra directory"):
+        with self.assertRaisesRegex(Exception, r"extra directory '/invalid:path'"):
             safe_docker({}, ["/invalid:path"], None, [], "/work")
 
     @patch("utilities.safeexec.exists", return_value=False)

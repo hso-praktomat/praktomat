@@ -1,0 +1,56 @@
+#!/bin/sh
+set -eu
+
+usage() {
+    echo "Usage: scripts/check [--full]" >&2
+    echo "  --full  run the test suite once under branch coverage" >&2
+}
+
+if [ "$#" -gt 1 ]; then
+    usage
+    exit 2
+fi
+
+full=0
+if [ "$#" -eq 1 ]; then
+    if [ "$1" != "--full" ]; then
+        usage
+        exit 2
+    fi
+    full=1
+fi
+
+if [ -z "${PYTHON:-}" ]; then
+    if [ -x ".venv/bin/python" ]; then
+        PYTHON=".venv/bin/python"
+    else
+        PYTHON=python3
+    fi
+fi
+
+export LANGUAGE="${LANGUAGE:-en_US:en}"
+export CI="${CI:-true}"
+
+"$PYTHON" -m pyright --project . --warnings
+"$PYTHON" -m ruff check src
+"$PYTHON" -m ruff format --check src
+"$PYTHON" src/manage-test.py check
+"$PYTHON" src/manage-test.py makemigrations --check --dry-run
+"$PYTHON" src/manage-test.py validate_templates
+
+if [ "$full" -eq 1 ]; then
+    "$PYTHON" -m coverage run \
+        --branch \
+        --omit='*/node_modules/*,*/migrations/*' \
+        --source='./src' \
+        src/manage-test.py test \
+        utilities.tests accounts.tests attestation.tests checker.tests \
+        configuration.tests solutions.tests tasks.tests taskstatistics.tests \
+        hbrs_tests --noinput
+    "$PYTHON" -m coverage report
+else
+    "$PYTHON" src/manage-test.py test \
+        utilities.tests accounts.tests attestation.tests checker.tests \
+        configuration.tests solutions.tests tasks.tests taskstatistics.tests \
+        hbrs_tests --noinput
+fi

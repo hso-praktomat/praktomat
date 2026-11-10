@@ -10,7 +10,7 @@ class Command(BaseCommand):
         "Updates the vector images in documentation/modelgraph. Requires installation of graphviz and pygraphviz."
     )
 
-    def handle_noargs(self, **options: object) -> None:
+    def handle(self, *args: object, **options: object) -> None:
         export_folder = join(dir(dir(dir(dir(dir(__file__))))), "documentation", "model_graph")
         management.call_command("graph_models", "tasks", outputfile=join(export_folder, "tasks.svg"))
         management.call_command("graph_models", "tasks", outputfile=join(export_folder, "tasks.gif"))

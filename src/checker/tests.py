@@ -396,16 +396,28 @@ class TestChecker(TestCase):
         pass
 
     def test_anonymity_checker(self) -> None:
+        self.solution.author.last_name = "Ymous"
+        self.solution.author.save()
         AnonymityChecker.AnonymityChecker.objects.create(task=self.task, order=0)
         self.solution.check_solution()
+        result = self.solution.checkerresult_set.get()
+        self.assertFalse(result.passed)
+        self.assertIn("<strong>Ymous</strong>", result.log)
 
-    def test_checkstyle_checker(self) -> None:
+    @patch(
+        "checker.checker.CheckStyleChecker.execute_arglist",
+        return_value=("Starting audit...\nAudit done.", None, 0, False, False),
+    )
+    def test_checkstyle_checker(self, execute: Mock) -> None:
         src = join(dirname(dirname(dirname(__file__))), "examples", "check style", "check_ws.xml")
         dest = join(settings.UPLOAD_ROOT, "directdeposit", "check style", "check_ws.xml")
         # circumvent SuspiciousOperation exception
         copy_file(src, dest)
         CheckStyleChecker.CheckStyleChecker.objects.create(task=self.task, order=0, configuration=dest)
         self.solution.check_solution()
+        result = self.solution.checkerresult_set.get()
+        self.assertTrue(result.passed, result.log)
+        execute.assert_called_once()
 
     def test_createfile_checker(self) -> None:
         src = join(dirname(dirname(dirname(__file__))), "examples", "check style", "check_ws.xml")
