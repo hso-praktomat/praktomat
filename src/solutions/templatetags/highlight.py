@@ -16,23 +16,25 @@ from pygments.util import ClassNotFound
 # These registry/keyword-option APIs are absent or incomplete in types-Pygments.
 LEXERS = cast(
     dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]],
-    import_module('pygments.lexers._mapping').LEXERS,
+    import_module("pygments.lexers._mapping").LEXERS,
 )
-guess_lexer = cast(Callable[[str], _Lexer], getattr(lexers, 'guess_lexer'))  # noqa: B009  # Pygments exposes a partial type for this registry API.
-guess_lexer_for_filename = cast(Callable[[str, str], _Lexer], getattr(lexers, 'guess_lexer_for_filename'))  # noqa: B009  # Pygments exposes a partial type for this registry API.
+guess_lexer = cast(Callable[[str], _Lexer], getattr(lexers, "guess_lexer"))  # noqa: B009  # Pygments exposes a partial type for this registry API.
+guess_lexer_for_filename = cast(Callable[[str, str], _Lexer], getattr(lexers, "guess_lexer_for_filename"))  # noqa: B009  # Pygments exposes a partial type for this registry API.
 
 
 # This is a hack to register our Isabelle Lexer without patching pygments or using setuptools' entry_points.
-LEXERS['IsarLexer'] = ('utilities.isar_lexer', 'Isabelle/Isar', ('isabelle',), ('*.thy',), ('text/x-isabelle',))
+LEXERS["IsarLexer"] = ("utilities.isar_lexer", "Isabelle/Isar", ("isabelle",), ("*.thy",), ("text/x-isabelle",))
 
 register = template.Library()
+
 
 def get_lexer(value: str, arg: str | None) -> _Lexer:
     if arg is None:
         return guess_lexer(value)
-    return guess_lexer_for_filename(arg, value) #get_lexer_by_name(arg)
+    return guess_lexer_for_filename(arg, value)  # get_lexer_by_name(arg)
 
-@register.filter(name='highlight')
+
+@register.filter(name="highlight")
 @stringfilter
 def colorize(value: str, arg: str | None = None) -> _SafeString:
     try:
@@ -41,14 +43,16 @@ def colorize(value: str, arg: str | None = None) -> _SafeString:
     except ClassNotFound:
         return mark_safe(f"<pre>{escape(value)}</pre>")
 
-@register.filter(name='highlight_table')
+
+@register.filter(name="highlight_table")
 @stringfilter
 def colorize_table(value: str, arg: str | None = None) -> _SafeString:
     try:
-        formatter: HtmlFormatter[str] = HtmlFormatter(linenos='table')
+        formatter: HtmlFormatter[str] = HtmlFormatter(linenos="table")
         return mark_safe(highlight(value, get_lexer(value, arg), formatter))
     except ClassNotFound:
         return mark_safe(f"<pre>{escape(value)}</pre>")
+
 
 # --- rendering of annotated solution diffs ----------------------------------
 #
@@ -65,14 +69,14 @@ def colorize_table(value: str, arg: str | None = None) -> _SafeString:
 #      diff markers are still known, so no generated HTML has to be parsed.
 
 # css class per difflib line marker
-DIFF_LINE_CLASSES = {'+': 'added', '-': 'removed'}
+DIFF_LINE_CLASSES = {"+": "added", "-": "removed"}
 
 # css class per character marker of a difflib "? " hint line
-DIFF_CHAR_CLASSES = {'+': 'addedChar', '-': 'deletedChar', '^': 'changedChar'}
+DIFF_CHAR_CLASSES = {"+": "addedChar", "-": "deletedChar", "^": "changedChar"}
 
 # One "visible" character of highlighted output: either an HTML entity
 # (Pygments escapes &, < and >) or a single character.
-rx_html_char = re.compile(r'&(?:\w+|#x?[0-9a-fA-F]+);|.', re.DOTALL)
+rx_html_char = re.compile(r"&(?:\w+|#x?[0-9a-fA-F]+);|.", re.DOTALL)
 
 
 def _split_diff(diff: str) -> list[list[str]]:
@@ -83,12 +87,12 @@ def _split_diff(diff: str) -> list[list[str]]:
     """
     records: list[list[str]] = []
     for raw in diff.splitlines():
-        marker, text = (raw[:1] or ' '), raw[2:]
-        if marker == '?':
+        marker, text = (raw[:1] or " "), raw[2:]
+        if marker == "?":
             if records:
                 records[-1][2] = text
             continue
-        records.append([marker, text, ''])
+        records.append([marker, text, ""])
     return records
 
 
@@ -102,8 +106,8 @@ def _highlight_lines(texts: list[str], filename: str | None) -> list[str]:
 
     formatter: HtmlFormatter[str] = HtmlFormatter(nowrap=True)
     lines = highlight(source, lexer, formatter).split("\n")
-    if lines and lines[-1] == '':
-        lines.pop()     # trailing newline appended by Pygments
+    if lines and lines[-1] == "":
+        lines.pop()  # trailing newline appended by Pygments
     if len(lines) != len(texts):
         # Some lexers do not preserve the line structure (e.g. the Isabelle
         # lexer). Highlighting would desynchronise the diff markers, so fall
@@ -123,21 +127,21 @@ def _mark_characters(html_line: str, char_markers: str) -> str:
     column = 0
     pos = 0
     while pos < len(html_line):
-        if html_line[pos] == '<':
-            end = html_line.find('>', pos)
+        if html_line[pos] == "<":
+            end = html_line.find(">", pos)
             if end < 0:
                 result.append(html_line[pos:])
                 break
-            result.append(html_line[pos:end + 1])
+            result.append(html_line[pos : end + 1])
             pos = end + 1
             continue
 
         # Collect all following characters that are marked the same way, so
         # that one span is enough for a whole marked word.
         chars: list[str] = []
-        css_class = DIFF_CHAR_CLASSES.get(char_markers[column] if column < len(char_markers) else ' ')
-        while pos < len(html_line) and html_line[pos] != '<':
-            marker = char_markers[column] if column < len(char_markers) else ' '
+        css_class = DIFF_CHAR_CLASSES.get(char_markers[column] if column < len(char_markers) else " ")
+        while pos < len(html_line) and html_line[pos] != "<":
+            marker = char_markers[column] if column < len(char_markers) else " "
             if DIFF_CHAR_CLASSES.get(marker) != css_class:
                 break
             match = rx_html_char.match(html_line, pos)
@@ -150,15 +154,13 @@ def _mark_characters(html_line: str, char_markers: str) -> str:
     return "".join(result)
 
 
-@register.filter(name='highlight_diff_table')
+@register.filter(name="highlight_diff_table")
 @stringfilter
-def colorize_diff_table(
-    value: str, arg: str | None = None
-) -> _SafeString:
+def colorize_diff_table(value: str, arg: str | None = None) -> _SafeString:
     """Render difflib.Differ output as a syntax highlighted table."""
     records = _split_diff(value)
     if not records:
-        return mark_safe('')
+        return mark_safe("")
 
     html_lines = _highlight_lines([text for _, text, _ in records], arg)
 
@@ -170,7 +172,7 @@ def colorize_diff_table(
         if css_class:
             # The div is a block element and therefore already ends the line.
             # An empty one would collapse, so keep a zero width space in it.
-            code.append('<div class="changed {}">{}</div>'.format(css_class, html_line or '&#8203;'))
+            code.append('<div class="changed {}">{}</div>'.format(css_class, html_line or "&#8203;"))
         else:
             code.append(html_line + "\n")
 
@@ -180,5 +182,5 @@ def colorize_diff_table(
         '<table class="highlighttable"><tr>'
         '<td class="linenos"><div class="linenodiv"><pre>{}</pre></div></td>'
         '<td class="code"><div class="highlight"><pre>{}</pre></div></td>'
-        '</tr></table>'.format(linenos, "".join(code))
+        "</tr></table>".format(linenos, "".join(code))
     )

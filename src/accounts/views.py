@@ -1,4 +1,4 @@
-#from accounts.forms import MyRegistrationForm
+# from accounts.forms import MyRegistrationForm
 import csv
 import io
 import logging
@@ -40,6 +40,7 @@ from configuration import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 def require_uploaded_file(value: object) -> "UploadedFile[bytes]":
     if not isinstance(value, UploadedFile):
         raise TypeError("Expected a validated uploaded file")
@@ -49,163 +50,195 @@ def require_uploaded_file(value: object) -> "UploadedFile[bytes]":
 def register(request: HttpRequest) -> HttpResponse:
     extra_context: dict[str, object] = {}
     if (not settings.REGISTRATION_POSSIBLE) or get_settings().deny_registration_from < datetime.now():
-        extra_context['deny_registration_from'] = get_settings().deny_registration_from
-        extra_context['admins'] = User.objects.filter(is_superuser=True)
-        extra_context['trainers'] = User.objects.filter(groups=Group.objects.get(name="Trainer"))
+        extra_context["deny_registration_from"] = get_settings().deny_registration_from
+        extra_context["admins"] = User.objects.filter(is_superuser=True)
+        extra_context["trainers"] = User.objects.filter(groups=Group.objects.get(name="Trainer"))
     else:
-        if request.method == 'POST':
+        if request.method == "POST":
             form = MyRegistrationForm(request.POST, domain=RequestSite(request).domain, use_https=request.is_secure())
             if form.is_valid():
                 form.save()
-                return HttpResponseRedirect(reverse('registration_complete'))
+                return HttpResponseRedirect(reverse("registration_complete"))
         else:
             form = MyRegistrationForm()
-        extra_context['form'] = form
-    return render(request, 'registration/registration_form.html', extra_context)
+        extra_context["form"] = form
+    return render(request, "registration/registration_form.html", extra_context)
+
 
 def activate(request: HttpRequest, activation_key: str) -> HttpResponse:
     account = User.activate_user(activation_key)
-    return render(request, 'registration/registration_activated.html', { 'account': account, 'expiration_days': get_settings().acount_activation_days })
+    return render(
+        request,
+        "registration/registration_activated.html",
+        {"account": account, "expiration_days": get_settings().acount_activation_days},
+    )
+
 
 @staff_member_required
 def activation_allow(request: HttpRequest, user_id: str) -> HttpResponse:
     user = get_object_or_404(User, pk=user_id)
     # Send activation email
-    t = loader.get_template('registration/registration_email.html')
+    t = loader.get_template("registration/registration_email.html")
     c = {
-        'email': user.email,
-        'domain': RequestSite(request).domain,
-        'site_name': settings.SITE_NAME,
-        'uid': int_to_base36(user.id),
-        'user': user,
-        'protocol': request.is_secure() and 'https' or 'http',
-        'activation_key': user.activation_key,
-        'expiration_days': get_settings().acount_activation_days,
+        "email": user.email,
+        "domain": RequestSite(request).domain,
+        "site_name": settings.SITE_NAME,
+        "uid": int_to_base36(user.id),
+        "user": user,
+        "protocol": request.is_secure() and "https" or "http",
+        "activation_key": user.activation_key,
+        "expiration_days": get_settings().acount_activation_days,
     }
     send_mail(gettext_lazy("Account activation on %s") % settings.SITE_NAME, t.render(c), None, [user.email])
-    return render(request, 'registration/registration_activation_allowed.html', { 'new_user': user, })
+    return render(
+        request,
+        "registration/registration_activation_allowed.html",
+        {
+            "new_user": user,
+        },
+    )
+
 
 @local_user_required
 def change(request: HttpRequest) -> HttpResponse:
     user = require_user(request)
-    if request.method == 'POST':
+    if request.method == "POST":
         form = UserChangeForm(request.POST, instance=user)
         if form.is_valid():
             form.save()
-            return HttpResponseRedirect(reverse('task_list'))
+            return HttpResponseRedirect(reverse("task_list"))
     else:
         form = UserChangeForm(instance=user)
-    return render(request, 'registration/registration_change.html', {'form':form, 'user':user})
+    return render(request, "registration/registration_change.html", {"form": form, "user": user})
+
 
 @login_required
 def view(request: HttpRequest) -> HttpResponse:
-    return render(request, 'registration/registration_view.html', {'user':request.user})
+    return render(request, "registration/registration_view.html", {"user": request.user})
+
 
 def access_denied(request: HttpRequest) -> HttpResponse:
-    request_path = request.META.get('HTTP_HOST', '') + request.get_full_path()
-    res = render(request,
-            'access_denied.html',
-            {'request_path': request_path})
+    request_path = request.META.get("HTTP_HOST", "") + request.get_full_path()
+    res = render(request, "access_denied.html", {"request_path": request_path})
     res.status_code = 403
     return res
 
+
 @staff_member_required
 def import_user(request: HttpRequest) -> HttpResponse:
-    """ View in the admin """
-    if request.method == 'POST':
+    """View in the admin"""
+    if request.method == "POST":
         form = ImportForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                imported_user = User.import_user(form.cleaned_data['file'])
+                imported_user = User.import_user(form.cleaned_data["file"])
                 messages.success(request, f"The import was successfull. {imported_user.count()} users imported.")
-                if form.cleaned_data['require_reactivation']:
+                if form.cleaned_data["require_reactivation"]:
                     for user in [user for user in imported_user if user.is_active]:
                         user.is_active = False
                         user.set_new_activation_key()
                         user.save()
-                        if form.cleaned_data['send_reactivation_email']:
+                        if form.cleaned_data["send_reactivation_email"]:
                             # Send activation email
-                            reactivation_template = Template(form.cleaned_data['meassagetext'])
+                            reactivation_template = Template(form.cleaned_data["meassagetext"])
                             c = {
-                                'email': user.email,
-                                'domain': RequestSite(request).domain,
-                                'site_name': settings.SITE_NAME,
-                                'uid': int_to_base36(user.id),
-                                'user': user,
-                                'protocol': request.is_secure() and 'https' or 'http',
-                                'activation_key': user.activation_key,
-                                'expiration_days': get_settings().acount_activation_days,
+                                "email": user.email,
+                                "domain": RequestSite(request).domain,
+                                "site_name": settings.SITE_NAME,
+                                "uid": int_to_base36(user.id),
+                                "user": user,
+                                "protocol": request.is_secure() and "https" or "http",
+                                "activation_key": user.activation_key,
+                                "expiration_days": get_settings().acount_activation_days,
                             }
-                            send_mail(gettext_lazy("Account activation on %s") % settings.SITE_NAME, reactivation_template.render(Context(c)), None, [user.email])
-                return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
+                            send_mail(
+                                gettext_lazy("Account activation on %s") % settings.SITE_NAME,
+                                reactivation_template.render(Context(c)),
+                                None,
+                                [user.email],
+                            )
+                return HttpResponseRedirect(reverse("admin:accounts_user_changelist"))
             except:
                 raise
                 from django.forms.utils import ErrorList
+
                 msg = "An Error occured. The import file was probably malformed."
                 form._errors["file"] = ErrorList([msg])
     else:
         form = ImportForm()
-    return render(request, 'admin/accounts/user/import.html', {'form': form, 'title':"Import User" })
+    return render(request, "admin/accounts/user/import.html", {"form": form, "title": "Import User"})
 
 
 @staff_member_required
 def import_ldap_user(request: HttpRequest) -> HttpResponse:
-       """ View in the admin """
-       if request.method == 'POST':
-               form = ImportLDAPForm(request.POST)
-               if form.is_valid():
-                       tutorial = form.cleaned_data['tutorial']
-                       uids = form.cleaned_data['uids'].split()
-                       g = Group.objects.get(name='User')
+    """View in the admin"""
+    if request.method == "POST":
+        form = ImportLDAPForm(request.POST)
+        if form.is_valid():
+            tutorial = form.cleaned_data["tutorial"]
+            uids = form.cleaned_data["uids"].split()
+            g = Group.objects.get(name="User")
 
-                       udict: dict[str, LDAPUser] = {}
-                       unknown_uids: list[str] = []
-                       for uid in uids:
-                               ldap_user = fetch_ldapuser_dict(uid=uid)
-                               if ldap_user is None:
-                                       unknown_uids.append(uid)
-                               else:
-                                       udict[uid] = ldap_user
-                       if unknown_uids:
-                               messages.add_message(request, messages.ERROR, "ERROR! Import cancelled. Unknown UIDs: {}".format(", ".join(unknown_uids)))
-                               return render(request,'admin/accounts/user/import_ldap.html', {'form':form, 'title':"Import LDAP Users"  })
-                       for uid in udict:
-                               u = create_localuser_from_ldapuser(username=uid, ldapUser=udict[uid])
+            udict: dict[str, LDAPUser] = {}
+            unknown_uids: list[str] = []
+            for uid in uids:
+                ldap_user = fetch_ldapuser_dict(uid=uid)
+                if ldap_user is None:
+                    unknown_uids.append(uid)
+                else:
+                    udict[uid] = ldap_user
+            if unknown_uids:
+                messages.add_message(
+                    request, messages.ERROR, "ERROR! Import cancelled. Unknown UIDs: {}".format(", ".join(unknown_uids))
+                )
+                return render(
+                    request, "admin/accounts/user/import_ldap.html", {"form": form, "title": "Import LDAP Users"}
+                )
+            for uid in udict:
+                u = create_localuser_from_ldapuser(username=uid, ldapUser=udict[uid])
 
-                               u.groups.add(g)
-                               u.tutorial = tutorial
-                               u.save()
-               return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
-       else:
-               form = ImportLDAPForm()
-       return render(request,'admin/accounts/user/import_ldap.html', {'form':form, 'title':"Import LDAP Users"  })
+                u.groups.add(g)
+                u.tutorial = tutorial
+                u.save()
+        return HttpResponseRedirect(reverse("admin:accounts_user_changelist"))
+    else:
+        form = ImportLDAPForm()
+    return render(request, "admin/accounts/user/import_ldap.html", {"form": form, "title": "Import LDAP Users"})
 
 
 @staff_member_required
 def import_tutorial_assignment(request: HttpRequest) -> HttpResponse:
-    """ View in the admin """
-    if request.method == 'POST':
+    """View in the admin"""
+    if request.method == "POST":
         form = ImportTutorialAssignmentForm(request.POST, request.FILES)
         if form.is_valid():
-            file = require_uploaded_file(form.cleaned_data['csv_file'])
+            file = require_uploaded_file(form.cleaned_data["csv_file"])
             file.seek(0)
             try:
-                reader = csv.reader(io.StringIO(file.read().decode('utf-8')), delimiter=str(form.cleaned_data['delimiter']), quotechar=str(form.cleaned_data['quotechar']))
+                reader = csv.reader(
+                    io.StringIO(file.read().decode("utf-8")),
+                    delimiter=str(form.cleaned_data["delimiter"]),
+                    quotechar=str(form.cleaned_data["quotechar"]),
+                )
             except UnicodeDecodeError as e:
                 messages.error(request, f"Import failed: {str(e)}")
-                return render(request, 'admin/accounts/user/import_tutorial_assignment.html', {'form': form, 'title':"Import tutorial assignment"  })
+                return render(
+                    request,
+                    "admin/accounts/user/import_tutorial_assignment.html",
+                    {"form": form, "title": "Import tutorial assignment"},
+                )
             succeeded = not_present = failed = 0
-            user_id_column: int = form.cleaned_data['user_id_column']
+            user_id_column: int = form.cleaned_data["user_id_column"]
             for row_number, row in enumerate(reader, start=1):
                 try:
-                    user_id_type = form.cleaned_data['user_id_type']
+                    user_id_type = form.cleaned_data["user_id_type"]
                     user_id_value = row[user_id_column]
                     matching_users = User.objects.filter(**{user_id_type: user_id_value})
                     if not matching_users.exists():
                         not_present += 1
                         continue
                     user = matching_users.get()
-                    tutorial = Tutorial.objects.get(name = row[form.cleaned_data['name_column']])
+                    tutorial = Tutorial.objects.get(name=row[form.cleaned_data["name_column"]])
                     user.tutorial = tutorial
                     user.save()
                     succeeded += 1
@@ -225,33 +258,44 @@ def import_tutorial_assignment(request: HttpRequest) -> HttpResponse:
                         row_number,
                         type(error).__name__,
                     )
-            #assert False
+            # assert False
             messages.warning(
                 request,
                 f"{succeeded} assignments were imported successfully, {not_present} users not found, {failed} failed.",
             )
-            return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
+            return HttpResponseRedirect(reverse("admin:accounts_user_changelist"))
     else:
         form = ImportTutorialAssignmentForm()
-    return render(request, 'admin/accounts/user/import_tutorial_assignment.html', {'form': form, 'title':"Import tutorial assignment"  })
+    return render(
+        request,
+        "admin/accounts/user/import_tutorial_assignment.html",
+        {"form": form, "title": "Import tutorial assignment"},
+    )
+
 
 @staff_member_required
 def import_user_texts(request: HttpRequest) -> HttpResponse:
-    """ View in the admin """
-    if request.method == 'POST':
+    """View in the admin"""
+    if request.method == "POST":
         form = ImportUserTextsForm(request.POST, request.FILES)
         if form.is_valid():
-            file = require_uploaded_file(form.cleaned_data['csv_file'])
+            file = require_uploaded_file(form.cleaned_data["csv_file"])
             file.seek(0)
             try:
-                reader = csv.reader(io.StringIO(file.read().decode('utf-8')), delimiter=str(form.cleaned_data['delimiter']), quotechar=str(form.cleaned_data['quotechar']))
+                reader = csv.reader(
+                    io.StringIO(file.read().decode("utf-8")),
+                    delimiter=str(form.cleaned_data["delimiter"]),
+                    quotechar=str(form.cleaned_data["quotechar"]),
+                )
             except UnicodeDecodeError as e:
                 messages.error(request, f"Import failed: {str(e)}")
-                return render(request, 'admin/accounts/user/import_user_texts.html', {'form': form, 'title':"Import user texts"  })
+                return render(
+                    request, "admin/accounts/user/import_user_texts.html", {"form": form, "title": "Import user texts"}
+                )
             succeeded = not_present = failed = 0
             for row_number, row in enumerate(reader, start=1):
                 try:
-                    matching_users = User.objects.filter(mat_number = row[0])
+                    matching_users = User.objects.filter(mat_number=row[0])
                     if not matching_users.exists():
                         not_present += 1
                         continue
@@ -274,36 +318,37 @@ def import_user_texts(request: HttpRequest) -> HttpResponse:
                         row_number,
                         type(error).__name__,
                     )
-            #assert False
+            # assert False
             messages.warning(
                 request,
                 f"{succeeded} user texts were imported successfully, {not_present} users not found, {failed} failed.",
             )
-            return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
+            return HttpResponseRedirect(reverse("admin:accounts_user_changelist"))
     else:
         form = ImportUserTextsForm()
-    return render(request, 'admin/accounts/user/import_user_texts.html', {'form': form, 'title':"Import user texts"  })
+    return render(request, "admin/accounts/user/import_user_texts.html", {"form": form, "title": "Import user texts"})
+
 
 @staff_member_required
 def import_matriculation_list(request: HttpRequest, group_id: str) -> HttpResponse:
-    """ Set the group membership of all users according to an uploaded list of matriculation numbers. """
+    """Set the group membership of all users according to an uploaded list of matriculation numbers."""
     group = get_object_or_404(Group, pk=group_id)
-    if request.method == 'POST':
+    if request.method == "POST":
         form = ImportMatriculationListForm(request.POST, request.FILES)
         if form.is_valid():
-            file = require_uploaded_file(form.cleaned_data['mat_number_file'])
+            file = require_uploaded_file(form.cleaned_data["mat_number_file"])
             file.seek(0)
-            reader = csv.reader(io.StringIO(file.read().decode('utf-8')))
+            reader = csv.reader(io.StringIO(file.read().decode("utf-8")))
             mats = set(int(row[0]) for row in reader)
 
             nr_already = nr_added = nr_removed = nr_new_users = 0
 
             # first create all users, if required
-            if form.cleaned_data['create_users']:
-                existing_mats = set(User.objects.values_list('mat_number', flat=True))
+            if form.cleaned_data["create_users"]:
+                existing_mats = set(User.objects.values_list("mat_number", flat=True))
                 for new in mats - existing_mats:
-                    user = User.objects.create_user(str(new), '')
-                    user.groups.add(Group.objects.get(name='User'))
+                    user = User.objects.create_user(str(new), "")
+                    user.groups.add(Group.objects.get(name="User"))
                     user.mat_number = new
                     user.save()
                     nr_new_users += 1
@@ -316,32 +361,40 @@ def import_matriculation_list(request: HttpRequest, group_id: str) -> HttpRespon
                         u.groups.add(group)
                         nr_added += 1
                 else:
-                    if form.cleaned_data['remove_others']:
+                    if form.cleaned_data["remove_others"]:
                         if u.groups.filter(id=group.pk).exists():
                             u.groups.remove(group)
                             nr_removed += 1
                 u.save()
-            messages.success(request,
-                ("%i users added to group %s, %i removed, %i already in group. "+
-                "%i new users created.") % (nr_added, group.name, nr_removed, nr_already, nr_new_users))
-            return HttpResponseRedirect(reverse('admin:auth_group_change', args=[group_id]))
+            messages.success(
+                request,
+                ("%i users added to group %s, %i removed, %i already in group. " + "%i new users created.")
+                % (nr_added, group.name, nr_removed, nr_already, nr_new_users),
+            )
+            return HttpResponseRedirect(reverse("admin:auth_group_change", args=[group_id]))
     else:
         form = ImportMatriculationListForm()
-    return render(request, 'admin/auth/group/import_matriculation_list.html', {'form': form, 'title':"Import matriculation number list"})
+    return render(
+        request,
+        "admin/auth/group/import_matriculation_list.html",
+        {"form": form, "title": "Import matriculation number list"},
+    )
+
 
 def deactivated(request: HttpRequest) -> HttpResponse:
-    return render(request, 'registration/registration_deactivated.html')
+    return render(request, "registration/registration_deactivated.html")
+
 
 def accept_disclaimer(request: HttpRequest) -> HttpResponse:
-    if request.method == 'POST':
+    if request.method == "POST":
         form = AcceptDisclaimerForm(request.POST)
         if form.is_valid():
             # the following should be enforced by the form but check again, just to be sure
-            if form.cleaned_data['accept_disclaimer']:
+            if form.cleaned_data["accept_disclaimer"]:
                 request.user = require_user(request)
                 request.user.accepted_disclaimer = True
                 request.user.save()
-                return HttpResponseRedirect(reverse('index'))
+                return HttpResponseRedirect(reverse("index"))
     else:
         form = AcceptDisclaimerForm()
-    return render(request, 'registration/accept_disclaimer.html', {'form' : form})
+    return render(request, "registration/accept_disclaimer.html", {"form": form})

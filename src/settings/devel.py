@@ -8,27 +8,28 @@ DEBUG = True
 PRAKTOMAT_PATH = dirname(dirname(dirname(__file__)))
 
 # The name that will be displayed on top of the page and in emails.
-SITE_NAME = 'Development Praktomat- some non ascii letters in site name: ä ü ö ß'
+SITE_NAME = "Development Praktomat- some non ascii letters in site name: ä ü ö ß"
 
 # Identifie this Praktomat among multiple installation on one webserver
-PRAKTOMAT_ID = '2021t'
+PRAKTOMAT_ID = "2021t"
 
 # The URL where this site is reachable. 'http://localhost:8000/' in case of the
 # developmentserver.
-BASE_HOST = 'http://localhost:8000'
-BASE_PATH = '/' # + PRAKTOMAT_ID + '/'  # using here the PRAKTOMAT_ID  runserver and runserver_plus  don't manage it to let you login.
+BASE_HOST = "http://localhost:8000"
+BASE_PATH = "/"  # + PRAKTOMAT_ID + '/'  # using here the PRAKTOMAT_ID  runserver and runserver_plus  don't manage it to let you login.
 ALLOWED_HOSTS = [
- # You can add a FQDN-of your Dev-Server here ...
- #'praktomat.local',
- '.localhost',
- '127.0.0.1',
- '[::1]']
+    # You can add a FQDN-of your Dev-Server here ...
+    #'praktomat.local',
+    ".localhost",
+    "127.0.0.1",
+    "[::1]",
+]
 
 
 # URL to use when referring to static files.
 # static files are collecting outside of Praktomat root-folder
-#STATIC_URL now defined in settings/defaults.py
-#STATIC_ROOT now defined in settings/defaults.py
+# STATIC_URL now defined in settings/defaults.py
+# STATIC_ROOT now defined in settings/defaults.py
 # If you want to collect static files inside Praktomat-root-folder while developing, activate next line
 # STATIC_URL = BASE_PATH + 'static/'
 
@@ -40,46 +41,44 @@ ALLOWED_HOSTS = [
 UPLOAD_ROOT = join(dirname(PRAKTOMAT_PATH), "debug-data/")
 
 
-#if you change SANDBOX_DIR you must change path informations in files of Praktomat/src/checker/scripts/*
-#SANDBOX_DIR now defined in settings/defaults.py
+# if you change SANDBOX_DIR you must change path informations in files of Praktomat/src/checker/scripts/*
+# SANDBOX_DIR now defined in settings/defaults.py
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 EMAIL_HOST = "localhost"
 EMAIL_PORT = 25
 DEFAULT_FROM_EMAIL = "praktomat_devel@localhost.local"
 
 
-
-
 DATABASES = {
-    'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME':   UPLOAD_ROOT+'/Database'+PRAKTOMAT_ID,
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": UPLOAD_ROOT + "/Database" + PRAKTOMAT_ID,
     }
 }
 
-#overwrite to use the same settings from local.py
-#DATABASES = {
+# overwrite to use the same settings from local.py
+# DATABASES = {
 #    'default': {
 #            'ENGINE': 'django.db.backends.postgresql',
 #            'NAME':   'praktomat_'+PRAKTOMAT_ID,
 #            'USER':   'the given username at database creation time',
 #            'PASSWORD':   'your given password at database creation time',
 #    }
-#}
+# }
 
 # on linux command line  create database and databaseuser
-#sudo -u postgres -P <db_user>
-#sudo -u postgres -P praktomat
+# sudo -u postgres -P <db_user>
+# sudo -u postgres -P praktomat
 #
-#sudo -u postgres createdb -O <db_user> <db_name>
-#sudo -u postgres createdb -O praktomat praktomat_devel
+# sudo -u postgres createdb -O <db_user> <db_name>
+# sudo -u postgres createdb -O praktomat praktomat_devel
 
 
-CERTIFICATE = join(dirname(dirname(dirname(__file__))), 'examples', 'certificates', 'signer.pem')
+CERTIFICATE = join(dirname(dirname(dirname(__file__))), "examples", "certificates", "signer.pem")
 
-#overwrite to use the same settings from local.py
+# overwrite to use the same settings from local.py
 PRIVATE_KEY = None
 
 # Enable Shibboleth:
@@ -90,8 +89,6 @@ REGISTRATION_POSSIBLE = False
 
 # If you use shibboleth identitiy provider, please have a look into defaults.py
 # to see how to overwrite SHIB_ATTRIBUTE_MAP , SHIB_USERNAME , SHIB_PROVIDER
-
-
 
 
 # Use a dedicated user "tester" to test submissions
@@ -129,14 +126,13 @@ USESAFEDOCKER = False
 NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL = 2
 
 
-
 # Various extra files and versions
 
-JPLAGJAR = '/opt/praktomat-addons/jplag.jar'
+JPLAGJAR = "/opt/praktomat-addons/jplag.jar"
 
-#CHECKSTYLEALLJAR = '/srv/praktomat/contrib/checkstyle-5.7-all.jar'
-CHECKSTYLEALLJAR = '/opt/praktomat-addons/checkstyle-6.15-all.jar'
-JAVA_LIBS = { 'junit3' : '/usr/share/java/junit.jar', 'junit4' : '/opt/praktomat-addons/*' }
+# CHECKSTYLEALLJAR = '/srv/praktomat/contrib/checkstyle-5.7-all.jar'
+CHECKSTYLEALLJAR = "/opt/praktomat-addons/checkstyle-6.15-all.jar"
+JAVA_LIBS = {"junit3": "/usr/share/java/junit.jar", "junit4": "/opt/praktomat-addons/*"}
 
 LANG = "en_US.UTF-8"
 LANGUAGE = "en_US:en"
@@ -145,17 +141,19 @@ LANGUAGE = "en_US:en"
 from . import defaults  # noqa: E402  # Import defaults only after mode-specific settings are initialized.
 
 MIDDLEWARE: list[str] = [
-    'django.middleware.common.CommonMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'accounts.middleware.AuthenticationMiddleware',
-    'accounts.middleware.LogoutInactiveUserMiddleware',
-    'accounts.middleware.DisclaimerAcceptanceMiddleware',
+    "django.middleware.common.CommonMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "accounts.middleware.AuthenticationMiddleware",
+    "accounts.middleware.LogoutInactiveUserMiddleware",
+    "accounts.middleware.DisclaimerAcceptanceMiddleware",
 ]
 defaults.load_defaults(globals())
 
 # To get exceptions logged as well:
-MIDDLEWARE.extend([
-    'utilities.exceptionlogger.ExceptionLoggingMiddleware',
-])
+MIDDLEWARE.extend(
+    [
+        "utilities.exceptionlogger.ExceptionLoggingMiddleware",
+    ]
+)

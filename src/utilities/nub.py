@@ -8,4 +8,4 @@ T = TypeVar("T", bound=Hashable)
 def nub(seq: Iterable[T]) -> list[T]:
     seen: set[T] = set()
     seen_add = seen.add
-    return [ x for x in seq if x not in seen and not seen_add(x)]
+    return [x for x in seq if x not in seen and not seen_add(x)]

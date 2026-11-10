@@ -18,89 +18,96 @@ from utilities.safeexec import execute_arglist
 
 
 class DiffChecker(Checker):
-
-    shell_script = CheckerFileField(help_text=gettext_lazy("The shell script whose output for the given input file is compared to the given output file: The substrings JAVA and PROGRAM got replaced by Praktomat determined values."))
+    shell_script = CheckerFileField(
+        help_text=gettext_lazy(
+            "The shell script whose output for the given input file is compared to the given output file: The substrings JAVA and PROGRAM got replaced by Praktomat determined values."
+        )
+    )
     input_file = CheckerFileField(blank=True, help_text=gettext_lazy("The file containing the input for the program."))
-    output_file = CheckerFileField(blank=True, help_text=gettext_lazy("The file containing the output for the program."))
-
+    output_file = CheckerFileField(
+        blank=True, help_text=gettext_lazy("The file containing the output for the program.")
+    )
 
     def clean(self) -> None:
         super().clean()
         if not self.shell_script or not self.input_file or not self.output_file:
-            raise ValidationError("Robert says: DiffChecker have to have an Shell script, an Inputfile and an Outputfile")
+            raise ValidationError(
+                "Robert says: DiffChecker have to have an Shell script, an Inputfile and an Outputfile"
+            )
 
     def title(self) -> str:
-        """ Returns the title for this checker category. """
+        """Returns the title for this checker category."""
         return "Ausgaben mit 'diff' prüfen."
 
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker. """
+        """Returns a description for this Checker."""
         return "Diese Prüfung wird bestanden, wenn erwartete und tatsächliche Ausgabe übereinstimmen."
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
-        """ Runs tests in a special environment. Here's the actual work.
-        This runs the check in the environment ENV, returning a CheckerResult. """
+        """Runs tests in a special environment. Here's the actual work.
+        This runs the check in the environment ENV, returning a CheckerResult."""
 
         # Setup
-        test_dir     = env.tmpdir()
+        test_dir = env.tmpdir()
         environ: dict[str, str] = {}
         if self.input_file:
             input_path = os.path.join(test_dir, os.path.basename(self.input_file.path))
-            environ['INPUTFILE'] = os.path.basename(self.input_file.path)
+            environ["INPUTFILE"] = os.path.basename(self.input_file.path)
             copy_file(self.input_file.path, input_path)
         if self.output_file:
             output_path = os.path.join(test_dir, os.path.basename(self.output_file.path))
-            environ['OUTPUTFILE'] = os.path.basename(self.output_file.path)
+            environ["OUTPUTFILE"] = os.path.basename(self.output_file.path)
             copy_file(self.output_file.path, output_path)
         program = env.program()
-        replace = [('PROGRAM', program)] if program else []
-        replace +=[("JAVA",settings.JVM_SECURE)]
-        #copy_file_to_directory(self.shell_script.path, test_dir, replace=replace)
+        replace = [("PROGRAM", program)] if program else []
+        replace += [("JAVA", settings.JVM_SECURE)]
+        # copy_file_to_directory(self.shell_script.path, test_dir, replace=replace)
         copy_file(self.shell_script.path, test_dir, to_is_directory=True)
 
-        #some time after 2013 Praktomat losts copy_file_to_directory with replace parameter
+        # some time after 2013 Praktomat losts copy_file_to_directory with replace parameter
         to_path = os.path.join(test_dir, os.path.basename(self.shell_script.path))
         with open(to_path) as fd:
-                content = encoding.get_unicode(fd.read())
-                for (old, new) in replace:
-                        content = content.replace(old, new)
-        with open(to_path, 'wb') as fd:
-                fd.write(encoding.get_utf8(content))
-
+            content = encoding.get_unicode(fd.read())
+            for old, new in replace:
+                content = content.replace(old, new)
+        with open(to_path, "wb") as fd:
+            fd.write(encoding.get_utf8(content))
 
         args = ["sh", os.path.basename(require_file_name(self.shell_script))]
-        #environ['USER'] = unicode(env.user().get_full_name()).encode('utf-8')
-        environ['USER'] = env.user().username # gets overwritten with praktomat-test-user's name, therefore:
-        environ['AUTHOR'] = env.solution().author.username # will not be overwritten!
-        environ['HOME'] = test_dir
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
+        # environ['USER'] = unicode(env.user().get_full_name()).encode('utf-8')
+        environ["USER"] = env.user().username  # gets overwritten with praktomat-test-user's name, therefore:
+        environ["AUTHOR"] = env.solution().author.username  # will not be overwritten!
+        environ["HOME"] = test_dir
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        environ["ALLOW_LLM_UPLOAD"] = "1" if env.solution().allow_llm_upload else "0"
 
-        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),'scripts')
+        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts")
 
-        #[output, error, exitcode,_] = execute_arglist(args, working_directory=test_dir, environment_variables=environ)
+        # [output, error, exitcode,_] = execute_arglist(args, working_directory=test_dir, environment_variables=environ)
 
         [output, _, exitcode, _, _] = execute_arglist(
-                            args,
-                            working_directory=test_dir,
-                            environment_variables=environ,
-                            timeout=settings.TEST_TIMEOUT,
-                            maxmem=settings.TEST_MAXMEM,
-                            fileseeklimit=settings.TEST_MAXFILESIZE,
-                            filenumberlimit=settings.TEST_MAXFILENUMBER,
-                            extradirs = [script_dir],
-                            )
-        output = force_str(output, errors='replace')
-        #TODO this is just a workaround for the deprecation of Java Security Manager (since java 17)
+            args,
+            working_directory=test_dir,
+            environment_variables=environ,
+            timeout=settings.TEST_TIMEOUT,
+            maxmem=settings.TEST_MAXMEM,
+            fileseeklimit=settings.TEST_MAXFILESIZE,
+            filenumberlimit=settings.TEST_MAXFILENUMBER,
+            extradirs=[script_dir],
+        )
+        output = force_str(output, errors="replace")
+        # TODO this is just a workaround for the deprecation of Java Security Manager (since java 17)
         # the warnings occur because the java (alias-)script ../scripts/java that is called by Praktomat sets the command line option to use java security manager
         # problem is that these warning occur also in the output of the JUnit-checker and irritate the students
-        output = output.replace("WARNING: A command line option has enabled the Security Manager\n","")
-        output = output.replace("WARNING: The Security Manager is deprecated and will be removed in a future release\n","")
+        output = output.replace("WARNING: A command line option has enabled the Security Manager\n", "")
+        output = output.replace(
+            "WARNING: The Security Manager is deprecated and will be removed in a future release\n", ""
+        )
 
         result = CheckerResult(checker=self, solution=env.solution())
 
-        result.set_log('<pre>' + escape(output) + '</pre>')
+        result.set_log("<pre>" + escape(output) + "</pre>")
 
         result.set_passed(not exitcode)
 

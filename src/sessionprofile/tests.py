@@ -29,23 +29,16 @@ from sessionprofile.models import SessionProfile
 
 
 class TestSessionProfileMaintained(TestCase):
-
     def setUp(self) -> None:
         super(TestCase, self).setUp()
 
-        self.user: User = User.objects.create_user(
-            "harold",
-            "harold@example.com",
-            "p455w0rd"
-        )
-
+        self.user: User = User.objects.create_user("harold", "harold@example.com", "p455w0rd")
 
     def assertLoggedIn(self) -> None:
         self.assertNotEqual(self.client.session.get("_auth_user_id"), None)
 
     def assertNotLoggedIn(self) -> None:
         self.assertEqual(self.client.session.get("_auth_user_id"), None)
-
 
     def testProfileCreatedAndMaintained(self) -> None:
         def GetSessionID() -> str:

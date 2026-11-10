@@ -11,19 +11,22 @@ from django.http import Http404, HttpResponseBase
 from accounts.authentication import resolve_user
 from accounts.models import User
 
-P = ParamSpec('P')
-R = TypeVar('R')
+P = ParamSpec("P")
+R = TypeVar("R")
+
 
 def shibboleth_support_required(the_func: Callable[P, R]) -> Callable[P, R]:
     """
     Decorator for views that are only meaningful if SHIB_ENABLED is True
     """
+
     @wraps(the_func)
     def _decorated(*args: P.args, **kwargs: P.kwargs) -> R:
         if settings.SHIB_ENABLED:
             return the_func(*args, **kwargs)
         else:
             raise Http404("Shibboleth support is disabled in this praktomat instance")
+
     return _decorated
 
 
@@ -45,6 +48,7 @@ def shibboleth_user_required(
     shibboleth user.
     """
     return user_passes_test(is_shibboleth_user, login_url=login_url)
+
 
 def local_user_required(
     func: Callable[P, HttpResponseBase],

@@ -10,6 +10,7 @@ register = template.Library()
 
 CACHE_PREFIX = "chunk_"
 
+
 def do_get_chunk(parser: _Parser, token: _Token) -> "ChunkNode":
     # split_contents() knows not to split quoted strings.
     tokens = token.split_contents()
@@ -25,6 +26,7 @@ def do_get_chunk(parser: _Parser, token: _Token) -> "ChunkNode":
         raise template.TemplateSyntaxError(f"{tag_name!r} tag's argument should be in quotes")
     # Send key without quotes and caching time
     return ChunkNode(key[1:-1], cache_time)
+
 
 class ChunkNode(template.Node):
     def __init__(self, key: str, cache_time: int | str = 0) -> None:
@@ -42,7 +44,8 @@ class ChunkNode(template.Node):
                 raise TypeError(f"Invalid cached chunk for {self.key!r}")
             content = c.content
         except Chunk.DoesNotExist:
-            content = ''
+            content = ""
         return content
 
-register.tag('chunk', do_get_chunk)
+
+register.tag("chunk", do_get_chunk)

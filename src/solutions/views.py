@@ -26,18 +26,22 @@ from utilities.safeexec import execute_arglist
 
 
 @login_required
-@cache_control(must_revalidate=True, no_cache=True, no_store=True, max_age=0) #reload the page from the server even if the user used the back button
-def solution_list(
-    request: HttpRequest, task_id: str, user_id: str | None = None
-) -> HttpResponse:
+@cache_control(
+    must_revalidate=True, no_cache=True, no_store=True, max_age=0
+)  # reload the page from the server even if the user used the back button
+def solution_list(request: HttpRequest, task_id: str, user_id: str | None = None) -> HttpResponse:
     request.user = require_user(request)
-    has_extended_rights = request.user.is_trainer or request.user.is_superuser or (request.user.is_tutor and get_settings().tutors_can_edit_solutions)
+    has_extended_rights = (
+        request.user.is_trainer
+        or request.user.is_superuser
+        or (request.user.is_tutor and get_settings().tutors_can_edit_solutions)
+    )
     if user_id and not has_extended_rights:
         return access_denied(request)
 
     task = get_object_or_404(Task, pk=task_id)
     author = get_object_or_404(User, pk=user_id) if user_id else request.user
-    solutions = task.solution_set.filter(author = author).order_by('-id')
+    solutions = task.solution_set.filter(author=author).order_by("-id")
     final_solution = task.final_solution(author)
 
     if user_id and request.user.is_tutor:
@@ -53,67 +57,77 @@ def solution_list(
     # linear waiting function
     uploads_left = task.submission_maxpossible - solutions.count()
 
-    minutes_to_wait_for_next_upload = task.submission_waitdelta * ( solutions.count() - task.submission_free_uploads )
+    minutes_to_wait_for_next_upload = task.submission_waitdelta * (solutions.count() - task.submission_free_uploads)
 
     upload_next_possible_time = datetime.now()
-    if solutions.count() > 0 :
+    if solutions.count() > 0:
         upload_next_possible_time = solutions[0].creation_date + timedelta(minutes=minutes_to_wait_for_next_upload)
 
     dnow = datetime.now()
 
     # TODO: Code Refactoring: move code to own function: say const_waiting
-    #after some time Prof. wish ... don't use a linear waiting function but a constant therefor quick and dirty overwriting "minutes_to_wait_for_next_upload"
-    minutes_to_wait_for_next_upload = 1 * task.submission_waitdelta #multiply with one, to be sure getting an integer ...
-    if solutions.count() > 0 :
+    # after some time Prof. wish ... don't use a linear waiting function but a constant therefor quick and dirty overwriting "minutes_to_wait_for_next_upload"
+    minutes_to_wait_for_next_upload = (
+        1 * task.submission_waitdelta
+    )  # multiply with one, to be sure getting an integer ...
+    if solutions.count() > 0:
         upload_next_possible_time = solutions[0].creation_date + timedelta(minutes=minutes_to_wait_for_next_upload)
-
 
     if request.method == "POST":
         if task.expired_for_user(author) and not has_extended_rights:
             return access_denied(request)
-#       fight against multiple open browser window for cheating limits
-#       deep defense
-        dap = datetime.now() # query datetime after returning from HTTP "post"-method again
-        sap = solutions.count() # query solution counter after returning from HTTP "post"-method again
+        #       fight against multiple open browser window for cheating limits
+        #       deep defense
+        dap = datetime.now()  # query datetime after returning from HTTP "post"-method again
+        sap = solutions.count()  # query solution counter after returning from HTTP "post"-method again
         uap = task.submission_maxpossible - sap
         if not has_extended_rights and (
-                                               ((task.submission_free_uploads < 0) or ((task.submission_free_uploads > 0) and (task.submission_free_uploads <= sap )))
-                                               and ((task.submission_waitdelta > 0) and (dap < upload_next_possible_time))
-                                            or
-                                               ((task.submission_maxpossible > 0) and (uap <= 0))
-                                            ):
+            (
+                (task.submission_free_uploads < 0)
+                or ((task.submission_free_uploads > 0) and (task.submission_free_uploads <= sap))
+            )
+            and ((task.submission_waitdelta > 0) and (dap < upload_next_possible_time))
+            or ((task.submission_maxpossible > 0) and (uap <= 0))
+        ):
             return access_denied(request)
 
-        solution = Solution(task = task, author=author)
+        solution = Solution(task=task, author=author)
         formset = SolutionFormSet(request.POST, request.FILES, instance=solution)
         solution_form = SolutionUploadForm(request.POST, instance=solution)
         if formset.is_valid() and solution_form.is_valid():
             solution.save()
             try:
-                formset.save() # Handle UnicodeEncodeError while saving solution
+                formset.save()  # Handle UnicodeEncodeError while saving solution
             except UnicodeError as inst:
-                exnow = datetime.now() # reinserted
+                exnow = datetime.now()  # reinserted
                 dt_string = exnow.strftime("%d/%m/%Y %H:%M:%S")
                 # Send Encoding Error to user via mail
                 myRequestUser = User.objects.filter(id=request.user.id)
                 myerrmsg = f" {type(inst).__name__} => {inst} "
-                t = loader.get_template('solutions/submission_upload_UnicodeError_email.html')
+                t = loader.get_template("solutions/submission_upload_UnicodeError_email.html")
                 c = {
-                      'protocol' : request.is_secure() and "https" or "http",
-                      'domain' : RequestSite(request).domain,
-                      'site_name' : settings.SITE_NAME,
-                      'solution' : solution,
-                      'request_user': myRequestUser,
-                      'errormsg' : myerrmsg,
-                      'datetime' : dt_string,
+                    "protocol": request.is_secure() and "https" or "http",
+                    "domain": RequestSite(request).domain,
+                    "site_name": settings.SITE_NAME,
+                    "solution": solution,
+                    "request_user": myRequestUser,
+                    "errormsg": myerrmsg,
+                    "datetime": dt_string,
                 }
-                #ToDo: change to send signed e-mails or unsigned e-mails depending on settings configuration
-                send_mail(gettext_lazy("%s submission failed") %settings.SITE_NAME, t.render(c),None, [request.user.email])
-                mail_admins(gettext_lazy("%s submission failed") %settings.SITE_NAME, t.render(c))
+                # ToDo: change to send signed e-mails or unsigned e-mails depending on settings configuration
+                send_mail(
+                    gettext_lazy("%s submission failed") % settings.SITE_NAME, t.render(c), None, [request.user.email]
+                )
+                mail_admins(gettext_lazy("%s submission failed") % settings.SITE_NAME, t.render(c))
                 raise inst
 
-            #run_all_checker = bool(User.objects.filter(id=user_id, tutorial__tutors__pk=request.user.id) or request.user.is_trainer)
-            run_all_checker = bool(User.objects.filter(id=user_id, tutorial__tutors__pk=request.user.id) and task.expired() or request.user.is_trainer and task.expired() )
+            # run_all_checker = bool(User.objects.filter(id=user_id, tutorial__tutors__pk=request.user.id) or request.user.is_trainer)
+            run_all_checker = bool(
+                User.objects.filter(id=user_id, tutorial__tutors__pk=request.user.id)
+                and task.expired()
+                or request.user.is_trainer
+                and task.expired()
+            )
             solution.check_solution(run_all_checker)
 
             current_final_solution = Solution.objects.filter(task=task, author=author, final=True).first()
@@ -129,20 +143,20 @@ def solution_list(
 
             if solution.accepted:
                 # Send submission confirmation email
-                t = loader.get_template('solutions/submission_confirmation_email.html')
+                t = loader.get_template("solutions/submission_confirmation_email.html")
                 c = {
-                    'protocol': request.is_secure() and "https" or "http",
-                    'domain': RequestSite(request).domain,
-                    'site_name': settings.SITE_NAME,
-                    'solution': solution,
+                    "protocol": request.is_secure() and "https" or "http",
+                    "domain": RequestSite(request).domain,
+                    "site_name": settings.SITE_NAME,
+                    "solution": solution,
                 }
                 if user_id:
                     # in case someone else uploaded the solution, add this to the email
-                    c['uploader'] = request.user
+                    c["uploader"] = request.user
 
                 # we create an smime signed message with openssl, if a private-key and certificate is configured
                 if settings.PRIVATE_KEY and settings.CERTIFICATE:
-                    with tempfile.NamedTemporaryFile(mode='w+') as tmp:
+                    with tempfile.NamedTemporaryFile(mode="w+") as tmp:
                         tmp.write("Content-Type: text/plain; charset=utf-8\n")
                         tmp.write("Content-Transfer-Encoding: quoted-printable\n\n")
 
@@ -150,30 +164,72 @@ def solution_list(
                         tmp.flush()
                         tmp.seek(0)
                         environ: dict[str, str] = {}
-                        environ['LANG'] = settings.LANG
-                        environ['LANGUAGE'] = settings.LANGUAGE
-                        [signed_mail, __, __, __, __]  = execute_arglist(["openssl", "smime", "-sign", "-signer", settings.CERTIFICATE, "-inkey", settings.PRIVATE_KEY, "-in", tmp.name], ".", environment_variables=environ, unsafe=True)
+                        environ["LANG"] = settings.LANG
+                        environ["LANGUAGE"] = settings.LANGUAGE
+                        [signed_mail, __, __, __, __] = execute_arglist(
+                            [
+                                "openssl",
+                                "smime",
+                                "-sign",
+                                "-signer",
+                                settings.CERTIFICATE,
+                                "-inkey",
+                                settings.PRIVATE_KEY,
+                                "-in",
+                                tmp.name,
+                            ],
+                            ".",
+                            environment_variables=environ,
+                            unsafe=True,
+                        )
 
                     connection = get_connection()
-                    message = ConfirmationMessage(gettext_lazy("%s submission confirmation") % settings.SITE_NAME, signed_mail, None, [solution.author.email], connection=connection)
+                    message = ConfirmationMessage(
+                        gettext_lazy("%s submission confirmation") % settings.SITE_NAME,
+                        signed_mail,
+                        None,
+                        [solution.author.email],
+                        connection=connection,
+                    )
                     if solution.author.email:
-                         message.send() # any PY2-PY3 problem in here ?
+                        message.send()  # any PY2-PY3 problem in here ?
 
-                else: #we are sending unsigned email
+                else:  # we are sending unsigned email
                     if solution.author.email:
-                         send_mail(gettext_lazy("%s submission confirmation") % settings.SITE_NAME, t.render(c), None, [solution.author.email])
+                        send_mail(
+                            gettext_lazy("%s submission confirmation") % settings.SITE_NAME,
+                            t.render(c),
+                            None,
+                            [solution.author.email],
+                        )
 
-            return HttpResponseRedirect(reverse('solution_detail', args=[solution.id]))
+            return HttpResponseRedirect(reverse("solution_detail", args=[solution.id]))
     else:
         formset = SolutionFormSet()
-        solution_form = SolutionUploadForm(initial={'allow_llm_upload': True})
+        solution_form = SolutionUploadForm(initial={"allow_llm_upload": True})
 
     attestations = Attestation.objects.filter(solution__task=task, author__tutored_tutorials=request.user.tutorial)
     attestationsPublished = attestations[0].published if attestations else False
 
-
-    return render(request, "solutions/solution_list.html",
-                {"formset": formset, "solution_form": solution_form, "task":task, "solutions": solutions, "final_solution":final_solution,  "uploads_left":uploads_left,  "upload_next_possible_time":upload_next_possible_time,  "dnow":dnow, "attestationsPublished":attestationsPublished, "author":author, "invisible_attestor":get_settings().invisible_attestor, "expired_for_user": task.expired_for_user(author), "submission_date": task.submission_date_for_user(author)})
+    return render(
+        request,
+        "solutions/solution_list.html",
+        {
+            "formset": formset,
+            "solution_form": solution_form,
+            "task": task,
+            "solutions": solutions,
+            "final_solution": final_solution,
+            "uploads_left": uploads_left,
+            "upload_next_possible_time": upload_next_possible_time,
+            "dnow": dnow,
+            "attestationsPublished": attestationsPublished,
+            "author": author,
+            "invisible_attestor": get_settings().invisible_attestor,
+            "expired_for_user": task.expired_for_user(author),
+            "submission_date": task.submission_date_for_user(author),
+        },
+    )
 
 
 @login_required
@@ -185,18 +241,19 @@ def test_upload(request: HttpRequest, task_id: str) -> HttpResponse:
     task = get_object_or_404(Task, pk=task_id)
 
     if request.method == "POST":
-        solution = Solution(task = task, author=request.user, testupload = True)
+        solution = Solution(task=task, author=request.user, testupload=True)
         formset = SolutionFormSet(request.POST, request.FILES, instance=solution)
         if formset.is_valid():
             solution.save()
             formset.save()
-            solution.check_solution(run_secret = True)
+            solution.check_solution(run_secret=True)
 
-            return HttpResponseRedirect(reverse('solution_detail_full', args=[solution.id]))
+            return HttpResponseRedirect(reverse("solution_detail_full", args=[solution.id]))
     else:
         formset = SolutionFormSet()
 
-    return render(request, "solutions/solution_test_upload.html", {"formset": formset, "task":task})
+    return render(request, "solutions/solution_test_upload.html", {"formset": formset, "task": task})
+
 
 @login_required
 def test_upload_student(request: HttpRequest, task_id: str) -> HttpResponse:
@@ -206,26 +263,30 @@ def test_upload_student(request: HttpRequest, task_id: str) -> HttpResponse:
         raise Http404
 
     if request.method == "POST":
-        solution = Solution(task = task, author=request.user, testupload = True)
+        solution = Solution(task=task, author=request.user, testupload=True)
         formset = SolutionFormSet(request.POST, request.FILES, instance=solution)
         if formset.is_valid():
             solution.save()
             formset.save()
-            solution.check_solution(run_secret = False)
+            solution.check_solution(run_secret=False)
 
-            return HttpResponseRedirect(reverse('solution_detail', args=[solution.id]))
+            return HttpResponseRedirect(reverse("solution_detail", args=[solution.id]))
     else:
         formset = SolutionFormSet()
 
-    return render(request, "solutions/solution_test_upload.html", {"formset": formset, "task":task})
+    return render(request, "solutions/solution_test_upload.html", {"formset": formset, "task": task})
+
 
 @login_required
-def solution_detail(
-    request: HttpRequest, solution_id: str, full: bool
-) -> HttpResponse:
+def solution_detail(request: HttpRequest, solution_id: str, full: bool) -> HttpResponse:
     request.user = require_user(request)
     solution = get_object_or_404(Solution, pk=solution_id)
-    if not (solution.author == request.user or request.user.is_trainer or request.user.is_superuser or (solution.author.tutorial and solution.author.tutorial.tutors.filter(id=request.user.id))):
+    if not (
+        solution.author == request.user
+        or request.user.is_trainer
+        or request.user.is_superuser
+        or (solution.author.tutorial and solution.author.tutorial.tutors.filter(id=request.user.id))
+    ):
         return access_denied(request)
 
     if full and not (request.user.is_trainer or request.user.is_tutor or request.user.is_superuser):
@@ -236,37 +297,38 @@ def solution_detail(
 
     accept_all_solutions = get_settings().accept_all_solutions
 
-    if (request.method == "POST"):
+    if request.method == "POST":
         if solution.final or solution.testupload or solution.task.expired_for_user(solution.author):
             return access_denied(request)
         if not (solution.accepted or accept_all_solutions):
             return access_denied(request)
         solution.copy()
-        return HttpResponseRedirect(reverse('solution_list', args=[solution.task.id]))
+        return HttpResponseRedirect(reverse("solution_list", args=[solution.task.id]))
     else:
-        attestations = Attestation.objects.filter(solution__task=solution.task, author__tutored_tutorials=request.user.tutorial)
+        attestations = Attestation.objects.filter(
+            solution__task=solution.task, author__tutored_tutorials=request.user.tutorial
+        )
         attestationsPublished = attestations[0].published if attestations else False
         htmlinjectors = []
         if full:
-            htmlinjectors = HtmlInjector.objects.filter(task = solution.task, inject_in_solution_full_view = True)
+            htmlinjectors = HtmlInjector.objects.filter(task=solution.task, inject_in_solution_full_view=True)
         else:
-            htmlinjectors = HtmlInjector.objects.filter(task = solution.task, inject_in_solution_view      = True)
-        htmlinjector_snippets = [ injector.html_file.read().decode("utf-8") for injector in htmlinjectors ]
+            htmlinjectors = HtmlInjector.objects.filter(task=solution.task, inject_in_solution_view=True)
+        htmlinjector_snippets = [injector.html_file.read().decode("utf-8") for injector in htmlinjectors]
 
+        return render(
+            request,
+            "solutions/solution_detail.html",
+            {
+                "solution": solution,
+                "attestationsPublished": attestationsPublished,
+                "accept_all_solutions": accept_all_solutions,
+                "htmlinjector_snippets": htmlinjector_snippets,
+                "full": full,
+                "expired_for_user": solution.task.expired_for_user(solution.author),
+            },
+        )
 
-
-
-        return render(request,
-                      "solutions/solution_detail.html",
-                      {
-                        "solution": solution,
-                        "attestationsPublished": attestationsPublished,
-                        "accept_all_solutions": accept_all_solutions,
-                        "htmlinjector_snippets": htmlinjector_snippets,
-                        "full": full,
-                        "expired_for_user": solution.task.expired_for_user(solution.author)
-                      }
-                     )
 
 @login_required
 def solution_download(
@@ -285,8 +347,9 @@ def solution_download(
 
     zip_file = get_solutions_zip([solution], include_checker_files, include_artifacts)
     response = HttpResponse(zip_file.read(), content_type="application/zip")
-    response['Content-Disposition'] = 'attachment; filename=Solution.zip'
+    response["Content-Disposition"] = "attachment; filename=Solution.zip"
     return response
+
 
 @login_required
 def solution_download_for_task(
@@ -302,11 +365,14 @@ def solution_download_for_task(
     task = get_object_or_404(Task, pk=task_id)
     solutions = task.solution_set.filter(final=True)
     if not request.user.is_trainer:
-        solutions = solutions.filter(author__tutorial__id__in=request.user.tutored_tutorials.values_list('id', flat=True))
+        solutions = solutions.filter(
+            author__tutorial__id__in=request.user.tutored_tutorials.values_list("id", flat=True)
+        )
     zip_file = get_solutions_zip(solutions, include_checker_files, include_artifacts)
     response = HttpResponse(zip_file.read(), content_type="application/zip")
-    response['Content-Disposition'] = 'attachment; filename=Solutions.zip'
+    response["Content-Disposition"] = "attachment; filename=Solutions.zip"
     return response
+
 
 @login_required
 def jplag(request: HttpRequest, task_id: str) -> HttpResponse:
@@ -315,13 +381,14 @@ def jplag(request: HttpRequest, task_id: str) -> HttpResponse:
         return access_denied(request)
     task = get_object_or_404(Task, pk=task_id)
 
-    if request.method == 'POST':
-        task.run_jplag(request.POST['lang'])
-        return HttpResponseRedirect(reverse('solution_jplag', args=[task_id]))
+    if request.method == "POST":
+        task.run_jplag(request.POST["lang"])
+        return HttpResponseRedirect(reverse("solution_jplag", args=[task_id]))
 
     jplag_lang = get_settings().jplag_setting
 
-    return render(request, "solutions/jplag.html", {"task":task, "jplag_lang": jplag_lang})
+    return render(request, "solutions/jplag.html", {"task": task, "jplag_lang": jplag_lang})
+
 
 @login_required
 def checker_result_list(request: HttpRequest, task_id: str) -> HttpResponse:
@@ -331,13 +398,17 @@ def checker_result_list(request: HttpRequest, task_id: str) -> HttpResponse:
         return access_denied(request)
     else:
         users_with_checkerresults = [
-            (user, {result.require_checker(): result for result in final_solution.checkerresult_set.all()}, final_solution)
-            for user in User.objects.filter(groups__name='User').order_by('mat_number')
+            (
+                user,
+                {result.require_checker(): result for result in final_solution.checkerresult_set.all()},
+                final_solution,
+            )
+            for user in User.objects.filter(groups__name="User").order_by("mat_number")
             for final_solution in Solution.objects.filter(author=user, final=True, task=task)
         ]
 
         checker_set: set[Checker] = set()
-        for _, results, _  in users_with_checkerresults:
+        for _, results, _ in users_with_checkerresults:
             checker_set.update(results)
         checkers_seen = sorted(checker_set, key=lambda checker: checker.order)
 
@@ -346,12 +417,15 @@ def checker_result_list(request: HttpRequest, task_id: str) -> HttpResponse:
             for user, results, final_solution in users_with_checkerresults
         ]
 
-        return render(request, "solutions/checker_result_list.html", {"users_with_checkerresults": rows, 'checkers_seen':checkers_seen, "task":task})
+        return render(
+            request,
+            "solutions/checker_result_list.html",
+            {"users_with_checkerresults": rows, "checkers_seen": checkers_seen, "task": task},
+        )
+
 
 @staff_member_required
-def solution_run_checker(
-    request: HttpRequest, solution_id: str
-) -> HttpResponse:
+def solution_run_checker(request: HttpRequest, solution_id: str) -> HttpResponse:
     solution = Solution.objects.get(pk=solution_id)
     check_solution(solution, True)
-    return HttpResponseRedirect(reverse('solution_detail_full', args=[solution_id]))
+    return HttpResponseRedirect(reverse("solution_detail_full", args=[solution_id]))

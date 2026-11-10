@@ -9,37 +9,35 @@ from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
 class TextChecker(Checker):
     SET_OF_CHOICES: list[tuple[int, str]] = [
-        (0, 'The text must not be in the solution'),
-        (1, 'The text has to be in the solution'),
+        (0, "The text must not be in the solution"),
+        (1, "The text has to be in the solution"),
     ]
 
-    text: "models.TextField[str, str]" = models.TextField(
-        help_text="Enter multiple lines, one per pattern."
-    )
+    text: "models.TextField[str, str]" = models.TextField(help_text="Enter multiple lines, one per pattern.")
     choices: "models.IntegerField[int, int]" = models.IntegerField(
-        default=1, verbose_name='Select:', choices=SET_OF_CHOICES
+        default=1, verbose_name="Select:", choices=SET_OF_CHOICES
     )
     use_regex: "models.BooleanField[bool, bool]" = models.BooleanField(
         default=False, help_text="Treat input as regular expressions."
     )
     ignore_case_and_whitespace: "models.BooleanField[bool, bool]" = models.BooleanField(
-        default=True, help_text="Ignore case differences and all whitespace (e.g., spaces, tabs) during matching.")
+        default=True, help_text="Ignore case differences and all whitespace (e.g., spaces, tabs) during matching."
+    )
 
     skip_lines: "models.BooleanField[bool, bool]" = models.BooleanField(
-        default=True,
-        help_text="Skip lines that begin with comment symbols or are inside block comments."
+        default=True, help_text="Skip lines that begin with comment symbols or are inside block comments."
     )
     begin_with: "models.CharField[str, str]" = models.CharField(
         max_length=100,
         blank=True,
-        default='// #',
-        help_text="Space-separated line prefixes for single-line comments (e.g., // #)."
+        default="// #",
+        help_text="Space-separated line prefixes for single-line comments (e.g., // #).",
     )
     multi_block: "models.CharField[str, str]" = models.CharField(
         max_length=100,
         blank=True,
-        default='/* */',
-        help_text="Space-separated start and end symbols for block comments (e.g., /* */)."
+        default="/* */",
+        help_text="Space-separated start and end symbols for block comments (e.g., /* */).",
     )
 
     def title(self) -> str:
@@ -47,20 +45,20 @@ class TextChecker(Checker):
 
     @staticmethod
     def description() -> str:
-        return ("Checks for one or more strings or patterns in solution files, "
-                "with options to use regex, ignore case, and skip commented lines.")
+        return (
+            "Checks for one or more strings or patterns in solution files, "
+            "with options to use regex, ignore case, and skip commented lines."
+        )
 
     def _normalize(self, text: str) -> str:
         if self.ignore_case_and_whitespace:
-            return re.sub(r'\s+', '', text.lower())
+            return re.sub(r"\s+", "", text.lower())
         return text
 
     def _get_patterns(self) -> list[str]:
         return [line.strip() for line in self.text.splitlines() if line.strip()]
 
-    def _get_matched_text(
-        self, line: str, match: re.Match[str] | tuple[int, int]
-    ) -> str:
+    def _get_matched_text(self, line: str, match: re.Match[str] | tuple[int, int]) -> str:
         if isinstance(match, re.Match):
             start, end = match.span()
         else:
@@ -83,7 +81,11 @@ class TextChecker(Checker):
         symbols = self.multi_block.strip().split()
         if len(symbols) % 2 != 0:
             log_messages.append(
-                self._format_system_message("Warnung", "Ungültige Einstellungen in 'multi_block'. Es müssen Paare von Start- und Endsymbolen sein, z.&nbsp;B. <code>/* */</code>."))
+                self._format_system_message(
+                    "Warnung",
+                    "Ungültige Einstellungen in 'multi_block'. Es müssen Paare von Start- und Endsymbolen sein, z.&nbsp;B. <code>/* */</code>.",
+                )
+            )
 
             lines = text.splitlines()
             return lines, list(range(1, len(lines) + 1))
@@ -92,8 +94,8 @@ class TextChecker(Checker):
         cleaned_lines: list[str] = []
         line_map: list[int] = []
         inside_block = False
-        block_start_re = re.compile('|'.join(start for start, _ in start_end_pairs))
-        block_end_re = re.compile('|'.join(end for _, end in start_end_pairs))
+        block_start_re = re.compile("|".join(start for start, _ in start_end_pairs))
+        block_end_re = re.compile("|".join(end for _, end in start_end_pairs))
 
         for lineno, line in enumerate(text.splitlines(), start=1):
             if inside_block:
@@ -116,9 +118,7 @@ class TextChecker(Checker):
         log_messages: list[str] = []
         occurrences: defaultdict[str, list[tuple[str, int, str]]] = defaultdict(list)
         explanations: defaultdict[str, list[str]] = defaultdict(list)
-        normalized_patterns: dict[str, str] = {
-            pattern: self._normalize(pattern) for pattern in patterns
-        }
+        normalized_patterns: dict[str, str] = {pattern: self._normalize(pattern) for pattern in patterns}
 
         for filename, content in env.string_sources():
             lines, line_map = self._remove_multiblock_comments_with_line_map(content, log_messages)
@@ -136,7 +136,10 @@ class TextChecker(Checker):
                             matches = list(re.finditer(norm_pattern, norm_line))
                         except re.error:
                             log_messages.append(
-                                self._format_system_message("Fehler", f"Ungültiger regulärer Ausdruck: '<code>{escape(pattern)}</code>'."))
+                                self._format_system_message(
+                                    "Fehler", f"Ungültiger regulärer Ausdruck: '<code>{escape(pattern)}</code>'."
+                                )
+                            )
                             continue
                     else:
                         start = 0
@@ -166,19 +169,22 @@ class TextChecker(Checker):
                 log.append(self._format_hits(hits))
             elif has_hits:
                 passed = 0
-                log.append(self._format_message(
-                    "Fehler", f"'<code>{escape(pattern)}</code>' sollte nicht vorkommen, wurde aber gefunden:"))
+                log.append(
+                    self._format_message(
+                        "Fehler", f"'<code>{escape(pattern)}</code>' sollte nicht vorkommen, wurde aber gefunden:"
+                    )
+                )
                 log.append(self._format_hits(hits))
             else:
                 log.append(self._format_message("OK", f"'<code>{escape(pattern)}</code>' wurde nicht gefunden."))
 
             if self.use_regex and explanations[pattern]:
-                log.append('<details><summary><em>Details</em></summary><ul>')
+                log.append("<details><summary><em>Details</em></summary><ul>")
                 log.extend(explanations[pattern])
-                log.append('</ul></details>')
+                log.append("</ul></details>")
 
         if log_messages:
-            log.append('<hr><p><strong>Systemhinweise:</strong></p>')
+            log.append("<hr><p><strong>Systemhinweise:</strong></p>")
             log.extend(log_messages)
 
         result.set_log("".join(log))
@@ -193,7 +199,7 @@ class TextChecker(Checker):
         return f"<ul>{''.join(f'<li>{escape(filename)} Zeile {line_number}</li>' for filename, line_number, _ in hits)}</ul>"
 
     def _format_system_message(self, level: str, message: str) -> str:
-        return f'<p><em>{level}:</em> {message}</p>'
+        return f"<p><em>{level}:</em> {message}</p>"
 
 
 from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.

@@ -37,12 +37,12 @@ if TYPE_CHECKING:
 
 
 def get_checkerfile_storage_path(instance: "Checker", filename: str) -> str:
-    """ Use this function as upload_to parameter for filefields. """
-    return f'CheckerFiles/Task_{instance.task.pk}/{instance.__class__.__name__}/{filename}'
+    """Use this function as upload_to parameter for filefields."""
+    return f"CheckerFiles/Task_{instance.task.pk}/{instance.__class__.__name__}/{filename}"
 
 
 class CheckerFileField(DeletingFileField):
-    """ Custom filefield with greater path length and default upload location. Use this in all checker subclasses!"""
+    """Custom filefield with greater path length and default upload location. Use this in all checker subclasses!"""
 
     def __init__(
         self,
@@ -53,11 +53,12 @@ class CheckerFileField(DeletingFileField):
         **kwargs: Any,
     ) -> None:
         # increment filename length from 100 to 500
-        kwargs['max_length'] = kwargs.get('max_length', 500)
+        kwargs["max_length"] = kwargs.get("max_length", 500)
         super().__init__(verbose_name, name, upload_to, storage, **kwargs)
 
+
 class Checker(models.Model):
-    """ A Checker implements some quality assurance.
+    """A Checker implements some quality assurance.
 
     A Checker has four indicators:
         1. Whether it is *public* - the results are presented to the user
@@ -66,83 +67,95 @@ class Checker(models.Model):
         3. Whether it is *always* run on submission.
 
     If a Checker is not always run, it is only run if a *task_maker*
-    starts the complete rerun of all Checkers. """
+    starts the complete rerun of all Checkers."""
 
     created: "models.DateTimeField[datetime, datetime]" = models.DateTimeField(auto_now_add=True)
-    order: "models.IntegerField[int, int]" = models.IntegerField(help_text = gettext_lazy('Determines the order in which the checker will start. Not necessary continuously!'))
+    order: "models.IntegerField[int, int]" = models.IntegerField(
+        help_text=gettext_lazy("Determines the order in which the checker will start. Not necessary continuously!")
+    )
 
     task: "models.ForeignKey[Task, Task]" = models.ForeignKey(Task, on_delete=models.CASCADE)
     task_id: int
 
-    public: "models.BooleanField[bool, bool]" = models.BooleanField(default=True, help_text = gettext_lazy('Test results are displayed to the submitter.'))
-    required: "models.BooleanField[bool, bool]" = models.BooleanField(default=False, help_text = gettext_lazy('The test must be passed to submit the solution.'))
-    always: "models.BooleanField[bool, bool]" = models.BooleanField(default=True, help_text = gettext_lazy('The test will run on submission time.'))
-    critical: "models.BooleanField[bool, bool]" = models.BooleanField(default=False, help_text = gettext_lazy('If this test fails, do not display further test results.'))
+    public: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=True, help_text=gettext_lazy("Test results are displayed to the submitter.")
+    )
+    required: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=False, help_text=gettext_lazy("The test must be passed to submit the solution.")
+    )
+    always: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=True, help_text=gettext_lazy("The test will run on submission time.")
+    )
+    critical: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=False, help_text=gettext_lazy("If this test fails, do not display further test results.")
+    )
 
     if TYPE_CHECKING:
         results: ReverseManyToOneDescriptor["CheckerResult"]
     else:
-        results = GenericRelation("CheckerResult") # enables cascade on delete.
+        results = GenericRelation("CheckerResult")  # enables cascade on delete.
 
     class Meta:
         abstract = True
-        app_label = 'checker'
+        app_label = "checker"
 
     def __str__(self) -> str:
         return self.title()
 
     def create_result(self, env: "CheckerEnvironment") -> "CheckerResult":
-        """ Creates a new result.
+        """Creates a new result.
         May be overloaded by subclasses."""
         assert isinstance(env.solution(), Solution)
         result = CheckerResult(checker=self, solution=env.solution())
-        result.save() # otherwise we cannot attach artefacts to it
+        result.save()  # otherwise we cannot attach artefacts to it
         return result
 
     def show_publicly(self, passed: bool) -> bool:
-        """ Are results of this Checker to be shown publicly, given whether the result was passed? """
+        """Are results of this Checker to be shown publicly, given whether the result was passed?"""
         return self.public
 
     def is_critical(self, passed: bool) -> bool:
-        """ Checks if further results should not be shown, given whether the result was passed? """
+        """Checks if further results should not be shown, given whether the result was passed?"""
         return self.critical and not passed
 
     def run(self, env: "CheckerEnvironment") -> "CheckerResult":
-        """ Runs tests in a special environment.
-        Returns a CheckerResult. """
+        """Runs tests in a special environment.
+        Returns a CheckerResult."""
         assert isinstance(env, CheckerEnvironment)
         return self.create_result(env)
 
     def title(self) -> str:
-        """ Returns the title for this checker category. To be overloaded in subclasses. """
+        """Returns the title for this checker category. To be overloaded in subclasses."""
         return "Prüfung"
 
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker.
-        Overloaded by subclasses """
+        """Returns a description for this Checker.
+        Overloaded by subclasses"""
         return " no description "
 
     def requires(self) -> list[type["Checker"]]:
-        """ Returns the list of passed Checkers required by this checker.
-        Overloaded by subclasses. """
+        """Returns the list of passed Checkers required by this checker.
+        Overloaded by subclasses."""
         return []
 
     def clean(self) -> None:
         if self.required and not self.show_publicly(False):
-            raise ValidationError("Checker is required, but failure isn't publicly reported to student during submission")
+            raise ValidationError(
+                "Checker is required, but failure isn't publicly reported to student during submission"
+            )
 
 
 class CheckerEnvironment:
-    """ The environment for running a checker. """
+    """The environment for running a checker."""
 
     def __init__(self, solution: Solution) -> None:
-        """ Constructor: Creates a standard environment. """
+        """Constructor: Creates a standard environment."""
         # Temporary build directory
         sandbox = settings.SANDBOX_DIR
         # Sources as [(name, content)...]
         self._sources: list[tuple[str, str | bytes | None]] = []
-        for file in solution.solutionfile_set.all().order_by('file'):
+        for file in solution.solutionfile_set.all().order_by("file"):
             self._sources.append((file.path(), file.content()))
         # Associated task for this solution
         self._task = solution.task
@@ -156,44 +169,41 @@ class CheckerEnvironment:
         self._tmpdir = file_operations.create_tempfolder(sandbox)
 
     def solution(self) -> Solution:
-        """ Returns the solution being checked """
+        """Returns the solution being checked"""
         return self._solution
 
     def tmpdir(self) -> str:
-        """ Returns the path name of temporary build directory. """
+        """Returns the path name of temporary build directory."""
         return self._tmpdir
 
     def sources(self) -> list[tuple[str, str | bytes | None]]:
-        """ Returns the list of source files. [(name, content)...] """
+        """Returns the list of source files. [(name, content)...]"""
         return self._sources
 
     def string_sources(self) -> list[tuple[str, str]]:
-        """ Returns the list of string-like source files,
-            so it excludes byte-like content. [(name, content)...] """
-        return [(name, content) for (name, content) in self._sources
-                                if isinstance(content, str)]
+        """Returns the list of string-like source files,
+        so it excludes byte-like content. [(name, content)...]"""
+        return [(name, content) for (name, content) in self._sources if isinstance(content, str)]
 
     def add_source(self, path: str, content: str | bytes | None) -> None:
-        """ Add source to the list of source files. [(name, content)...] """
+        """Add source to the list of source files. [(name, content)...]"""
         self._sources.append((path, content))
 
     def task(self) -> Task:
-        """ Returns the associated task for this solution. """
+        """Returns the associated task for this solution."""
         return self._task
 
     def user(self) -> User:
-        """ Returns the submitter of this program (class User). """
+        """Returns the submitter of this program (class User)."""
         return self._user
 
     def program(self) -> str | None:
-        """ Returns the name of the executable program, if already set. """
+        """Returns the name of the executable program, if already set."""
         return self._program
 
     def set_program(self, program: str | None) -> None:
-        """ Sets the name of the executable program. """
+        """Sets the name of the executable program."""
         self._program = program
-
-
 
 
 def truncated_log(log: str) -> tuple[str, bool]:
@@ -205,53 +215,63 @@ def truncated_log(log: str) -> tuple[str, bool]:
     """
 
     log_length = len(log)
-    if log_length > settings.TEST_MAXLOGSIZE*1024:
+    if log_length > settings.TEST_MAXLOGSIZE * 1024:
         # since we might be truncating utf8 encoded strings here, result may be erroneous, so we explicitly replace faulty byte tokens
-        return (force_str('======= Warning: Output too long, hence truncated ======\n' + log[0:(settings.TEST_MAXLOGSIZE*1024)//2] + "\n...\n...\n...\n...\n" + log[log_length-((settings.TEST_MAXLOGSIZE*1024)//2):], errors='replace'), True)
+        return (
+            force_str(
+                "======= Warning: Output too long, hence truncated ======\n"
+                + log[0 : (settings.TEST_MAXLOGSIZE * 1024) // 2]
+                + "\n...\n...\n...\n...\n"
+                + log[log_length - ((settings.TEST_MAXLOGSIZE * 1024) // 2) :],
+                errors="replace",
+            ),
+            True,
+        )
     return (log, False)
 
 
 class CheckerResult(models.Model):
-    """ A CheckerResult returns the result of a Checker.
+    """A CheckerResult returns the result of a Checker.
     It contains:
         - A flag that indicates if the check passed.
         - The title of the check.
         - The log of the run.
-        - The time of the run. """
+        - The time of the run."""
 
     if TYPE_CHECKING:
         id: models.AutoField[int | None, int]
         artefacts: ReverseManyToOneDescriptor["CheckerResultArtefact"]
 
     from solutions.models import Solution
+
     solution: "models.ForeignKey[Solution, Solution]" = models.ForeignKey(Solution, on_delete=models.CASCADE)
     solution_id: int
-    content_type: "models.ForeignKey[ContentType, ContentType]" = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    content_type: "models.ForeignKey[ContentType, ContentType]" = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE
+    )
     content_type_id: int
     object_id: "models.PositiveIntegerField[int, int]" = models.PositiveIntegerField()
-    checker = GenericForeignKey('content_type', 'object_id')
+    checker = GenericForeignKey("content_type", "object_id")
 
     passed: "models.BooleanField[int, bool]" = models.BooleanField(
         default=True,
-        help_text=gettext_lazy('Indicates whether the test has been passed'),
+        help_text=gettext_lazy("Indicates whether the test has been passed"),
     )
     passed_with_warning: "models.BooleanField[bool, bool]" = models.BooleanField(
         default=False,
-        help_text=gettext_lazy(
-            'Indicates whether the test has been passed with a warning'
-        ),
+        help_text=gettext_lazy("Indicates whether the test has been passed with a warning"),
     )
-    log: "models.TextField[str, str]" = models.TextField(
-        help_text=gettext_lazy('Text result of the checker')
-    )
+    log: "models.TextField[str, str]" = models.TextField(help_text=gettext_lazy("Text result of the checker"))
     creation_date: "models.DateTimeField[datetime, datetime]" = models.DateTimeField(auto_now_add=True)
-    runtime: "models.IntegerField[int, int]" = models.IntegerField(default=0, help_text=gettext_lazy('Runtime in milliseconds'))
+    runtime: "models.IntegerField[int, int]" = models.IntegerField(
+        default=0, help_text=gettext_lazy("Runtime in milliseconds")
+    )
 
     def __str__(self) -> str:
         return f"Checker result {self.pk} for solution {self.solution_id}"
 
     def title(self) -> str:
-        """ Returns the title of the Checker that did run. """
+        """Returns the title of the Checker that did run."""
         return self.require_checker().title()
 
     def require_checker(self) -> Checker:
@@ -261,19 +281,19 @@ class CheckerResult(models.Model):
         return checker
 
     def only_title(self) -> bool:
-        """ Whether there is additional information (log or artefacts) """
+        """Whether there is additional information (log or artefacts)"""
         return not self.log and not self.artefacts.exists()
 
     def required(self) -> bool:
-        """ Checks if the Checker is *required* to be passed. """
+        """Checks if the Checker is *required* to be passed."""
         return self.require_checker().required
 
     def public(self) -> bool:
-        """ Checks if the results of the Checker are to be shown *publicly*, i.e.: even to the submitter """
+        """Checks if the results of the Checker are to be shown *publicly*, i.e.: even to the submitter"""
         return self.require_checker().show_publicly(self.passed)
 
     def is_critical(self) -> bool:
-        """ Checks if further results should not be shown """
+        """Checks if further results should not be shown"""
         return self.require_checker().is_critical(self.passed)
 
     def set_log(
@@ -283,7 +303,7 @@ class CheckerResult(models.Model):
         truncated: bool = False,
         oom_ed: bool = False,
     ) -> None:
-        """ Sets the log of the Checker run. timed_out and truncated indicated if appropriate error messages shall be appended  """
+        """Sets the log of the Checker run. timed_out and truncated indicated if appropriate error messages shall be appended"""
         if timed_out:
             log = f'<div class="error">Timeout occurred! (after {settings.TEST_TIMEOUT} seconds)</div>' + log
         if truncated:
@@ -294,53 +314,56 @@ class CheckerResult(models.Model):
         self.log = log
 
     def set_passed(self, passed: int) -> None:
-        """ Sets the passing state of the Checker. """
+        """Sets the passing state of the Checker."""
         assert isinstance(passed, int)
         self.passed = passed
 
     def set_passed_with_warning(self, passed_with_warning: bool) -> None:
-        """ Sets the passed with warning flag of the Checker. """
+        """Sets the passed with warning flag of the Checker."""
         assert isinstance(passed_with_warning, bool)
         self.passed_with_warning = passed_with_warning
 
     def add_artefact(self, filename: str, path: str) -> None:
         assert os.path.isfile(path)
-        artefact = CheckerResultArtefact(result = self, filename=filename)
-        with open(path, 'rb') as fd:
+        artefact = CheckerResultArtefact(result=self, filename=filename)
+        with open(path, "rb") as fd:
             artefact.file.save(filename, File(fd))
 
-def get_checkerresultartefact_upload_path(
-    instance: "CheckerResultArtefact", filename: str
-) -> str:
+
+def get_checkerresultartefact_upload_path(instance: "CheckerResultArtefact", filename: str) -> str:
     result = instance.result
     solution = result.solution
     return os.path.join(
-        'SolutionArchive',
-        'Task_' + str(solution.task.id),
-        'User_' + solution.author.username,
-        'Solution_' + str(solution.id),
-        'Result_' + str(result.id),
-        filename)
+        "SolutionArchive",
+        "Task_" + str(solution.task.id),
+        "User_" + solution.author.username,
+        "Solution_" + str(solution.id),
+        "Result_" + str(result.id),
+        filename,
+    )
+
 
 class CheckerResultArtefact(models.Model):
-
     if TYPE_CHECKING:
         id: models.AutoField[int | None, int]
 
-    result: "models.ForeignKey[CheckerResult, CheckerResult]" = models.ForeignKey(CheckerResult, related_name='artefacts', on_delete=models.CASCADE)
+    result: "models.ForeignKey[CheckerResult, CheckerResult]" = models.ForeignKey(
+        CheckerResult, related_name="artefacts", on_delete=models.CASCADE
+    )
     result_id: int
     filename: "models.CharField[str, str]" = models.CharField(max_length=128)
     file: models.FileField = models.FileField(
-        upload_to = get_checkerresultartefact_upload_path,
+        upload_to=get_checkerresultartefact_upload_path,
         max_length=500,
-        help_text = gettext_lazy('Artefact produced by a checker')
-        )
+        help_text=gettext_lazy("Artefact produced by a checker"),
+    )
 
     def __str__(self) -> str:
         return self.filename
 
     def path(self) -> str:
         return self.filename
+
 
 # from http://stackoverflow.com/questions/5372934
 @receiver(post_delete, sender=CheckerResultArtefact)
@@ -363,6 +386,7 @@ def solution_file_delete(
     except OSError:
         pass
 
+
 def check_solution(
     solution: Solution,
     run_all: object = 0,
@@ -381,8 +405,9 @@ def check_solution(
             solution.all_checker_finished = True
             solution.save()
     finally:
-        if not(debug_keep_tmp and settings.DEBUG):
+        if not (debug_keep_tmp and settings.DEBUG):
             shutil.rmtree(env.tmpdir())
+
 
 # Assumes to be called from within a @transaction.autocommit Context!!!!
 def check_with_own_connection(
@@ -398,6 +423,7 @@ def check_with_own_connection(
         check_solution(solution, run_all, debug_keep_tmp, secondary_check)
     finally:
         connection.close()
+
 
 def check_with_own_connection_rev(
     run_all: object,
@@ -418,7 +444,7 @@ def check_multiple(
         for solution in solutions:
             solution.check_solution(run_secret, debug_keep_tmp, secondary_check)
     else:
-        check_it = partial(check_with_own_connection_rev, run_secret, debug_keep_tmp, secondary_check = secondary_check)
+        check_it = partial(check_with_own_connection_rev, run_secret, debug_keep_tmp, secondary_check=secondary_check)
 
         try:
             with Pool(processes=settings.NUMBER_OF_TASKS_TO_BE_CHECKED_IN_PARALLEL) as pool:
@@ -427,16 +453,13 @@ def check_multiple(
             connection.close()
 
 
-
-
-
 def run_checks(
     solution: Solution,
     env: CheckerEnvironment,
     run_all: object,
     secondary_check: bool = False,
 ) -> None:
-    """  """
+    """ """
 
     passed_checkers: set[type[Checker]] = set()
     checkers = solution.task.get_checkers()
@@ -462,7 +485,7 @@ def run_checks(
             if can_run_checker:
                 # Invoke Checker
                 # TODO: well perhaps we could use settings.MIRROR to let store mails as file for development or test
-                if settings.DEBUG or 'test' in sys.argv:
+                if settings.DEBUG or "test" in sys.argv:
                     result = checker.run(env)
                 else:
                     try:
@@ -471,45 +494,49 @@ def run_checks(
                         result = checker.create_result(env)
                         result.set_log("The Checker caused an unexpected internal error.")
                         result.set_passed(False)
-                        #TODO: signed Email Admins
+                        # TODO: signed Email Admins
                         # sys has been imported at top of file
                         exnow = datetime.now()
                         dt_string = exnow.strftime("%d/%m/%Y %H:%M:%S")
-#                        myRequestUser = User.objects.filter(id=request.user.id)
+                        #                        myRequestUser = User.objects.filter(id=request.user.id)
                         myTask = Task.objects.filter(id=solution.task_id)
                         myerrmsg = f" {type(error).__name__} => {error} "
-                        plaintext = loader.get_template('checker/exception.txt')
-                        htmly = loader.get_template('checker/exception.html')
+                        plaintext = loader.get_template("checker/exception.txt")
+                        htmly = loader.get_template("checker/exception.html")
                         c = {
-#                              'protocol' : request.is_secure() and "https" or "http",
-#                              'domain' : RequestSite(request).domain,
-                              'base_host' : settings.BASE_HOST,
-                              'site_name' : settings.SITE_NAME,
-                              'solution' : solution,
-                              'checker' : checker,
-                              'errormsg' : myerrmsg,
-                              'datetime' : dt_string,
+                            #                              'protocol' : request.is_secure() and "https" or "http",
+                            #                              'domain' : RequestSite(request).domain,
+                            "base_host": settings.BASE_HOST,
+                            "site_name": settings.SITE_NAME,
+                            "solution": solution,
+                            "checker": checker,
+                            "errormsg": myerrmsg,
+                            "datetime": dt_string,
                         }
-                        mail_admins(gettext_lazy("%s : checker in %s failed")%(settings.SITE_NAME, myTask), plaintext.render(c),html_message=htmly.render(c))
-                        if settings.DEBUG :
+                        mail_admins(
+                            gettext_lazy("%s : checker in %s failed") % (settings.SITE_NAME, myTask),
+                            plaintext.render(c),
+                            html_message=htmly.render(c),
+                        )
+                        if settings.DEBUG:
                             logger.debug(
                                 "%s : checker in %s failed \n %s",
                                 settings.SITE_NAME,
                                 myTask,
                                 plaintext.render(c),
                             )
-                        #raise
+                        # raise
             else:
                 # make non passed result
                 # this as well as the dependency check should propably go into checker class
                 # TODO: Move code to checker class ?
                 result = checker.create_result(env)
-                #result.set_log("Checker konnte nicht ausgeführt werden, da benötigte Checker nicht bestanden wurden.")
+                # result.set_log("Checker konnte nicht ausgeführt werden, da benötigte Checker nicht bestanden wurden.")
                 result.set_log("Checker failed to run because required checkers failed.")
                 result.set_passed(False)
 
             elapsed_time = time.time() - start_time
-            result.runtime = int(elapsed_time*1000)
+            result.runtime = int(elapsed_time * 1000)
             result.log = result.log.replace("\x00", "")
             result.save()
 
@@ -517,7 +544,7 @@ def run_checks(
                 if checker.required:
                     solution_accepted = False
                 else:
-                    solution.warnings= True
+                    solution.warnings = True
 
             if result.passed:
                 passed_checkers.add(checker.__class__)

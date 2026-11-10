@@ -2,7 +2,7 @@
 import os
 import sys
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings.test')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings.test")
 
 import warnings
 

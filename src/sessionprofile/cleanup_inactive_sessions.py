@@ -1,8 +1,9 @@
-'''
+"""
 Created on Dec 14, 2009
 
 @author: russn
-'''
+"""
+
 import datetime
 
 from django.contrib.sessions.models import Session
@@ -17,12 +18,11 @@ class Command(BaseCommand):
     sessionprofile table used by the django-phpBB single sign-on code.
     """
 
-
     def handle_noargs(self, **options: object) -> None:
-        '''
+        """
         This purges inactive sessions from both the django session table and the
         sessionprofile table used by the django-phpBB single sign-on code.
-        '''
+        """
         current_time = datetime.datetime.now()
 
         # Delete the sessionprofile objects which correspond to an expired sessions

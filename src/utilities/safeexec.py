@@ -28,6 +28,7 @@ def kill_proc_tree(pid: int, including_parent: bool = False) -> None:
         parent.kill()
         parent.wait(5)
 
+
 class ExecutionResult(NamedTuple):
     output: str
     error: bytes | None
@@ -72,17 +73,17 @@ def execute_arglist(
     # In newer versions, R requires more to be started
     # (see comment in RscriptChecker.py),
     # even if it does not use it.
-    prlimit_prefix = ['prlimit', f'--nofile={filenumberlimit}']
+    prlimit_prefix = ["prlimit", f"--nofile={filenumberlimit}"]
     if fileseeklimitbytes is not None:
-        prlimit_prefix += [f'--fsize={fileseeklimitbytes}']
+        prlimit_prefix += [f"--fsize={fileseeklimitbytes}"]
 
     command = prlimit_prefix
 
     if unsafe:
         pass
     elif use_tester:
-        #command = sudo_prefix
-        #fixed: 22.11.2016, Robert Hartmann , H-BRS
+        # command = sudo_prefix
+        # fixed: 22.11.2016, Robert Hartmann , H-BRS
         command += deepcopy(sudo_prefix)
     elif settings.USESAFEDOCKER:
         docker_ulimits = [f"nofile={filenumberlimit}"]
@@ -110,7 +111,8 @@ def execute_arglist(
             stderr=subprocess.STDOUT if error_to_output else subprocess.PIPE,
             cwd=working_directory,
             env=environment,
-            start_new_session=True)
+            start_new_session=True,
+        )
 
         timed_out = False
         oom_ed = False
@@ -119,8 +121,8 @@ def execute_arglist(
         except subprocess.TimeoutExpired:
             timed_out = True
             term_cmd = ["pkill", "-TERM", "-s", str(process.pid)]
-            int_cmd  = ["pkill","-INT","-s",str(process.pid)]
-            hup_cmd  = ["pkill","-HUP","-s",str(process.pid)]
+            int_cmd = ["pkill", "-INT", "-s", str(process.pid)]
+            hup_cmd = ["pkill", "-HUP", "-s", str(process.pid)]
             kill_cmd = ["pkill", "-KILL", "-s", str(process.pid)]
             if use_tester:
                 term_cmd = sudo_prefix + term_cmd
@@ -151,7 +153,7 @@ def execute_arglist(
             oom_ed = True
 
         assert process.returncode is not None
-        return ExecutionResult(output.decode('utf-8'), error, process.returncode, timed_out, oom_ed)
+        return ExecutionResult(output.decode("utf-8"), error, process.returncode, timed_out, oom_ed)
     finally:
         if container_name is not None:
             safe_docker_cleanup(volumes)
@@ -159,7 +161,7 @@ def execute_arglist(
 
 def _requires_task_id(template: string.Template) -> bool:
     return any(
-        (match.group('named') or match.group('braced')) == 'TASK_ID_CUSTOM'
+        (match.group("named") or match.group("braced")) == "TASK_ID_CUSTOM"
         for match in template.pattern.finditer(template.template)
     )
 
@@ -174,8 +176,13 @@ def safe_docker(
 ) -> tuple[list[str], str, list[DockerVolume]]:
     with ExitStack() as rollback:
         result = _safe_docker(
-            environment_variables, extra_dirs, maxmem, ulimits,
-            working_directory, mount_extra_directories, rollback,
+            environment_variables,
+            extra_dirs,
+            maxmem,
+            ulimits,
+            working_directory,
+            mount_extra_directories,
+            rollback,
         )
         rollback.pop_all()
         return result
@@ -214,9 +221,8 @@ def _safe_docker(
             raise Exception(f"extra directory 'f{d}' contains a ':'")
 
     volumes: list[DockerVolume] = []
-    def add_dir(
-        path: str, read_only: bool, volumes: list[DockerVolume]
-    ) -> list[str]:
+
+    def add_dir(path: str, read_only: bool, volumes: list[DockerVolume]) -> list[str]:
         ro_flag = ""
         if read_only:
             ro_flag = ":ro"
@@ -240,19 +246,35 @@ def _safe_docker(
             check=True,
         )
         rollback.callback(
-            subprocess.run, ["sudo", "docker", "volume", "rm", volume_name],
-            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+            subprocess.run,
+            ["sudo", "docker", "volume", "rm", volume_name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            check=True,
         )
         subprocess.run(
-            ["sudo", "docker", "run", "-d", f"--volume={volume_name}:{path}", "--name",
-                helper_name, "busybox", "sleep", "infinity"],
+            [
+                "sudo",
+                "docker",
+                "run",
+                "-d",
+                f"--volume={volume_name}:{path}",
+                "--name",
+                helper_name,
+                "busybox",
+                "sleep",
+                "infinity",
+            ],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             check=True,
         )
         rollback.callback(
-            subprocess.run, ["sudo", "docker", "container", "rm", "-f", helper_name],
-            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+            subprocess.run,
+            ["sudo", "docker", "container", "rm", "-f", helper_name],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            check=True,
         )
         subprocess.run(
             ["sudo", "docker", "cp", f"{path}.", f"{helper_name}:{path}"],
@@ -304,12 +326,13 @@ def _safe_docker(
         if requires_task_id_custom:
             task_id_custom = environment_variables.get(var_id)
             if task_id_custom is not None and task_id_custom != "":
-                external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(TASK_ID_CUSTOM=task_id_custom)
+                external_dir = string.Template(settings.DOCKER_CONTAINER_EXTERNAL_DIR).substitute(
+                    TASK_ID_CUSTOM=task_id_custom
+                )
         else:
             external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
         if external_dir is not None:
             cmd += [f"--volume={external_dir}:/external:ro"]
-
 
     if mount_extra_directories:
         extra_external_dirs = [
@@ -334,7 +357,6 @@ def _safe_docker(
 
                 cmd += [f"--volume={external_dir}"]
 
-
     cmd += add_dir(working_directory, False, volumes)
     cmd += [f"--workdir={working_directory}"]
 
@@ -354,16 +376,24 @@ def safe_docker_cleanup(volumes: Sequence[DockerVolume]) -> None:
     with ExitStack() as cleanup:
         for volume in volumes:
             cleanup.callback(
-                subprocess.run, ["sudo", "docker", "volume", "rm", volume["volume"]],
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+                subprocess.run,
+                ["sudo", "docker", "volume", "rm", volume["volume"]],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                check=True,
             )
             cleanup.callback(
-                subprocess.run, ["sudo", "docker", "container", "rm", volume["container"]],
-                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+                subprocess.run,
+                ["sudo", "docker", "container", "rm", volume["container"]],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                check=True,
             )
         if not settings.DOCKER_DISCARD_ARTEFACTS:
             for volume in volumes:
                 subprocess.run(
                     ["sudo", "docker", "cp", f"{volume['container']}:{volume['dir']}.", volume["dir"]],
-                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, check=True,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    check=True,
                 )

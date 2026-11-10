@@ -31,7 +31,7 @@ def taskList(request: _HttpRequest) -> HttpResponse:
     user = require_user(request)
     request.user = user
     now = django.utils.timezone.now()
-    tasks = Task.objects.filter(publication_date__lte = now).order_by('submission_date', 'title')
+    tasks = Task.objects.filter(publication_date__lte=now).order_by("submission_date", "title")
     tutorial = request.user.tutorial
     tutors = tutorial.tutors.all() if tutorial is not None else None
     trainers = User.objects.filter(groups__name="Trainer")
@@ -39,24 +39,35 @@ def taskList(request: _HttpRequest) -> HttpResponse:
     # we only have a single user here, so the rating_list only contains a single row;
     # this row belongs to the given user
     (_, attestations, threshold, calculated_grade) = user_task_attestation_map([request.user], tasks)[0]
-    attestations = list(map(lambda a, b: (a,)+b, tasks, attestations))
+    attestations = list(map(lambda a, b: (a,) + b, tasks, attestations))
 
     def tasksWithSolutionsAndDeadlineExtension(tasks: _Iterable[Task]) -> list[dict[str, object]]:
-        return [{'task': t, 'final_solution': t.final_solution(user), 'expired': t.expired_for_user(user), 'submission_date': t.submission_date_for_user(user)} for t in tasks]
+        return [
+            {
+                "task": t,
+                "final_solution": t.final_solution(user),
+                "expired": t.expired_for_user(user),
+                "submission_date": t.submission_date_for_user(user),
+            }
+            for t in tasks
+        ]
 
-    return render(request,
-                  'tasks/task_list.html',
-                  {
-                      'tasks': tasksWithSolutionsAndDeadlineExtension(tasks),
-                      'attestations': attestations,
-                      'show_final_grade': get_settings().final_grades_published,
-                      'tutors': tutors,
-                      'trainers': trainers,
-                      'threshold': threshold,
-                      'calculated_grade': calculated_grade,
-                      'user_text': request.user.user_text,
-                      'show_contact_link': settings.SHOW_CONTACT_LINK,
-                  })
+    return render(
+        request,
+        "tasks/task_list.html",
+        {
+            "tasks": tasksWithSolutionsAndDeadlineExtension(tasks),
+            "attestations": attestations,
+            "show_final_grade": get_settings().final_grades_published,
+            "tutors": tutors,
+            "trainers": trainers,
+            "threshold": threshold,
+            "calculated_grade": calculated_grade,
+            "user_text": request.user.user_text,
+            "show_contact_link": settings.SHOW_CONTACT_LINK,
+        },
+    )
+
 
 @login_required
 def taskDetail(request: _HttpRequest, task_id: str) -> HttpResponse:
@@ -66,32 +77,38 @@ def taskDetail(request: _HttpRequest, task_id: str) -> HttpResponse:
     if task.publication_date >= datetime.now() and not request.user.is_trainer:
         raise Http404
 
-    my_solutions = Task.objects.get(pk=task_id).solution_set.filter(author = request.user)
-    return render(request,
-                  'tasks/task_detail.html',
-                  {
-                      'task': task,
-                      'solutions': my_solutions,
-                      'submission_date': task.submission_date_for_user(request.user),
-                  })
+    my_solutions = Task.objects.get(pk=task_id).solution_set.filter(author=request.user)
+    return render(
+        request,
+        "tasks/task_detail.html",
+        {
+            "task": task,
+            "solutions": my_solutions,
+            "submission_date": task.submission_date_for_user(request.user),
+        },
+    )
+
 
 class ImportForm(forms.Form):
     file: forms.FileField = forms.FileField()
-    is_template: forms.BooleanField = forms.BooleanField(initial=True,
-                                     required=False,
-                                     help_text="Enabled if the imported task is just used as template to create another task. If disabled, the publication date and the rating scale are also imported. This means that students might see the task immediately, and rating scales might be duplicated.")
+    is_template: forms.BooleanField = forms.BooleanField(
+        initial=True,
+        required=False,
+        help_text="Enabled if the imported task is just used as template to create another task. If disabled, the publication date and the rating scale are also imported. This means that students might see the task immediately, and rating scales might be duplicated.",
+    )
+
 
 @staff_member_required
 def import_tasks(request: _HttpRequest) -> HttpResponse | HttpResponseRedirect:
-    """ View in the admin """
+    """View in the admin"""
     request.user = require_user(request)
-    if request.method == 'POST':
+    if request.method == "POST":
         form = ImportForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                Task.import_Tasks(form.cleaned_data['file'], request.user, form.cleaned_data['is_template'])
+                Task.import_Tasks(form.cleaned_data["file"], request.user, form.cleaned_data["is_template"])
                 messages.success(request, "The import was successful.")
-                return HttpResponseRedirect(reverse('admin:tasks_task_changelist'))
+                return HttpResponseRedirect(reverse("admin:tasks_task_changelist"))
             except (
                 DeserializationError,
                 IntegrityError,
@@ -108,31 +125,32 @@ def import_tasks(request: _HttpRequest) -> HttpResponse | HttpResponseRedirect:
                 form.add_error("file", msg)
     else:
         form = ImportForm()
-    return render(request, 'admin/tasks/task/import.html', {'form': form, 'title':"Import Task"  })
+    return render(request, "admin/tasks/task/import.html", {"form": form, "title": "Import Task"})
+
 
 @staff_member_required
 def download_final_solutions(request: _HttpRequest, task_id: str) -> HttpResponse:
-    """ download all final solutions of a task from the admin interface """
+    """download all final solutions of a task from the admin interface"""
     zip_file = tempfile.SpooledTemporaryFile()
-    zip = zipfile.ZipFile(zip_file, 'w')
+    zip = zipfile.ZipFile(zip_file, "w")
     for solution_file in SolutionFile.objects.filter(solution__task=task_id):
         if solution_file.solution.final:
             zip.write(solution_file.file.path, solution_file.file.name)
     zip.close()
     zip_file.seek(0)
     response = HttpResponse(zip_file.read(), content_type="application/zip")
-    response['Content-Disposition'] = 'attachment; filename=FinalSolutions.zip'
+    response["Content-Disposition"] = "attachment; filename=FinalSolutions.zip"
     return response
 
 
 @staff_member_required
 def model_solution(request: _HttpRequest, task_id: str) -> HttpResponse:
-    """ View in the admin """
+    """View in the admin"""
     request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
 
     if request.method == "POST":
-        solution = Solution(task = task, author=request.user)
+        solution = Solution(task=task, author=request.user)
         formset = ModelSolutionFormSet(request.POST, request.FILES, instance=solution)
         if formset.is_valid():
             try:
@@ -145,9 +163,14 @@ def model_solution(request: _HttpRequest, task_id: str) -> HttpResponse:
                 task.model_solution = solution
                 task.save()
             except:
-                solution.delete()    # delete files
-                raise                # don't commit db changes
+                solution.delete()  # delete files
+                raise  # don't commit db changes
     else:
         formset = ModelSolutionFormSet()
-    context = {"formset": formset, "task": task, 'title': "Model Solution", 'is_popup': True, }
+    context = {
+        "formset": formset,
+        "task": task,
+        "title": "Model Solution",
+        "is_popup": True,
+    }
     return render(request, "admin/tasks/task/model_solution.html", context)

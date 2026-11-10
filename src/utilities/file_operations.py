@@ -10,8 +10,8 @@ from django.core.files import File
 from utilities import encoding
 
 gid: int | None = None
-if (settings.USEPRAKTOMATTESTER):
-    gid = grp.getgrnam('praktomat').gr_gid
+if settings.USEPRAKTOMATTESTER:
+    gid = grp.getgrnam("praktomat").gr_gid
 
 
 def require_file_name(file: "File[bytes]") -> str:
@@ -28,7 +28,7 @@ def makedirs(path: str) -> None:
         (head, _) = os.path.split(path)
         makedirs(head)
         os.mkdir(path)
-        if (gid):
+        if gid:
             os.chown(path, -1, gid)
         os.chmod(path, 0o770)  # noqa: S103  # Group access is required for tester and web-server sharing.
 
@@ -45,18 +45,18 @@ def create_file(
         makedirs(dirname)
     else:
         if os.path.exists(path):
-            if override: # delete file
+            if override:  # delete file
                 os.remove(path)
-            else: # throw exception
-                raise Exception('File already exists')
-    with open(path, 'wb') as fd:
+            else:  # throw exception
+                raise Exception("File already exists")
+    with open(path, "wb") as fd:
         if binary:
             if not isinstance(content, bytes):
                 raise TypeError("binary content must be bytes")
             fd.write(content)
         else:
             fd.write(encoding.get_utf8(encoding.get_unicode(content)))
-    if (gid):
+    if gid:
         # chown :praktomat <path>
         os.chown(path, -1, gid)
         # rwxrwx---     access for praktomattester:praktomat
@@ -79,13 +79,15 @@ def copy_file(
 def create_tempfolder(path: str) -> str:
     makedirs(path)
     new_tmpdir = tempfile.mkdtemp(dir=path)
-    if (gid):
+    if gid:
         os.chown(new_tmpdir, -1, gid)
     os.chmod(new_tmpdir, 0o770)  # noqa: S103  # Group access is required for tester and web-server sharing.
     return new_tmpdir
 
+
 class InvalidZipFile(Exception):
     pass
+
 
 def unpack_zipfile_to(
     zipfilename: str,
@@ -104,7 +106,7 @@ def unpack_zipfile_to(
     if not zipfile.is_zipfile(zipfilename):
         raise InvalidZipFile(f"File {zipfilename} is not a zipfile.")
     root = os.path.realpath(to_path)
-    with zipfile.ZipFile(zipfilename, 'r') as zip:
+    with zipfile.ZipFile(zipfilename, "r") as zip:
         if zip.testzip():
             raise InvalidZipFile(f"File {zipfilename} is invalid.")
 

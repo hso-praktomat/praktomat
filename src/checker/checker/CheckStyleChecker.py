@@ -17,23 +17,23 @@ from utilities.safeexec import execute_arglist
 
 
 class CheckStyleChecker(Checker):
-
     name: "models.CharField[str, str]" = models.CharField(
         max_length=100,
         default="CheckStyle",
         help_text=gettext_lazy("Name to be displayed on the solution detail page."),
     )
-    configuration: CheckerFileField = CheckerFileField(help_text=gettext_lazy("XML configuration of CheckStyle. See http://checkstyle.sourceforge.net/"))
+    configuration: CheckerFileField = CheckerFileField(
+        help_text=gettext_lazy("XML configuration of CheckStyle. See http://checkstyle.sourceforge.net/")
+    )
 
     def title(self) -> str:
-        """ Returns the title for this checker category. """
+        """Returns the title for this checker category."""
         return self.name
 
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker. """
+        """Returns a description for this Checker."""
         return "Runs checkstyle (http://checkstyle.sourceforge.net/)."
-
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
 
@@ -43,9 +43,9 @@ class CheckStyleChecker(Checker):
 
         # Run the tests
         environ: dict[str, str] = {}
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
 
         args = [
             settings.JVM,
@@ -63,22 +63,27 @@ class CheckStyleChecker(Checker):
         )
 
         # Remove Praktomat-Path-Prefixes from result:
-        #output = re.sub(r"^"+re.escape(env.tmpdir())+"/+", "", output, flags=re.MULTILINE)
-        output = re.sub(r""+re.escape(env.tmpdir())+"/+","",output,flags=re.MULTILINE)
+        # output = re.sub(r"^"+re.escape(env.tmpdir())+"/+", "", output, flags=re.MULTILINE)
+        output = re.sub(r"" + re.escape(env.tmpdir()) + "/+", "", output, flags=re.MULTILINE)
 
         result = self.create_result(env)
 
-        log = '<pre>' + escape(output) + '</pre>'
+        log = "<pre>" + escape(output) + "</pre>"
         if timed_out:
             log = log + '<div class="error">Timeout occured!</div>'
         if oom_ed:
             log = log + '<div class="error">Out of memory!</div>'
         result.set_log(log)
 
-
-        result.set_passed(not timed_out and not oom_ed and not exitcode and (re.match('Starting audit...\nAudit done.', output) is not None))
+        result.set_passed(
+            not timed_out
+            and not oom_ed
+            and not exitcode
+            and (re.match("Starting audit...\nAudit done.", output) is not None)
+        )
 
         return result
+
 
 from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
 

@@ -19,9 +19,7 @@ class CheckerWithFile(Checker):
     class Meta(Checker.Meta):
         abstract = True
 
-    file: CheckerFileField = CheckerFileField(
-        help_text=gettext_lazy("The file that is copied into the sandbox")
-    )
+    file: CheckerFileField = CheckerFileField(help_text=gettext_lazy("The file that is copied into the sandbox"))
     filename: "models.CharField[str, str]" = models.CharField(
         max_length=500,
         blank=True,
@@ -43,19 +41,15 @@ class CheckerWithFile(Checker):
     )
     is_sourcecode: "models.BooleanField[bool, bool]" = models.BooleanField(
         default=False,
-        help_text=gettext_lazy(
-            "The file is (or, if it is a zipfile to be unpacked: contains) source code"
-        ),
+        help_text=gettext_lazy("The file is (or, if it is a zipfile to be unpacked: contains) source code"),
     )
     include_in_solution_download: "models.BooleanField[bool, bool]" = models.BooleanField(
         default=True,
         help_text=gettext_lazy(
             "The file is (or, if it is a zipfile to be unpacked: its content) "
-            "is included in \"full\" solution download .zip files"
+            'is included in "full" solution download .zip files'
         ),
     )
-
-
 
     _add_to_environment: bool = True
 
@@ -64,23 +58,26 @@ class CheckerWithFile(Checker):
         return os.path.join(self.path.lstrip("/ "), os.path.basename(filename))
 
     def add_to_environment(self, env: CheckerEnvironment, path: str) -> None:
-        if (self._add_to_environment):
-            with open(os.path.join(env.tmpdir(), path), 'rb') as fd:
+        if self._add_to_environment:
+            with open(os.path.join(env.tmpdir(), path), "rb") as fd:
                 env.add_source(path, fd.read())
 
     def run_file(self, env: CheckerEnvironment) -> CheckerResult | None:
-        """ Tries to unpack all necessary files.
+        """Tries to unpack all necessary files.
         Fails if there is a clash with files submitted by the student.
         In that case, this function creates and returns the (failed) CheckerResult.
         Otherwise (if the unpacking succeeds), this function returns None.
         """
         clashes: list[str] = []
         cleanpath = self.path.lstrip("/ ")
-        if (self.unpack_zipfile):
+        if self.unpack_zipfile:
             path = os.path.join(env.tmpdir(), cleanpath)
-            unpack_zipfile_to(self.file.path, path,
+            unpack_zipfile_to(
+                self.file.path,
+                path,
                 lambda n: clashes.append(os.path.join(cleanpath, n)),
-                lambda f: self.add_to_environment(env, os.path.join(cleanpath, f)))
+                lambda f: self.add_to_environment(env, os.path.join(cleanpath, f)),
+            )
         else:
             filename = self.filename if self.filename else self.file.path
             source_path = os.path.join(cleanpath, os.path.basename(filename))
@@ -94,20 +91,24 @@ class CheckerWithFile(Checker):
         if clashes:
             result = self.create_result(env)
             result.set_passed(False)
-            result.set_log("These files already existed. Do NOT include them in your submissions:<br/><ul>\n" + "\n".join([f"<li>{escape(f)}</li>" for f in clashes]) + "</ul>")
+            result.set_log(
+                "These files already existed. Do NOT include them in your submissions:<br/><ul>\n"
+                + "\n".join([f"<li>{escape(f)}</li>" for f in clashes])
+                + "</ul>"
+            )
             return result
 
         return None
 
-class CreateFileChecker(CheckerWithFile):
 
+class CreateFileChecker(CheckerWithFile):
     def title(self) -> str:
-        """ Returns the title for this checker category. """
+        """Returns the title for this checker category."""
         return "Copy File"
 
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker. """
+        """Returns a description for this Checker."""
         return "Diese Prüfung wird bestanden, falls die Zieldatei nicht schon vorhanden ist (z.B.: vom Studenten eingereicht wurde)!"
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
@@ -118,7 +119,6 @@ class CreateFileChecker(CheckerWithFile):
         result.set_passed(True)
         return result
 
-
     def show_publicly(self, passed: bool) -> bool:
         return super().show_publicly(passed) or (not passed)
 
@@ -126,6 +126,7 @@ class CreateFileChecker(CheckerWithFile):
         super().clean()
         if not (self.required and self.always and not self.public):
             raise ValidationError("Florian says: CreateFileCheckers have to be required, always, non-public")
+
 
 from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
     AlwaysChangedModelForm,
@@ -135,22 +136,21 @@ from checker.admin import (  # noqa: E402  # Load after model definitions to avo
 
 class CopyForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
-        """ override public and required """
+        """override public and required"""
         super().__init__(**args)
         self.fields["public"].initial = False
         self.fields["required"].initial = True
 
     def clean_filename(self) -> str | None:
-        filename: str = self.cleaned_data['filename']
-        if (not filename.strip()):
-            if 'file' in self.cleaned_data:
-                file = self.cleaned_data['file']
-                return (os.path.basename(file.name))
+        filename: str = self.cleaned_data["filename"]
+        if not filename.strip():
+            if "file" in self.cleaned_data:
+                file = self.cleaned_data["file"]
+                return os.path.basename(file.name)
             else:
                 return None
         else:
             return filename
-
 
 
 class CreateFileCheckerInline(CheckerInline[CreateFileChecker]):

@@ -16,11 +16,13 @@ def uploadsleft(value: int, arg: QuerySet[Solution, Solution]) -> int:
         return 0
     return left
 
-register.filter('uploadsleft', uploadsleft)
+
+register.filter("uploadsleft", uploadsleft)
+
 
 # This is a modified version of Django's built-in dictsort filter
 def basenamedictsort(value: Iterable[object], arg: str) -> list[object]:
-    parts = arg.split('.')
+    parts = arg.split(".")
 
     def nested_basename(value: Any) -> str:
         for part in parts:
@@ -32,4 +34,5 @@ def basenamedictsort(value: Iterable[object], arg: str) -> list[object]:
 
     return sorted(value, key=nested_basename)
 
-register.filter('basenamedictsort', basenamedictsort)
+
+register.filter("basenamedictsort", basenamedictsort)

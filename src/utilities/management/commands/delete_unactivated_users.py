@@ -6,7 +6,7 @@ from accounts.models import User
 
 
 class Command(BaseCommand):
-    help: str = 'Delete users which have not activated their account. Users registered via Shibboleth are ignored.'
+    help: str = "Delete users which have not activated their account. Users registered via Shibboleth are ignored."
 
     def handle(self, *args: Any, **options: Any) -> None:
         count = 0

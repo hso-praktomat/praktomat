@@ -30,6 +30,7 @@ class KeepFileChecker(Checker):
 
         return result
 
+
 from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
 
 

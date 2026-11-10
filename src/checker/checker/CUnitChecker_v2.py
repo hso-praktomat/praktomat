@@ -15,20 +15,22 @@ from checker.compiler.CXXBuilder import CXXBuilder
 from solutions.models import Solution
 from utilities.safeexec import execute_arglist
 
-RXFAIL       = re.compile(r"^(.*)(FAILURES!!!|your program crashed|cpu time limit exceeded|ABBRUCH DURCH ZEITUEBERSCHREITUNG|Could not find class|Killed|failures)(.*)$",    re.MULTILINE)
+RXFAIL = re.compile(
+    r"^(.*)(FAILURES!!!|your program crashed|cpu time limit exceeded|ABBRUCH DURCH ZEITUEBERSCHREITUNG|Could not find class|Killed|failures)(.*)$",
+    re.MULTILINE,
+)
 
 
-#TODO: okay perhaps we could merge both IgnoringBuilders while specialising from Compiler
+# TODO: okay perhaps we could merge both IgnoringBuilders while specialising from Compiler
+
 
 class IgnoringCBuilder2(CBuilder):
     _ignore: list[str] = []
 
-    def __init__(
-        self, _flags: str, _ignore: list[str], _file_pattern: str, _output_flags: str
-    ) -> None:
+    def __init__(self, _flags: str, _ignore: list[str], _file_pattern: str, _output_flags: str) -> None:
 
         super().__init__(_flags=_flags, _file_pattern=_file_pattern, _output_flags=_output_flags)
-        self._ignore=_ignore
+        self._ignore = _ignore
 
     def get_file_names(self, env: CheckerEnvironment) -> list[str]:
         rxarg = re.compile(self.rxarg())
@@ -46,22 +48,19 @@ class IgnoringCBuilder2(CBuilder):
         return CheckerResult(checker=self, solution=env.solution())
 
     # override default logbuilder defined in some meta-base-class
-    def logbuilder(
-        self, output: str, args: list[str], env: CheckerEnvironment
-    ) -> str:
-        """ Additional adding some logging for bughunting """
+    def logbuilder(self, output: str, args: list[str], env: CheckerEnvironment) -> str:
+        """Additional adding some logging for bughunting"""
         filenames = [name for name in self.get_file_names(env)]
         compilationfiles = set(filenames)
-        return self.build_log(output,args,compilationfiles)
+        return self.build_log(output, args, compilationfiles)
+
 
 class IgnoringCXXBuilder2(CXXBuilder):
     _ignore: list[str] = []
 
-    def __init__(
-        self, _flags: str, _ignore: list[str], _file_pattern: str, _output_flags: str
-    ) -> None:
+    def __init__(self, _flags: str, _ignore: list[str], _file_pattern: str, _output_flags: str) -> None:
         super().__init__(_flags=_flags, _file_pattern=_file_pattern, _output_flags=_output_flags)
-        self._ignore=_ignore
+        self._ignore = _ignore
 
     def get_file_names(self, env: CheckerEnvironment) -> list[str]:
         rxarg = re.compile(self.rxarg())
@@ -73,160 +72,183 @@ class IgnoringCXXBuilder2(CXXBuilder):
             raise TypeError
         return self.run(env)
 
-
     # Since this checkers instances  will not be saved(), we don't save their results, either
     def create_result(self, env: CheckerEnvironment) -> CheckerResult:
         assert isinstance(env.solution(), Solution)
         return CheckerResult(checker=self, solution=env.solution())
 
     # override default logbuilder defined in some meta-base-class
-    def logbuilder(
-        self, output: str, args: list[str], env: CheckerEnvironment
-    ) -> str:
-        """ Additional adding some logging for bughunting """
+    def logbuilder(self, output: str, args: list[str], env: CheckerEnvironment) -> str:
+        """Additional adding some logging for bughunting"""
         filenames = [name for name in self.get_file_names(env)]
         compilationfiles = set(filenames)
-        return self.build_log(output,args,compilationfiles)
+        return self.build_log(output, args, compilationfiles)
 
 
 class CUnitChecker2(CheckerWithFile):
-    """ New Checker for CUnit and CPPUnit Unittests """ # code based upon JUnitChecker but has changed so much to become completly independent from JUnitChecker
-# You can write testcode with
-# https://sourceforge.net/projects/cunit/
-# https://sourceforge.net/projects/cppunit/
-# but you are not forced to write your tests with that above frameworks
+    """New Checker for CUnit and CPPUnit Unittests"""
+
+      # code based upon JUnitChecker but has changed so much to become completly independent from JUnitChecker
+    # You can write testcode with
+    # https://sourceforge.net/projects/cunit/
+    # https://sourceforge.net/projects/cppunit/
+    # but you are not forced to write your tests with that above frameworks
 
     # Add fields to configure checker instances. You can use any of the Django fields. (See online documentation)
     # The fields created, task, public, required and always will be inherited from the abstract base class Checker
     _test_name: "models.CharField[str, str]" = models.CharField(
-            max_length=100,
-            help_text=gettext_lazy("The fully qualified name of the test case executable (with fileending like .exe or .out)"),
-            verbose_name=gettext_lazy("TestApp Filename"),
-        default="TestApp.out"
+        max_length=100,
+        help_text=gettext_lazy(
+            "The fully qualified name of the test case executable (with fileending like .exe or .out)"
+        ),
+        verbose_name=gettext_lazy("TestApp Filename"),
+        default="TestApp.out",
     )
-    _test_ignore: "models.CharField[str, str]" = models.CharField(max_length=4096,
-        help_text=gettext_lazy("Regular Expression for ignoring files while compile and link test-code.")+" <br> Play with  RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>",
-        default="sorry, this feature doesn't work now", blank=True)
+    _test_ignore: "models.CharField[str, str]" = models.CharField(
+        max_length=4096,
+        help_text=gettext_lazy("Regular Expression for ignoring files while compile and link test-code.")
+        + ' <br> Play with  RegEx at <a href="http://pythex.org/" target="_blank">http://pythex.org/ </a>',
+        default="sorry, this feature doesn't work now",
+        blank=True,
+    )
 
-    _test_flags: "models.CharField[str, str]" = models.CharField(max_length = 1000, blank = True,
+    _test_flags: "models.CharField[str, str]" = models.CharField(
+        max_length=1000,
+        blank=True,
         default="-Wall -Wextra -Wl,--warn-common",
-        help_text = gettext_lazy("Compiler and Linker flags for i.e. libraries used while generating TestApp. <br> Don't fill in cunit or cppunit here."))
+        help_text=gettext_lazy(
+            "Compiler and Linker flags for i.e. libraries used while generating TestApp. <br> Don't fill in cunit or cppunit here."
+        ),
+    )
 
     LINK_CHOICES = (
-      ('o', 'Link Trainers Test-Code with solution objects (*.o)'),
-      ('so', 'MUT: Link solution objects as shared object (*.so, *.dll)'),
-      ('out', 'MUT: Link solution objects as seperate executable program (*.out, *.exe)'),
+        ("o", "Link Trainers Test-Code with solution objects (*.o)"),
+        ("so", "MUT: Link solution objects as shared object (*.so, *.dll)"),
+        ("out", "MUT: Link solution objects as seperate executable program (*.out, *.exe)"),
     )
-    LINK_DICT = {'out':'-o' , 'so':'-shared -fPIC -o' , 'o':''}
-    link_type: "models.CharField[str, str]" = models.CharField(max_length=16, choices=LINK_CHOICES,default="o", help_text = gettext_lazy('How to use solution submission in test-code?'))
-
+    LINK_DICT = {"out": "-o", "so": "-shared -fPIC -o", "o": ""}
+    link_type: "models.CharField[str, str]" = models.CharField(
+        max_length=16,
+        choices=LINK_CHOICES,
+        default="o",
+        help_text=gettext_lazy("How to use solution submission in test-code?"),
+    )
 
     CUNIT_CHOICES = (
-      ('cunit', 'CUnit 2.1-3'),
-      ('cppunit', 'CppUnit 1.12.1'),
-      ('c', 'C tests'),
-      ('cpp', 'CPP tests'),
+        ("cunit", "CUnit 2.1-3"),
+        ("cppunit", "CppUnit 1.12.1"),
+        ("c", "C tests"),
+        ("cpp", "CPP tests"),
     )
-    CUNIT_DICT = {'cunit':'-lcunit' , 'cppunit':'-lcppunit' , 'c':'', 'cpp':''}
-    cunit_version: "models.CharField[str, str]" = models.CharField(max_length=16, choices=CUNIT_CHOICES,default="cunit", verbose_name=gettext_lazy("Unittest type or library"))
+    CUNIT_DICT = {"cunit": "-lcunit", "cppunit": "-lcppunit", "c": "", "cpp": ""}
+    cunit_version: "models.CharField[str, str]" = models.CharField(
+        max_length=16, choices=CUNIT_CHOICES, default="cunit", verbose_name=gettext_lazy("Unittest type or library")
+    )
 
+    _test_par: "models.CharField[str, str]" = models.CharField(
+        max_length=1000, default="", help_text=gettext_lazy("Command line parameters for running TestApp"), blank=True
+    )
 
-    _test_par: "models.CharField[str, str]" = models.CharField(max_length = 1000,
-        default="",
-        help_text = gettext_lazy("Command line parameters for running TestApp"),
-        blank=True)
+    # don't change next two variable names, they are fixed in checker-hierarchie
+    test_description: "models.TextField[str, str]" = models.TextField(
+        help_text=gettext_lazy(
+            "Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."
+        )
+    )
+    name: "models.CharField[str, str]" = models.CharField(
+        max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page")
+    )
 
-    #don't change next two variable names, they are fixed in checker-hierarchie
-    test_description: "models.TextField[str, str]" = models.TextField(help_text = gettext_lazy("Description of the Testcase. To be displayed on Checker Results page when checker is  unfolded."))
-    name: "models.CharField[str, str]" = models.CharField(max_length=100, help_text=gettext_lazy("Name of the Testcase. To be displayed as title on Checker Results page"))
-
-    _sol_name: "models.CharField[str, str]" =  models.CharField(
-            max_length=100,
-            help_text=gettext_lazy("Basisfilename ( = filename without fileending!) for interaction with  MUT (Module-Under-Test)<br>"
-            +"The fileending to use gets determined by your choosen Link type.<br>"
-            ),
+    _sol_name: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        help_text=gettext_lazy(
+            "Basisfilename ( = filename without fileending!) for interaction with  MUT (Module-Under-Test)<br>"
+            + "The fileending to use gets determined by your choosen Link type.<br>"
+        ),
         verbose_name=gettext_lazy("MUT Filename"),
-        default="Solution"
+        default="Solution",
     )
-    _sol_ignore: "models.CharField[str, str]" = models.CharField(max_length=4096,
-        help_text=gettext_lazy("Regular Expression for ignoring files while compile CUT and link MUT.<br>"
-              +"CUT = Code Under Test - MUT = Module Under Test <br>"
-                      +"Play with RegEx at <a href=\"http://pythex.org/\" target=\"_blank\">http://pythex.org/ </a>"
-                      ),
-        default="sorry, this feature doesn't work now", blank=True,
-        verbose_name=gettext_lazy("MUT ignore files")
+    _sol_ignore: "models.CharField[str, str]" = models.CharField(
+        max_length=4096,
+        help_text=gettext_lazy(
+            "Regular Expression for ignoring files while compile CUT and link MUT.<br>"
+            + "CUT = Code Under Test - MUT = Module Under Test <br>"
+            + 'Play with RegEx at <a href="http://pythex.org/" target="_blank">http://pythex.org/ </a>'
+        ),
+        default="sorry, this feature doesn't work now",
+        blank=True,
+        verbose_name=gettext_lazy("MUT ignore files"),
     )
 
-    _sol_flags: "models.CharField[str, str]" = models.CharField(max_length = 1000, blank = True,
+    _sol_flags: "models.CharField[str, str]" = models.CharField(
+        max_length=1000,
+        blank=True,
         default="-Wall -Wextra -Wl,--warn-common",
-        help_text = gettext_lazy("Compiler and Linker flags used while generating MUT (Module-under-Test)."),
-        verbose_name=gettext_lazy("MUT flags")
+        help_text=gettext_lazy("Compiler and Linker flags used while generating MUT (Module-under-Test)."),
+        verbose_name=gettext_lazy("MUT flags"),
     )
 
-    def all_own_sibling_instances_filenames(
-        self, env: CheckerEnvironment
-    ) -> list[str]:
+    def all_own_sibling_instances_filenames(self, env: CheckerEnvironment) -> list[str]:
         assert isinstance(env, CheckerEnvironment)
-        #my_solution = env.solution()
-        my_task_sibling_checkers = [c for c in self.task.get_checkers() if isinstance(c, self.__class__ ) ]
+        # my_solution = env.solution()
+        my_task_sibling_checkers = [c for c in self.task.get_checkers() if isinstance(c, self.__class__)]
         my_sibling_files: list[str] = []
-        import zipfile  #via src/utilities/file_operations
-        for checker in my_task_sibling_checkers:
-            if (checker != self) :
+        import zipfile  # via src/utilities/file_operations
 
+        for checker in my_task_sibling_checkers:
+            if checker != self:
                 try:
                     with zipfile.ZipFile(checker.file.path) as zip_file:
                         names = zip_file.namelist()
                 except zipfile.BadZipfile:
                     import re
-                    cleanfilename = re.sub(r'^CheckerFiles/Task_\d*/'+self.__class__.__name__, '', checker.filename).lstrip('/')
+
+                    cleanfilename = re.sub(
+                        r"^CheckerFiles/Task_\d*/" + self.__class__.__name__, "", checker.filename
+                    ).lstrip("/")
                     names = [cleanfilename]
                 my_sibling_files = my_sibling_files + names
         return my_sibling_files
 
-
-
     def instance_filenames(self, env: CheckerEnvironment) -> list[str]:
 
-        import zipfile  #via src/utilities/file_operations
+        import zipfile  # via src/utilities/file_operations
 
         try:
             with zipfile.ZipFile(self.file.path) as zip_file:
                 names = zip_file.namelist()
         except zipfile.BadZipfile:
-                import re
-                cleanfilename = re.sub(r'^CheckerFiles/Task_\d*/'+self.__class__.__name__, '', self.filename).lstrip('/')
-                names = [cleanfilename]
+            import re
+
+            cleanfilename = re.sub(r"^CheckerFiles/Task_\d*/" + self.__class__.__name__, "", self.filename).lstrip("/")
+            names = [cleanfilename]
         return names
 
-
     def use_cppBuilder(self) -> bool:
-        if 'pp' in self.cunit_version:
+        if "pp" in self.cunit_version:
             return True
         else:
             return False
 
-
     def mut_flags(self, env: CheckerEnvironment) -> str:
         return self._sol_flags if self._sol_flags else " "
 
-
     def mut_output_flags(self, env: CheckerEnvironment) -> str:
-                if self.link_type=='so':
-                        return self.LINK_DICT[self.link_type] +' '+'lib'+self._sol_name+"."+self.link_type
-                else:
-                        return self.LINK_DICT[self.link_type] +' '+self._sol_name+"."+self.link_type
+        if self.link_type == "so":
+            return self.LINK_DICT[self.link_type] + " " + "lib" + self._sol_name + "." + self.link_type
+        else:
+            return self.LINK_DICT[self.link_type] + " " + self._sol_name + "." + self.link_type
 
     def test_flags(self, env: CheckerEnvironment) -> str:
         my_unittest_flags = self.CUNIT_DICT[self.cunit_version]
-        my_flags_str = self._test_flags +" "+my_unittest_flags
+        my_flags_str = self._test_flags + " " + my_unittest_flags
         return my_flags_str
 
     def test_output_flags(self, env: CheckerEnvironment) -> str:
-        return '-o '+self._test_name
+        return "-o " + self._test_name
 
     def runner(self) -> str:
-        #return {'cunit' : 'cuMain.exe', 'cppunit' : 'cxxMain.exe' }[self.cunit_version]
+        # return {'cunit' : 'cuMain.exe', 'cppunit' : 'cxxMain.exe' }[self.cunit_version]
         # cTestrunner is name of shell-script file inside folder checker/scripts
         return "cTestrunner"
 
@@ -238,76 +260,75 @@ class CUnitChecker2(CheckerWithFile):
         return "This Checker runs a C/Cpp Unit Testcases existing in the sandbox. You may want to use CreateFile Checker to create CUnit .c/.cpp and possibly input data files in the sandbox before running the C/CxxBuilder. Unit tests will only be able to read input data files if they are placed in the work/ subdirectory."
 
     def output_ok(self, output: str) -> bool:
-        return (RXFAIL.search(output) is None)
+        return RXFAIL.search(output) is None
 
     def clean(self) -> None:
-        #call parents clean
+        # call parents clean
         super().clean()
 
-
     def run(self, env: CheckerEnvironment) -> CheckerResult:
-    # Robert Hartmann : 9.1.2018
-    # okay lets play with an Idea:
-    # We want to check students solutions
-    #     - functions: input / output parameters
-    #     - functions: with return values
-    #     - programs: user interaction (input/output)
-    #         via STDOUT, STDERR, STDIN
-    # In C we can only have one main function
-    # (unlike in Java there can a
-    # public static void main(String args) method
-    # in each class.)
-    #
-    # Each Instance of this CUnitChecker has a corresponding
-    # c-File with main-function.
-    # therefor we must hide c-main functions from other
-    # instances of this checker.
-    #
-    # Now we have a look to interactin with students files:
-    # => If the student have to write a program,
-    #    that is when the students submission contains a main function,
-    #    than we cannot link student-code and test-code
-    #    to one binary executable.
-    #    In that case the student-code should
-    #    - compile and link as an executable program
-    #    - compile as a shared object (*.so or *.dll)
-    #    a) And the test-code should use that Library for testing functions:
-    #       on posix-systems use dlopen, dlsym, dlclose
-    #          (Our Praktomat is a linux server)
-    #       on windows it would be LoadLibrary, GetProcAdress, FreeLibrary.
-    #    - but on Windows there must be a library-entry function for each *.dll
-    #    BOOLEAN WINAPI DllMain(
-    #    IN HINSTANCE hDllHandle,
-    #    IN DWORD     nReason,
-    #    IN LPVOID    Reserved ) https://msdn.microsoft.com/de-de/library/windows/desktop/aa370448
-    #    b) To test programs user interaction
-    #    our test-code have to redirect STDOUT, STDERR, STDIN
-    #    befor starting the new process with redirections
-    #    on posix-systems use fork, execvp,
-    #    on windows CreatePipe, CreateProcess , see  https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
+        # Robert Hartmann : 9.1.2018
+        # okay lets play with an Idea:
+        # We want to check students solutions
+        #     - functions: input / output parameters
+        #     - functions: with return values
+        #     - programs: user interaction (input/output)
+        #         via STDOUT, STDERR, STDIN
+        # In C we can only have one main function
+        # (unlike in Java there can a
+        # public static void main(String args) method
+        # in each class.)
+        #
+        # Each Instance of this CUnitChecker has a corresponding
+        # c-File with main-function.
+        # therefor we must hide c-main functions from other
+        # instances of this checker.
+        #
+        # Now we have a look to interactin with students files:
+        # => If the student have to write a program,
+        #    that is when the students submission contains a main function,
+        #    than we cannot link student-code and test-code
+        #    to one binary executable.
+        #    In that case the student-code should
+        #    - compile and link as an executable program
+        #    - compile as a shared object (*.so or *.dll)
+        #    a) And the test-code should use that Library for testing functions:
+        #       on posix-systems use dlopen, dlsym, dlclose
+        #          (Our Praktomat is a linux server)
+        #       on windows it would be LoadLibrary, GetProcAdress, FreeLibrary.
+        #    - but on Windows there must be a library-entry function for each *.dll
+        #    BOOLEAN WINAPI DllMain(
+        #    IN HINSTANCE hDllHandle,
+        #    IN DWORD     nReason,
+        #    IN LPVOID    Reserved ) https://msdn.microsoft.com/de-de/library/windows/desktop/aa370448
+        #    b) To test programs user interaction
+        #    our test-code have to redirect STDOUT, STDERR, STDIN
+        #    befor starting the new process with redirections
+        #    on posix-systems use fork, execvp,
+        #    on windows CreatePipe, CreateProcess , see  https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
 
-    # TODO: How to deal with students static c-functions. Think again how to interact with scriptfile dressObjects from this Checker
+        # TODO: How to deal with students static c-functions. Think again how to interact with scriptfile dressObjects from this Checker
 
-
-        my_env_Sources = env.sources()[:] #swallow copy because env.sources() gets manipulated by time
-        ignore_Filenames = [ seq[0] for seq in my_env_Sources if seq[0] not in self.instance_filenames(env) ]
-
+        my_env_Sources = env.sources()[:]  # swallow copy because env.sources() gets manipulated by time
+        ignore_Filenames = [seq[0] for seq in my_env_Sources if seq[0] not in self.instance_filenames(env)]
 
         # copy testfiles to sandbox
-        copyTestFileArchive_result = super().run_file(env) # Instance of Class CheckerResult in basemodel.py
+        copyTestFileArchive_result = super().run_file(env)  # Instance of Class CheckerResult in basemodel.py
 
         # if copying failed we can stop right here!
-        #if not copyTestFileArchive_result.passed:
+        # if not copyTestFileArchive_result.passed:
         if copyTestFileArchive_result is not None:
-            #result = self.create_result(env)
+            # result = self.create_result(env)
             result = copyTestFileArchive_result
             result.set_passed(False)
-            result.set_log( #escape(self.CUNIT_CHOICES[self.cunit_version])
-                        ""+ '<pre>'
-                          + escape(self.test_description)
-                          + '\n\n======== Preprocessing: Filecopy Failure-Results: ======\n\n</pre><br/>\n'
-                          + copyTestFileArchive_result.log )
-            #raise TypeError
+            result.set_log(  # escape(self.CUNIT_CHOICES[self.cunit_version])
+                ""
+                + "<pre>"
+                + escape(self.test_description)
+                + "\n\n======== Preprocessing: Filecopy Failure-Results: ======\n\n</pre><br/>\n"
+                + copyTestFileArchive_result.log
+            )
+            # raise TypeError
             return result
 
         result = copyTestFileArchive_result
@@ -320,19 +341,29 @@ class CUnitChecker2(CheckerWithFile):
 
         # if link_type is o, we have to compile and link all code with test_builder
         if "o" == self.link_type:
-            my_flags = self.mut_flags(env) +" " + self.test_flags(env)
-            my_oflags = self.test_output_flags(env) # + self.mut_output_flags(env)
+            my_flags = self.mut_flags(env) + " " + self.test_flags(env)
+            my_oflags = self.test_output_flags(env)  # + self.mut_output_flags(env)
 
-            #languageCompiler C or CPP
+            # languageCompiler C or CPP
             if self.use_cppBuilder():
-                #CPP
-                test_builder = IgnoringCXXBuilder2(_flags=my_flags ,_ignore=self.all_own_sibling_instances_filenames(env), _file_pattern=r"^.*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$",_output_flags=my_oflags)
+                # CPP
+                test_builder = IgnoringCXXBuilder2(
+                    _flags=my_flags,
+                    _ignore=self.all_own_sibling_instances_filenames(env),
+                    _file_pattern=r"^.*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$",
+                    _output_flags=my_oflags,
+                )
             else:
-                #C
-                test_builder = IgnoringCBuilder2(_flags=my_flags, _ignore=self.all_own_sibling_instances_filenames(env), _file_pattern=r"^.*\.(c|C)$",_output_flags=my_oflags)
+                # C
+                test_builder = IgnoringCBuilder2(
+                    _flags=my_flags,
+                    _ignore=self.all_own_sibling_instances_filenames(env),
+                    _file_pattern=r"^.*\.(c|C)$",
+                    _output_flags=my_oflags,
+                )
         else:
-            #ignoring all test-code filenames for solution_builder
-            #ignoring all non test-code filenames for test_builder
+            # ignoring all test-code filenames for solution_builder
+            # ignoring all non test-code filenames for test_builder
 
             names = self.instance_filenames(env)
 
@@ -343,24 +374,47 @@ class CUnitChecker2(CheckerWithFile):
             my_test_oflags = self.test_output_flags(env)
             my_mut_oflags = self.mut_output_flags(env)
 
-
-
-            #languageCompiler C or CPP
+            # languageCompiler C or CPP
             if self.use_cppBuilder():
-                #CPP
-                solution_builder = IgnoringCXXBuilder2(_flags=my_mut_flags, _ignore=names + self.all_own_sibling_instances_filenames(env) , _file_pattern=r"^.*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$",_output_flags=my_mut_oflags)
-                test_builder = IgnoringCXXBuilder2(_flags=my_test_flags, _ignore=ignore_Filenames, _file_pattern=r"^.*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$",_output_flags=my_test_oflags)
+                # CPP
+                solution_builder = IgnoringCXXBuilder2(
+                    _flags=my_mut_flags,
+                    _ignore=names + self.all_own_sibling_instances_filenames(env),
+                    _file_pattern=r"^.*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$",
+                    _output_flags=my_mut_oflags,
+                )
+                test_builder = IgnoringCXXBuilder2(
+                    _flags=my_test_flags,
+                    _ignore=ignore_Filenames,
+                    _file_pattern=r"^.*\.(c|C|cc|CC|cxx|CXX|c\+\+|C\+\+|cpp|CPP)$",
+                    _output_flags=my_test_oflags,
+                )
             else:
-                #C
-                solution_builder = IgnoringCBuilder2(_flags=my_mut_flags, _ignore=names + self.all_own_sibling_instances_filenames(env) , _file_pattern=r"^.*\.(c|C)$",_output_flags=my_mut_oflags)
-                test_builder = IgnoringCBuilder2(_flags=my_test_flags, _ignore=ignore_Filenames, _file_pattern=r"^.*\.(c|C)$",_output_flags=my_test_oflags)
+                # C
+                solution_builder = IgnoringCBuilder2(
+                    _flags=my_mut_flags,
+                    _ignore=names + self.all_own_sibling_instances_filenames(env),
+                    _file_pattern=r"^.*\.(c|C)$",
+                    _output_flags=my_mut_oflags,
+                )
+                test_builder = IgnoringCBuilder2(
+                    _flags=my_test_flags,
+                    _ignore=ignore_Filenames,
+                    _file_pattern=r"^.*\.(c|C)$",
+                    _output_flags=my_test_oflags,
+                )
 
         build_solution_result = None
         if solution_builder:
             build_solution_result = solution_builder.run(env)
             if not build_solution_result.passed:
                 result.set_passed(False)
-                result.set_log( '<pre>' + escape(self.test_description) + '\n\n==========  Preprocessing =============\n*    Generating "Shared Object"       *\n* or "Executable" from solution files *\n======== Failure-Results ==============\n\n</pre><br/>\n'+build_solution_result.log )
+                result.set_log(
+                    "<pre>"
+                    + escape(self.test_description)
+                    + '\n\n==========  Preprocessing =============\n*    Generating "Shared Object"       *\n* or "Executable" from solution files *\n======== Failure-Results ==============\n\n</pre><br/>\n'
+                    + build_solution_result.log
+                )
                 return result
 
         build_test_result = test_builder.runFail(env, False)
@@ -369,72 +423,94 @@ class CUnitChecker2(CheckerWithFile):
             # result = self.create_result(env)
             # result += build_test_result
             result.set_passed(False)
-            result.set_log( '<pre>' + escape(self.test_description) + '\n\n==========  Preprocessing =============\n*    Generating  "Testing Executable" *\n======== Failure-Results ==============\n\n</pre><br/>\n'+build_test_result.log )
+            result.set_log(
+                "<pre>"
+                + escape(self.test_description)
+                + '\n\n==========  Preprocessing =============\n*    Generating  "Testing Executable" *\n======== Failure-Results ==============\n\n</pre><br/>\n'
+                + build_test_result.log
+            )
             return result
 
         environ: dict[str, str] = {}
 
-        environ['UPLOAD_ROOT'] = settings.UPLOAD_ROOT
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
+        environ["UPLOAD_ROOT"] = settings.UPLOAD_ROOT
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        environ["ALLOW_LLM_UPLOAD"] = "1" if env.solution().allow_llm_upload else "0"
 
-        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),'scripts')
+        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts")
 
-        cmd_par = self._test_par.split(' ') if self._test_par else []
-        cmd = [os.path.join(script_dir,self.runner()),self._test_name] + cmd_par
-        [output, _, exitcode,timed_out, oom_ed] = execute_arglist(cmd, env.tmpdir(),environment_variables=environ,timeout=settings.TEST_TIMEOUT,fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER, extradirs=[script_dir])
+        cmd_par = self._test_par.split(" ") if self._test_par else []
+        cmd = [os.path.join(script_dir, self.runner()), self._test_name] + cmd_par
+        [output, _, exitcode, timed_out, oom_ed] = execute_arglist(
+            cmd,
+            env.tmpdir(),
+            environment_variables=environ,
+            timeout=settings.TEST_TIMEOUT,
+            fileseeklimit=settings.TEST_MAXFILESIZE,
+            filenumberlimit=settings.TEST_MAXFILENUMBER,
+            extradirs=[script_dir],
+        )
 
-        #result = self.create_result(env)
+        # result = self.create_result(env)
 
-        (output,truncated) = truncated_log(output)
-        output = '<pre>' + escape(self.test_description) + '\n\n======== Test Results ======\n\n</pre><br/><pre>' + escape(output) + '</pre>'
+        (output, truncated) = truncated_log(output)
+        output = (
+            "<pre>"
+            + escape(self.test_description)
+            + "\n\n======== Test Results ======\n\n</pre><br/><pre>"
+            + escape(output)
+            + "</pre>"
+        )
 
-
-        result.set_log(output,timed_out=timed_out or oom_ed,truncated=truncated,oom_ed=oom_ed)
+        result.set_log(output, timed_out=timed_out or oom_ed, truncated=truncated, oom_ed=oom_ed)
         result.set_passed(not exitcode and not timed_out and not oom_ed and self.output_ok(output))
         result.set_passed_with_warning(result.passed and truncated)
         result.save()
 
         return result
 
+
 class UnitCheckerCopyForm(AlwaysChangedModelForm):
     class Meta:
         model = CUnitChecker2
-        fields = '__all__'
+        fields = "__all__"
 
     def __init__(self, **args: Any) -> None:
-        """ override default values for the model fields """
+        """override default values for the model fields"""
         super().__init__(**args)
-        #self.fields["_flags"].initial = ""
-        #self.fields["_output_flags"].initial = ""
-        #self.fields["_libs"].initial = "junit3"
-        #self.fields["_file_pattern"].initial = r"^.*\.[jJ][aA][vV][aA]$"
-
+        # self.fields["_flags"].initial = ""
+        # self.fields["_output_flags"].initial = ""
+        # self.fields["_libs"].initial = "junit3"
+        # self.fields["_file_pattern"].initial = r"^.*\.[jJ][aA][vV][aA]$"
 
     def clean_filename(self) -> str | None:
-        filename = self.cleaned_data['filename']
-        if (not filename.strip()):
-            if 'file' in self.cleaned_data:
-                file = self.cleaned_data['file']
-                return (os.path.basename(file.name))
+        filename = self.cleaned_data["filename"]
+        if not filename.strip():
+            if "file" in self.cleaned_data:
+                file = self.cleaned_data["file"]
+                return os.path.basename(file.name)
             else:
                 return None
         else:
-            if 'file' in self.cleaned_data:
-                file = self.cleaned_data['file']
+            if "file" in self.cleaned_data:
+                file = self.cleaned_data["file"]
                 basename = os.path.basename(file.name)
-                force = self.data['force_save'] if 'force_save' in self.data else None
+                force = self.data["force_save"] if "force_save" in self.data else None
 
                 if not force:
                     if not (filename == basename):
-                        myerrmsg="{} \n {} \n {}".format(gettext_lazy('You should check \"Filename\" value. The correct name could be: '), basename , gettext_lazy('But you can save your given name for renaming file: just continue.'))
+                        myerrmsg = "{} \n {} \n {}".format(
+                            gettext_lazy('You should check "Filename" value. The correct name could be: '),
+                            basename,
+                            gettext_lazy("But you can save your given name for renaming file: just continue."),
+                        )
                         myerrmsg = format_html(
                             '{} <input type="hidden" id="force_save" name="force_save" value="1" />',
                             myerrmsg,
                         )
-                        self.add_error('filename',myerrmsg)
+                        self.add_error("filename", myerrmsg)
                     else:
                         return filename
                 else:
@@ -444,39 +520,45 @@ class UnitCheckerCopyForm(AlwaysChangedModelForm):
 
 
 class CUnitChecker2Inline(CheckerInline[CUnitChecker2]):
-    """ This Class defines how the the the checker is represented as inline in the task admin page. """
+    """This Class defines how the the the checker is represented as inline in the task admin page."""
+
     model: type[CUnitChecker2] = CUnitChecker2
     verbose_name = "C/C++ Unit Checker 2"
     form = UnitCheckerCopyForm
     # graphical layout
     fieldsets = (
-        (CUnitChecker2.description(), {
-        'fields': ('order',
-            ('public', 'required', 'always', 'critical'),
-            'name','test_description',
-            ( 'file', 'unpack_zipfile'),
-            ( 'path', 'filename'),
-            '_sol_name',
-            ('_sol_ignore', '_sol_flags'),
-            '_test_name',
-            ('_test_ignore', '_test_flags'),
-            'cunit_version',
-            'link_type',
-            '_test_par'),
-        }),
+        (
+            CUnitChecker2.description(),
+            {
+                "fields": (
+                    "order",
+                    ("public", "required", "always", "critical"),
+                    "name",
+                    "test_description",
+                    ("file", "unpack_zipfile"),
+                    ("path", "filename"),
+                    "_sol_name",
+                    ("_sol_ignore", "_sol_flags"),
+                    "_test_name",
+                    ("_test_ignore", "_test_flags"),
+                    "cunit_version",
+                    "link_type",
+                    "_test_par",
+                ),
+            },
+        ),
     )
-
 
 
 # A more advanced example: By overwriting the form of the checkerinline the initial values of the inherited attributes can be overritten.
 # An other example would be to validate the inputfields in the form. (See Django documentation)
-#class ExampleForm(AlwaysChangedModelForm):
-    #def __init__(self, **args):
-        #""" override public and required """
-        #super(ExampleForm, self).__init__(**args)
-        #self.fields["public"].initial = False
-        #self.fields["required"].initial = False
+# class ExampleForm(AlwaysChangedModelForm):
+# def __init__(self, **args):
+# """ override public and required """
+# super(ExampleForm, self).__init__(**args)
+# self.fields["public"].initial = False
+# self.fields["required"].initial = False
 
-#class ExampleCheckerInline(CheckerInline):
-    #model = ExampleChecker
-    #form = ExampleForm
+# class ExampleCheckerInline(CheckerInline):
+# model = ExampleChecker
+# form = ExampleForm

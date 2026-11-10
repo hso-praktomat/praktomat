@@ -9,7 +9,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
-    help: str = 'Copies the demo database into the application support folder'
+    help: str = "Copies the demo database into the application support folder"
 
     def handle_noargs(self, **options: Any) -> None:
         backup_archive: str | None = None
@@ -18,8 +18,8 @@ class Command(BaseCommand):
             demo_support_folder = join(dir(dir(dir(dir(dir(dir(__file__)))))), "examples", "PraktomatSupport")
 
             # create a backup
-            archive_base = join(tempfile.gettempdir(), 'backup')
-            backup_archive = shutil.make_archive(archive_base, 'zip', application_support_folder)
+            archive_base = join(tempfile.gettempdir(), "backup")
+            backup_archive = shutil.make_archive(archive_base, "zip", application_support_folder)
 
             # delete old app support folder
             shutil.rmtree(application_support_folder)
@@ -30,7 +30,11 @@ class Command(BaseCommand):
             # copy backup
             shutil.copy(backup_archive, application_support_folder)
 
-            print('Successfully installed demo files and database. Backup of old files in "{}"'.format(join(application_support_folder, 'backup.zip')))
+            print(
+                'Successfully installed demo files and database. Backup of old files in "{}"'.format(
+                    join(application_support_folder, "backup.zip")
+                )
+            )
 
         except OSError as error:
             message = "An ERROR occurred while installing the demo files."

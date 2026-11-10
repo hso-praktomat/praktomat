@@ -16,58 +16,76 @@ from utilities.safeexec import execute_arglist
 
 
 class ClassFileGeneratingBuilder(Builder):
-    """ A base class for Builders that generate .class files """
+    """A base class for Builders that generate .class files"""
 
     class Meta(Builder.Meta):
         abstract = True
 
     def main_module(self, env: CheckerEnvironment) -> str:
-        """ find the first class file containing a main method """
+        """find the first class file containing a main method"""
         main_method = "public static void main(java.lang.String[])"
         main_method_varargs = "public static void main(java.lang.String...)"
-        class_name  = re.compile(r"^(public )?(abstract )?(final )?(class|interface) ([^ ]*)( extends .*)?( implements .*)? \{$", re.MULTILINE)
+        class_name = re.compile(
+            r"^(public )?(abstract )?(final )?(class|interface) ([^ ]*)( extends .*)?( implements .*)? \{$",
+            re.MULTILINE,
+        )
         class_files: list[str] = []
         for dirpath, _, files in os.walk(env.tmpdir()):
             for filename in files:
                 if filename.endswith(".class"):
                     class_files.append(filename)
-                    environ=self.environment()
-                    environ['LANG'] = settings.LANG
-                    environ['LANGUAGE'] = settings.LANGUAGE
-                    environ['TASK_ID_CUSTOM'] = env.task().custom_id
-                    [classinfo, _, _, _, _]  = execute_arglist([settings.JAVAP, os.path.join(dirpath, filename)], env.tmpdir(), environ, unsafe=True)
+                    environ = self.environment()
+                    environ["LANG"] = settings.LANG
+                    environ["LANGUAGE"] = settings.LANGUAGE
+                    environ["TASK_ID_CUSTOM"] = env.task().custom_id
+                    [classinfo, _, _, _, _] = execute_arglist(
+                        [settings.JAVAP, os.path.join(dirpath, filename)], env.tmpdir(), environ, unsafe=True
+                    )
                     if classinfo.find(main_method) >= 0 or classinfo.find(main_method_varargs) >= 0:
                         match = class_name.search(classinfo)
                         if match is None:
                             raise self.NotFoundError(f"Could not identify the main class in {filename}:\n{classinfo}")
                         return match.group(5)
 
-        raise self.NotFoundError("A class containing the main method ('public static void main(String[] args)') could not be found in the files {}".format(", ".join(class_files)))
+        raise self.NotFoundError(
+            "A class containing the main method ('public static void main(String[] args)') could not be found in the files {}".format(
+                ", ".join(class_files)
+            )
+        )
+
 
 class JavaBuilder(ClassFileGeneratingBuilder):
-    """     A Java bytecode compiler for construction. """
+    """A Java bytecode compiler for construction."""
 
     # Initialization sets own attributes to default values.
-    _compiler    = settings.JAVA_BINARY_SECURE
-    _language    = "Java"
-    _env            = {}
-    _env['JAVAC'] = settings.JAVA_BINARY
-    _env['JAVAP'] = settings.JAVAP
+    _compiler = settings.JAVA_BINARY_SECURE
+    _language = "Java"
+    _env = {}
+    _env["JAVAC"] = settings.JAVA_BINARY
+    _env["JAVAP"] = settings.JAVAP
 
     def libs(self) -> list[str]:
         required_libs = super().libs()
 
-        return ["-cp", ".:"+(":".join([ settings.JAVA_LIBS[lib] for lib in required_libs if lib in settings.JAVA_LIBS ]))]
+        return [
+            "-cp",
+            ".:" + (":".join([settings.JAVA_LIBS[lib] for lib in required_libs if lib in settings.JAVA_LIBS])),
+        ]
 
     def flags(self, env: CheckerEnvironment) -> list[str]:
-        """ Accept unicode characters. """
+        """Accept unicode characters."""
         return (self._flags.split(" ") if self._flags else []) + ["-encoding", "utf-8"]
 
-    def build_log(
-        self, output: str, args: list[str], filenames: set[str]
-    ) -> str:
-        t = get_template('checker/compiler/java_builder_report.html')
-        return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
+    def build_log(self, output: str, args: list[str], filenames: set[str]) -> str:
+        t = get_template("checker/compiler/java_builder_report.html")
+        return t.render(
+            {
+                "filenames": filenames,
+                "output": output,
+                "cmdline": os.path.basename(args[0]) + " " + reduce(lambda parm, ps: parm + " " + ps, args[1:], ""),
+            }
+        )
+
 
 from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
     AlwaysChangedModelForm,
@@ -77,12 +95,13 @@ from checker.admin import (  # noqa: E402  # Load after model definitions to avo
 
 class CheckerForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
-        """ override default values for the model fields """
+        """override default values for the model fields"""
         super().__init__(**args)
         self.fields["_flags"].initial = ""
         self.fields["_output_flags"].initial = ""
-        #self.fields["_libs"].initial = ""
+        # self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^.*\.[jJ][aA][vV][aA]$"
+
 
 class JavaBuilderInline(CheckerInline[JavaBuilder]):
     model: type[JavaBuilder] = JavaBuilder

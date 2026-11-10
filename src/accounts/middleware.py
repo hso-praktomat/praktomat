@@ -23,12 +23,13 @@ from configuration import get_settings
 
 async def application_auser(request: HttpRequest) -> AbstractBaseUser | AnonymousUser:
     user = await sync_to_async(resolve_user)(await auser(request))
-    setattr(request, '_acached_user', user)  # noqa: B010  # Django authentication middleware uses this private cache attribute.
+    setattr(request, "_acached_user", user)  # noqa: B010  # Django authentication middleware uses this private cache attribute.
     return user
 
 
 class AuthenticationMiddleware(DjangoAuthenticationMiddleware):
-    """ Get user subclass insted of baseclass in request.user"""
+    """Get user subclass insted of baseclass in request.user"""
+
     def process_request(self, request: HttpRequest) -> None:
         super().process_request(request)
         # Django's lazy proxy delegates to this user but is not its static subtype.
@@ -38,22 +39,22 @@ class AuthenticationMiddleware(DjangoAuthenticationMiddleware):
         )
         request.auser = partial(application_auser, request)
 
+
 class LogoutInactiveUserMiddleware(MiddlewareMixin):
-    """ Logout users who have been set to inactive so they can't use their sessions to operate on the site. """
-    def process_request(
-        self, request: HttpRequest
-    ) -> HttpResponseRedirect | None:
+    """Logout users who have been set to inactive so they can't use their sessions to operate on the site."""
+
+    def process_request(self, request: HttpRequest) -> HttpResponseRedirect | None:
         if not request.user.is_authenticated:
             return
         if not request.user.is_active:
             logout(request)
-            return HttpResponseRedirect(reverse('registration_deactivated'))
+            return HttpResponseRedirect(reverse("registration_deactivated"))
+
 
 class DisclaimerAcceptanceMiddleware(MiddlewareMixin):
-    """ Make users accept the disclaimer (if required by the settings) before using the site. """
-    def process_request(
-        self, request: HttpRequest
-    ) -> HttpResponseRedirect | None:
+    """Make users accept the disclaimer (if required by the settings) before using the site."""
+
+    def process_request(self, request: HttpRequest) -> HttpResponseRedirect | None:
         if not request.user.is_authenticated:
             return
         if not get_settings().requires_disclaimer_acceptance:
@@ -61,5 +62,5 @@ class DisclaimerAcceptanceMiddleware(MiddlewareMixin):
         user = require_user(request)
         if not user.accepted_disclaimer:
             # prevent infinite redirects or catching logout requests
-            if request.path not in {reverse('accept_disclaimer'), reverse('logout')}:
-                return HttpResponseRedirect(reverse('accept_disclaimer'))
+            if request.path not in {reverse("accept_disclaimer"), reverse("logout")}:
+                return HttpResponseRedirect(reverse("accept_disclaimer"))

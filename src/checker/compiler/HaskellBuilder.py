@@ -17,14 +17,13 @@ from utilities.safeexec import execute_arglist
 
 
 class HaskellBuilder(Builder):
-    """ A Haskell Compiler """
+    """A Haskell Compiler"""
 
     # Initialization sets own attributes to default values.
-    _compiler    = settings.GHC
-    _language    = "Haskell"
-    _env            = {}
+    _compiler = settings.GHC
+    _language = "Haskell"
+    _env = {}
     _detected_main: str | None = None
-
 
     def main_module(self, env: CheckerEnvironment) -> str:
         if self._detected_main:
@@ -33,29 +32,35 @@ class HaskellBuilder(Builder):
 
     def libs(self) -> list[str]:
         required_libs = super().libs()
-        return [argument for library_flags in [["-package", lib] for lib in required_libs] for argument in library_flags]
+        return [
+            argument for library_flags in [["-package", lib] for lib in required_libs] for argument in library_flags
+        ]
 
     def flags(self, env: CheckerEnvironment) -> list[str]:
-        """ Always use -v1, since we grep the output for linked binaries, if any"""
+        """Always use -v1, since we grep the output for linked binaries, if any"""
         return (self._flags.split(" ") if self._flags else []) + ["-v1"]
 
-    def build_log(
-        self, output: str, args: list[str], filenames: set[str]
-    ) -> str:
-        t = get_template('checker/compiler/haskell_builder_report.html')
-        return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
+    def build_log(self, output: str, args: list[str], filenames: set[str]) -> str:
+        t = get_template("checker/compiler/haskell_builder_report.html")
+        return t.render(
+            {
+                "filenames": filenames,
+                "output": output,
+                "cmdline": os.path.basename(args[0]) + " " + reduce(lambda parm, ps: parm + " " + ps, args[1:], ""),
+            }
+        )
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
-        """ Build it. """
+        """Build it."""
         result = self.create_result(env)
 
         filenames = [name for name in self.get_file_names(env)]
         args = [self.compiler()] + self.flags(env) + filenames + self.libs()
         environ = self.environment()
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        [output, _, _, _, _]  = execute_arglist(args, env.tmpdir(), environ)
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        [output, _, _, _, _] = execute_arglist(args, env.tmpdir(), environ)
 
         has_main = re.search(r"^Linking ([^ ]*) ...$", output, re.MULTILINE)
         if has_main:
@@ -66,7 +71,13 @@ class HaskellBuilder(Builder):
 
         # We mustn't have any warnings.
         passed = not self.has_warnings(output)
-        log  = self.build_log(output, args, set(filenames).intersection([solutionfile.path() for solutionfile in env.solution().solutionfile_set.all()]))
+        log = self.build_log(
+            output,
+            args,
+            set(filenames).intersection(
+                [solutionfile.path() for solutionfile in env.solution().solutionfile_set.all()]
+            ),
+        )
 
         # Now that submission was successfully built, try to find the main modules name again
         try:
@@ -80,6 +91,7 @@ class HaskellBuilder(Builder):
         result.set_log(log)
         return result
 
+
 from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
     AlwaysChangedModelForm,
     CheckerInline,
@@ -88,12 +100,13 @@ from checker.admin import (  # noqa: E402  # Load after model definitions to avo
 
 class CheckerForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
-        """ override default values for the model fields """
+        """override default values for the model fields"""
         super().__init__(**args)
         self.fields["_flags"].initial = "-XSafe"
         self.fields["_output_flags"].initial = ""
-        #self.fields["_libs"].initial = ""
+        # self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^.*\.[hH][sS]$"
+
 
 class HaskellBuilderInline(CheckerInline[HaskellBuilder]):
     model: type[HaskellBuilder] = HaskellBuilder

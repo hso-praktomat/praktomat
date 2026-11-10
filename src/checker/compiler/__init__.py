@@ -12,12 +12,13 @@ if TYPE_CHECKING:
         ScalaBuilder,
     )
 
-__all__ = [    "Builder",
-            "CBuilder",
-            "CXXBuilder",
-            "JavaBuilder",
-            "FortranBuilder",
-            "HaskellBuilder",
-            "ScalaBuilder",
-            "CLinker",
-            ]
+__all__ = [
+    "Builder",
+    "CBuilder",
+    "CXXBuilder",
+    "JavaBuilder",
+    "FortranBuilder",
+    "HaskellBuilder",
+    "ScalaBuilder",
+    "CLinker",
+]

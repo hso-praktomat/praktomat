@@ -29,28 +29,21 @@ class IsabelleChecker(Checker):
     )
 
     def title(self) -> str:
-        """ Returns the title for this checker category. """
+        """Returns the title for this checker category."""
         return "Isabelle-Checker"
 
     def output_ok(self, output: str) -> bool:
         return RXFAIL.search(output) is None
 
-
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker. """
+        """Returns a description for this Checker."""
         return "Verifies that every submitted Isabelle theory can be processed without error"
-
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
 
-        thys = [
-            os.path.splitext(name)[0]
-            for name, _content in env.sources()
-        ]
-        additional_thys = [
-            name for name in re.split(" |,", self.additional_theories) if name
-        ]
+        thys = [os.path.splitext(name)[0] for name, _content in env.sources()]
+        additional_thys = [name for name in re.split(" |,", self.additional_theories) if name]
         user_thys = [name for name in thys if name not in additional_thys]
 
         platform: str = execute_arglist(
@@ -72,10 +65,10 @@ class IsabelleChecker(Checker):
             args += ["-T", t]
         args += ["-l", self.logic]
         environ: dict[str, str] = {}
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        environ["ALLOW_LLM_UPLOAD"] = "1" if env.solution().allow_llm_upload else "0"
         (output, _, _, timed_out, oom_ed) = execute_arglist(
             args,
             working_directory=env.tmpdir(),
@@ -91,10 +84,11 @@ class IsabelleChecker(Checker):
             output += "\n\n---- check aborted, out of memory ----\n"
 
         result = self.create_result(env)
-        result.set_log('<pre>' + escape(output) + '</pre>')
+        result.set_log("<pre>" + escape(output) + "</pre>")
         result.set_passed(not timed_out and not oom_ed and self.output_ok(output))
 
         return result
+
 
 from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
 

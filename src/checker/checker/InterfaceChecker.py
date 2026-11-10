@@ -12,29 +12,42 @@ from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
 
 class InterfaceChecker(Checker):
-
     ## use interface model class instead as soon as nested admin inlines are possible (see below)
-    interface1: "models.CharField[str, str]" = models.CharField(max_length=100, help_text=gettext_lazy("The name of the interface that must be implemented."))
-    interface2: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented."))
-    interface3: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented."))
-    interface4: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented."))
-    interface5: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented."))
-    interface6: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented."))
-    interface7: "models.CharField[str, str]" = models.CharField(max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented."))
+    interface1: "models.CharField[str, str]" = models.CharField(
+        max_length=100, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
+    interface2: "models.CharField[str, str]" = models.CharField(
+        max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
+    interface3: "models.CharField[str, str]" = models.CharField(
+        max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
+    interface4: "models.CharField[str, str]" = models.CharField(
+        max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
+    interface5: "models.CharField[str, str]" = models.CharField(
+        max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
+    interface6: "models.CharField[str, str]" = models.CharField(
+        max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
+    interface7: "models.CharField[str, str]" = models.CharField(
+        max_length=100, blank=True, help_text=gettext_lazy("The name of the interface that must be implemented.")
+    )
 
     def title(self) -> str:
-        """ Returns the title for this checker category. """
+        """Returns the title for this checker category."""
         return "Interface Checker"
 
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker. """
+        """Returns a description for this Checker."""
         s = "Diese Prüfung ist bestanden, wenn alle vorgegebenen Interfaces implementiert wurden."
         return s
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
-        """  Test if all interfaces were implemented correctly
-        If so, the interfaces are added to make it possible to compile them  """
+        """Test if all interfaces were implemented correctly
+        If so, the interfaces are added to make it possible to compile them"""
         result = self.create_result(env)
 
         implemented: list[str] = []
@@ -47,11 +60,18 @@ class InterfaceChecker(Checker):
         extExp = baseExp + "[0-9a-zA-Z_, ]*"
 
         # Iterate through sources and find out which interfaces were implemented
-        for (_name, content) in env.string_sources():
-            for interface in [self.interface1, self.interface2, self.interface3, self.interface4, self.interface5, self.interface6, self.interface7]: ##self.interface_set.all()
-
-                iname = interface ##.name
-                noComments = self._cutComments(content) # remove comments
+        for _name, content in env.string_sources():
+            for interface in [
+                self.interface1,
+                self.interface2,
+                self.interface3,
+                self.interface4,
+                self.interface5,
+                self.interface6,
+                self.interface7,
+            ]:  ##self.interface_set.all()
+                iname = interface  ##.name
+                noComments = self._cutComments(content)  # remove comments
 
                 expression = re.compile(baseExp + self._cleanName(iname), re.MULTILINE)
                 if expression.search(noComments):
@@ -64,10 +84,18 @@ class InterfaceChecker(Checker):
                         implemented.append(iname)
 
         # check if all interfaces were implemented
-        for interface in [self.interface1, self.interface2, self.interface3, self.interface4, self.interface5, self.interface6, self.interface7]: ##self.interface_set.all()
-            if interface not in implemented: ## interface.name
+        for interface in [
+            self.interface1,
+            self.interface2,
+            self.interface3,
+            self.interface4,
+            self.interface5,
+            self.interface6,
+            self.interface7,
+        ]:  ##self.interface_set.all()
+            if interface not in implemented:  ## interface.name
                 passed = 0
-                log += "Interface " + escape(interface) + " wurde nicht implementiert.<BR>" ## interface.name
+                log += "Interface " + escape(interface) + " wurde nicht implementiert.<BR>"  ## interface.name
 
         if not passed:
             log += """<p>Sie müssen alle vorgegebenen Interfaces implementieren.
@@ -79,29 +107,29 @@ class InterfaceChecker(Checker):
         return result
 
     def _cutComments(self, content: str) -> str:
-        """ Removes all java comments of the form /* ... */ or /** ... */
-        This prevents cheating """
+        """Removes all java comments of the form /* ... */ or /** ... */
+        This prevents cheating"""
         noComments: str = ""
 
-        #split the strings
-        partstmp = content.split('/*')
+        # split the strings
+        partstmp = content.split("/*")
         parts: list[str] = []
         for string in partstmp:
-            parts.extend(string.split('*/'))
+            parts.extend(string.split("*/"))
 
         # the 1st (index 0), 3rd(index 2), 5th etc. parts are not comments
         # so we will save only those in our string
         i = 0
         while i < len(parts):
             noComments += parts[i]
-            i+=2
+            i += 2
 
         return noComments
 
     def _cleanName(self, name: str) -> str:
-        """ Extracts the name of the interface/class from the filename, e.g.
-        _cleanName(INet.java) returns INet """
-        return name.split('.', maxsplit=1)[0]
+        """Extracts the name of the interface/class from the filename, e.g.
+        _cleanName(INet.java) returns INet"""
+        return name.split(".", maxsplit=1)[0]
 
 
 ## No nested inlines in Django 1.0.2 admin -> fixed amount of interfacenames into interface checker
@@ -112,8 +140,6 @@ class InterfaceChecker(Checker):
 ##    class Meta:
 ##        # Required for syncdb as of django 1.0.2 - the same as in Checker class!
 ##        app_label = 'checker'
-
-
 
 
 ##from django.contrib import admin
@@ -127,4 +153,6 @@ from checker.admin import CheckerInline  # noqa: E402  # Load after model defini
 
 class InterfaceCheckerInline(CheckerInline[InterfaceChecker]):
     model: type[InterfaceChecker] = InterfaceChecker
+
+
 ##    inlines =  [InterfaceInline]

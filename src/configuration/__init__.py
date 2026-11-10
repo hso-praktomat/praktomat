@@ -6,4 +6,5 @@ if TYPE_CHECKING:
 
 def get_settings() -> "Settings":
     from configuration.models import Settings
+
     return Settings.objects.get(id=1)

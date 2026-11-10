@@ -27,6 +27,8 @@ jobs:
       run: .venv/bin/python -m pyright --project . --warnings
     - name: Run Ruff
       run: .venv/bin/python -m ruff check src
+    - name: Check Ruff formatting
+      run: .venv/bin/python -m ruff format --check src
 
   test:
     name: Run tests (Python ${{ matrix.python-version }})

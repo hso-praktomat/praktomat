@@ -1,3 +1,2 @@
-
 # I think, it is not usefull to have the taskstatistic raw data "Table" inside the admin-interface.
 # So I do not write this admin view. (R.H. @H-BRS)

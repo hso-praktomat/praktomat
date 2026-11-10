@@ -30,10 +30,7 @@ from sessionprofile.models import SessionProfile
 
 
 class SessionProfileMiddleware:
-
-    def process_response(
-        self, request: HttpRequest, response: HttpResponseBase
-    ) -> HttpResponseBase:
+    def process_response(self, request: HttpRequest, response: HttpResponseBase) -> HttpResponseBase:
         try:
             # For certain cases (I think 404) the session attribute won't be set
             if hasattr(request, "session"):

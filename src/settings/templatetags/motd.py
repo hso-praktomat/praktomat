@@ -13,13 +13,15 @@ def do_get_motd(parser: Parser, token: Token) -> "MotdNode":
         raise template.TemplateSyntaxError(f"{tokens[0]!r} tag should have no arguments")
     return MotdNode()
 
+
 class MotdNode(template.Node):
     def __init__(self) -> None:
         pass
 
     def render(self, context: Context) -> str:
         if not settings.SYSADMIN_MOTD_URL:
-            return ''
+            return ""
         return f'<iframe src="{settings.SYSADMIN_MOTD_URL}" id="motd" onLoad="resize(\'motd\')" width="100%"> </iframe>'
 
-register.tag('motd', do_get_motd)
+
+register.tag("motd", do_get_motd)

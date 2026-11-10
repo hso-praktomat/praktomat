@@ -9,7 +9,6 @@ def get_unicode(bytestring: str | bytes) -> str:
         if isinstance(bytestring, str):
             return bytestring
 
-
         # Treat any 8-bit ASCII extension as latin1/western european
         charset = chardet.detect(bytestring)["encoding"]
         if charset:
@@ -25,11 +24,10 @@ def get_unicode(bytestring: str | bytes) -> str:
                     pass
                 except LookupError:
                     pass
-        raise UnicodeDecodeError(
-            "unknown", bytestring, 0, len(bytestring), "Unable to detect proper characterset"
-        )
+        raise UnicodeDecodeError("unknown", bytestring, 0, len(bytestring), "Unable to detect proper characterset")
     else:
-        return ''
+        return ""
+
 
 def get_utf8(unicodestring: str) -> bytes:
     return unicodestring.encode("utf-8")

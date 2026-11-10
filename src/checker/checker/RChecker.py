@@ -18,33 +18,23 @@ class RChecker(Checker):
         blank=True,
     )
     require_plots: "models.BooleanField[bool, bool]" = models.BooleanField(
-        default = False,
-        help_text = gettext_lazy("Require the script to create an Rplots.pdf file.")
-        )
+        default=False, help_text=gettext_lazy("Require the script to create an Rplots.pdf file.")
+    )
     keep_plots: "models.BooleanField[bool, bool]" = models.BooleanField(
-        default = True,
-        help_text = gettext_lazy("If the R script creates a Rplots.pdf file, keep it.")
-        )
-
-
+        default=True, help_text=gettext_lazy("If the R script creates a Rplots.pdf file, keep it.")
+    )
 
     def title(self) -> str:
-        """ Returns the title for this checker category. """
+        """Returns the title for this checker category."""
         return "R-Checker"
-
 
     @staticmethod
     def description() -> str:
-        """ Returns a description for this Checker. """
+        """Returns a description for this Checker."""
         return "Runs a submitted R script using the Rscript tool"
 
-
     def run(self, env: CheckerEnvironment) -> CheckerResult:
-        R_files = [
-            name
-            for (name, _content) in env.sources()
-            if os.path.splitext(name)[1] == '.R'
-            ]
+        R_files = [name for (name, _content) in env.sources() if os.path.splitext(name)[1] == ".R"]
 
         scriptname = None
         if len(R_files) == 0:
@@ -68,7 +58,7 @@ class RChecker(Checker):
             if len(R_files) > 1:
                 output = "<p>Multiple R scripts found in submission.</p>"
                 output += "<p>R scripts found: {}</p>".format(", ".join(map(escape, R_files)))
-                output +=" <p>Please submit exactly one file ending in <tt>.R</tt></p>"
+                output += " <p>Please submit exactly one file ending in <tt>.R</tt></p>"
                 result = self.create_result(env)
                 result.set_log(output)
                 result.set_passed(False)
@@ -78,10 +68,10 @@ class RChecker(Checker):
 
         args = ["Rscript", scriptname]
         environ: dict[str, str] = {}
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        environ["ALLOW_LLM_UPLOAD"] = "1" if env.solution().allow_llm_upload else "0"
         (output, _, exitcode, timed_out, oom_ed) = execute_arglist(
             args,
             working_directory=env.tmpdir(),
@@ -93,7 +83,7 @@ class RChecker(Checker):
             # else the program will crash right away with an error
             # (167 = ceil(100/0.6)).
             filenumberlimit=167,
-            )
+        )
 
         if timed_out:
             output += "\n\n---- script execution aborted, took too long ----\n"
@@ -115,13 +105,13 @@ class RChecker(Checker):
 
         if self.require_plots and not rplots_exists:
             output += "\n\n---- No Rplots.pdf file was generated, this was required ----\n"
-        result.set_log('<pre>' + escape(output) + '</pre>')
-        result.set_passed(exitcode == 0
-            and not timed_out
-            and not oom_ed
-            and not (self.require_plots and not rplots_exists))
+        result.set_log("<pre>" + escape(output) + "</pre>")
+        result.set_passed(
+            exitcode == 0 and not timed_out and not oom_ed and not (self.require_plots and not rplots_exists)
+        )
 
         return result
+
 
 from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
 

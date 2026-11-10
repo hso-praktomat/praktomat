@@ -14,63 +14,75 @@ from utilities.safeexec import execute_arglist
 
 
 class CLinker(Linker, LibraryHelper, MainNeedHelper):
-    """ A C compiler for construction. """
+    """A C compiler for construction."""
 
     class Meta(Linker.Meta, LibraryHelper.Meta, MainNeedHelper.Meta):
         abstract = False
 
     # Initialization sets attributes to default values.
-    _linker            = settings.C_BINARY
-    _OBJECTINSPECTOR    = "findMainInObject" # shell script name in folder scripts calling nm
-    _OBJINSPECT_PAR        = "nm -A -C".split(" ")
-    _language        = "C"
-    #_rx_warnings        = r"^([^ :]*:[^:].*)$"
-
+    _linker = settings.C_BINARY
+    _OBJECTINSPECTOR = "findMainInObject"  # shell script name in folder scripts calling nm
+    _OBJINSPECT_PAR = "nm -A -C".split(" ")
+    _language = "C"
+    # _rx_warnings        = r"^([^ :]*:[^:].*)$"
 
     def main_search(self, env: "CheckerEnvironment") -> str:
-        """ returns module name if main is found in object file """
-        #output of nm -A -C  mytest.o is: mytest.o:0000000d T main
-        nm_rx  = re.compile(r"^(.*/)*(.*)\.[oO]:[0-9A-Fa-f]* T (main)$", re.MULTILINE)
+        """returns module name if main is found in object file"""
+        # output of nm -A -C  mytest.o is: mytest.o:0000000d T main
+        nm_rx = re.compile(r"^(.*/)*(.*)\.[oO]:[0-9A-Fa-f]* T (main)$", re.MULTILINE)
         obj_files: list[str] = []
-        #ToDo: code review
-        o_solution_list = [re.sub(r"\.[cC]",r".o",name)\
-            for (name, _) in env.sources()\
-            if name.endswith(('.c','.C'))]
+        # ToDo: code review
+        o_solution_list = [re.sub(r"\.[cC]", r".o", name) for (name, _) in env.sources() if name.endswith((".c", ".C"))]
 
         for dirpath, _, files in os.walk(env.tmpdir()):
             for filename in files:
-                if filename.endswith(('.O', '.o')):
-                        #ToDo: code review
-                    #if object file corresponds to a student uploaded solution file
+                if filename.endswith((".O", ".o")):
+                    # ToDo: code review
+                    # if object file corresponds to a student uploaded solution file
                     if filename in o_solution_list:
                         obj_files.append(filename)
                         # Next let's shell out and search in object file for main
-                        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),'scripts')
-                        cmd = [os.path.join(script_dir, self._OBJECTINSPECTOR)] + self._OBJINSPECT_PAR + [os.path.join(dirpath,filename)]
-                        [objinfo, _, exitcode, _, _] = execute_arglist(cmd , env.tmpdir(), self.environment(), timeout=settings.TEST_TIMEOUT, fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER, extradirs=[script_dir])
-                        if exitcode != 0 :
-                            raise self.NotFoundError("Internal Server Error. Processing files {}".format(",".join(obj_files))+"\n"+objinfo)
+                        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts")
+                        cmd = (
+                            [os.path.join(script_dir, self._OBJECTINSPECTOR)]
+                            + self._OBJINSPECT_PAR
+                            + [os.path.join(dirpath, filename)]
+                        )
+                        [objinfo, _, exitcode, _, _] = execute_arglist(
+                            cmd,
+                            env.tmpdir(),
+                            self.environment(),
+                            timeout=settings.TEST_TIMEOUT,
+                            fileseeklimit=settings.TEST_MAXFILESIZE,
+                            filenumberlimit=settings.TEST_MAXFILENUMBER,
+                            extradirs=[script_dir],
+                        )
+                        if exitcode != 0:
+                            raise self.NotFoundError(
+                                "Internal Server Error. Processing files {}".format(",".join(obj_files))
+                                + "\n"
+                                + objinfo
+                            )
                         tmp = re.search(nm_rx, objinfo)
                         if tmp:
                             return tmp.group(2)
 
-        raise self.NotFoundError("An object containing the main symbol (i.e. 'int main(int argc, char* argv[])' ) could not be found in the files {}".format(", ".join(obj_files)))
+        raise self.NotFoundError(
+            "An object containing the main symbol (i.e. 'int main(int argc, char* argv[])' ) could not be found in the files {}".format(
+                ", ".join(obj_files)
+            )
+        )
 
-
-# todo: code review
+    # todo: code review
     def main_module(self, env: "CheckerEnvironment") -> str:
         return self.main_search(env)
-
 
     def get_file_names(self, env: "CheckerEnvironment") -> list[str]:
 
         # Get all object files corresponding to solutions C files.
-        o_solution_list = [re.sub(r"\.[cC]", r".o", name)\
-            for (name, _) in env.sources()\
-            if name.endswith(('.c','.C'))]
+        o_solution_list = [re.sub(r"\.[cC]", r".o", name) for (name, _) in env.sources() if name.endswith((".c", ".C"))]
 
-
-        #ToDo: rethink if object files should add to env here - perhaps not! ...
+        # ToDo: rethink if object files should add to env here - perhaps not! ...
         # add these object files to env sources
         existing_names = {name for name, _ in env.sources()}
         for filename in o_solution_list:
@@ -78,20 +90,15 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
                 env.add_source(filename, None)
                 existing_names.add(filename)
 
-        #rxarg = re.compile(self.rxarg())
-        #return [name for (name,content) in env.sources() if rxarg.match(name)]
+        # rxarg = re.compile(self.rxarg())
+        # return [name for (name,content) in env.sources() if rxarg.match(name)]
         return super().get_file_names(env)
 
-    def logbuilder(
-        self, output: str, args: list[str], env: "CheckerEnvironment"
-    ) -> str:
-        return self.build_log(output,args,self.get_file_names(env))
-
+    def logbuilder(self, output: str, args: list[str], env: "CheckerEnvironment") -> str:
+        return self.build_log(output, args, self.get_file_names(env))
 
     def pre_run(self, env: "CheckerEnvironment") -> str:
         return self.linker()
-
-
 
     def post_run(self, env: "CheckerEnvironment") -> tuple[bool, str]:
         passed = True
@@ -100,7 +107,7 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
             self.main_module(env)
 
         except self.NotFoundError as e:
-            log +=  str(e)
+            log += str(e)
             # But only complain if the main method is required
             if self.main_required():
                 log = "Error: " + log
@@ -111,11 +118,8 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
 
         return passed, log
 
-
     def connected_flags(self, env: "CheckerEnvironment") -> list[str]:
         return self.flags() + self.search_path() + self.libs()
-
-
 
 
 from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
@@ -125,20 +129,19 @@ from checker.admin import (  # noqa: E402  # Load after model definitions to avo
 
 
 class CheckerForm(AlwaysChangedModelForm):
+    """override default values for the model fields"""
 
-    """ override default values for the model fields """
     def __init__(self, **args: Any) -> None:
         super().__init__(**args)
         self.fields["_flags"].initial = "-Wl,--warn-common"
-        #self.fields["_output_flags"].initial = "-o %s"
-        #self.fields["_output_flags"].default = "-o %s"
-        #self.fields["_output_flags"].choices = _LINK_CHOICES
-        #self.fields["_output_flags"].help_text = gettext_lazy('\'%s\' will be replaced by the output name.')
+        # self.fields["_output_flags"].initial = "-o %s"
+        # self.fields["_output_flags"].default = "-o %s"
+        # self.fields["_output_flags"].choices = _LINK_CHOICES
+        # self.fields["_output_flags"].help_text = gettext_lazy('\'%s\' will be replaced by the output name.')
         self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^[a-zA-Z0-9_]*\.[oO]$"
-        #self.fields["_main_required"].label = gettext_lazy("link as executable program")
-        #self.fields["_main_required"].help_text = gettext_lazy("if not activated, object files code will be compiled to object file *.o! Compiler uses -c option")
-
+        # self.fields["_main_required"].label = gettext_lazy("link as executable program")
+        # self.fields["_main_required"].help_text = gettext_lazy("if not activated, object files code will be compiled to object file *.o! Compiler uses -c option")
 
 
 class CLinkerInline(CheckerInline[CLinker]):
