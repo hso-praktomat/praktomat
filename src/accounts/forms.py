@@ -1,20 +1,22 @@
 import re
 import typing as _typing
 
+from django import forms
 from django.conf import settings
+from django.contrib.auth.forms import AdminUserCreationForm as AdminUserBaseCreationForm
+from django.contrib.auth.forms import UserChangeForm as UserBaseChangeForm
+from django.contrib.auth.models import Group
+from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import QuerySet
 from django.template import loader
-from django.utils.translation import gettext_lazy
-from django.contrib.auth.models import Group
-from django import forms
-from django.contrib.auth.forms import AdminUserCreationForm as AdminUserBaseCreationForm, UserChangeForm as UserBaseChangeForm
-from django.core.mail import send_mail
 from django.utils.http import int_to_base36
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy
+
+from accounts.models import Tutorial, User
 from configuration import get_settings
 
-from accounts.models import User, Tutorial
 
 class MyRegistrationForm(
     AdminUserBaseCreationForm[User] if _typing.TYPE_CHECKING else AdminUserBaseCreationForm
@@ -26,7 +28,7 @@ class MyRegistrationForm(
             self.domain: str = kwargs.pop('domain')
         if 'use_https' in kwargs:
             self.use_https: bool = kwargs.pop('use_https')
-        super(MyRegistrationForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # overriding modelfields to ensure required fields are provided
     first_name = forms.CharField(max_length = 30, required=True)
@@ -54,15 +56,15 @@ class MyRegistrationForm(
         for user in User.objects.filter(mat_number=data):
             if user.is_activated():
                 trainer_group = Group.objects.get(name='Trainer')
-                trainers = ["<a href='mailto:%s'>%s</a>" % (trainer.email, trainer.get_full_name() or trainer.email) for trainer in User.objects.filter(groups=trainer_group)]
+                trainers = [f"<a href='mailto:{trainer.email}'>{trainer.get_full_name() or trainer.email}</a>" for trainer in User.objects.filter(groups=trainer_group)]
                 trainers = ', '.join(trainers)
-                raise forms.ValidationError(mark_safe("A user with this number is already registered. Please contact a trainer: %s" % trainers ))
+                raise forms.ValidationError(mark_safe(f"A user with this number is already registered. Please contact a trainer: {trainers}" ))
         return data
 
 
     @transaction.atomic
     def save(self, *args: _typing.Any, **kwargs: _typing.Any) -> User:
-        user: User = super(MyRegistrationForm, self).save(*args, **kwargs)
+        user: User = super().save(*args, **kwargs)
 
         # default group: user
         user.groups.set(Group.objects.filter(name='User'))
@@ -139,7 +141,7 @@ class AdminUserChangeForm(
 
     def clean(self) -> dict[str, _typing.Any]:
         # Require a mat number only if user is in group "User".
-        cleaned_data = super(AdminUserChangeForm, self).clean()
+        cleaned_data = super().clean()
         if cleaned_data is None:
             cleaned_data = self.cleaned_data
         groups: object = cleaned_data.get("groups")

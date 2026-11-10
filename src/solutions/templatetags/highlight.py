@@ -1,25 +1,25 @@
-from django import template
-from django.template.defaultfilters import stringfilter
-from django.utils.safestring import SafeString as _SafeString, mark_safe
-from django.utils.html import escape
 import re
 from collections.abc import Callable
 from importlib import import_module
 from typing import cast
-from pygments import highlight
+
+from django import template
+from django.template.defaultfilters import stringfilter
+from django.utils.html import escape
+from django.utils.safestring import SafeString as _SafeString
+from django.utils.safestring import mark_safe
+from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from pygments.lexer import Lexer as _Lexer
-from pygments import lexers
 from pygments.util import ClassNotFound
-
 
 # These registry/keyword-option APIs are absent or incomplete in types-Pygments.
 LEXERS = cast(
     dict[str, tuple[str, str, tuple[str, ...], tuple[str, ...], tuple[str, ...]]],
-    getattr(import_module('pygments.lexers._mapping'), 'LEXERS'),
+    import_module('pygments.lexers._mapping').LEXERS,
 )
-guess_lexer = cast(Callable[[str], _Lexer], getattr(lexers, 'guess_lexer'))
-guess_lexer_for_filename = cast(Callable[[str, str], _Lexer], getattr(lexers, 'guess_lexer_for_filename'))
+guess_lexer = cast(Callable[[str], _Lexer], getattr(lexers, 'guess_lexer'))  # noqa: B009  # Pygments exposes a partial type for this registry API.
+guess_lexer_for_filename = cast(Callable[[str, str], _Lexer], getattr(lexers, 'guess_lexer_for_filename'))  # noqa: B009  # Pygments exposes a partial type for this registry API.
 
 
 # This is a hack to register our Isabelle Lexer without patching pygments or using setuptools' entry_points.
@@ -39,7 +39,7 @@ def colorize(value: str, arg: str | None = None) -> _SafeString:
         formatter: HtmlFormatter[str] = HtmlFormatter()
         return mark_safe(highlight(value, get_lexer(value, arg), formatter))
     except ClassNotFound:
-        return mark_safe("<pre>%s</pre>" % escape(value))
+        return mark_safe(f"<pre>{escape(value)}</pre>")
 
 @register.filter(name='highlight_table')
 @stringfilter
@@ -48,7 +48,7 @@ def colorize_table(value: str, arg: str | None = None) -> _SafeString:
         formatter: HtmlFormatter[str] = HtmlFormatter(linenos='table')
         return mark_safe(highlight(value, get_lexer(value, arg), formatter))
     except ClassNotFound:
-        return mark_safe("<pre>%s</pre>" % escape(value))
+        return mark_safe(f"<pre>{escape(value)}</pre>")
 
 # --- rendering of annotated solution diffs ----------------------------------
 #
@@ -146,7 +146,7 @@ def _mark_characters(html_line: str, char_markers: str) -> str:
             column += 1
             pos = match.end()
         text = "".join(chars)
-        result.append('<span class="%s">%s</span>' % (css_class, text) if css_class else text)
+        result.append(f'<span class="{css_class}">{text}</span>' if css_class else text)
     return "".join(result)
 
 
@@ -163,22 +163,22 @@ def colorize_diff_table(
     html_lines = _highlight_lines([text for _, text, _ in records], arg)
 
     code: list[str] = []
-    for (marker, _text, char_markers), html_line in zip(records, html_lines):
+    for (marker, _text, char_markers), html_line in zip(records, html_lines, strict=False):
         if char_markers:
             html_line = _mark_characters(html_line, char_markers)
         css_class = DIFF_LINE_CLASSES.get(marker)
         if css_class:
             # The div is a block element and therefore already ends the line.
             # An empty one would collapse, so keep a zero width space in it.
-            code.append('<div class="changed %s">%s</div>' % (css_class, html_line or '&#8203;'))
+            code.append('<div class="changed {}">{}</div>'.format(css_class, html_line or '&#8203;'))
         else:
             code.append(html_line + "\n")
 
-    linenos = "\n".join('<span class="normal">%d</span>' % no for no in range(1, len(records) + 1))
+    linenos = "\n".join(f'<span class="normal">{number}</span>' for number in range(1, len(records) + 1))
 
     return mark_safe(
         '<table class="highlighttable"><tr>'
-        '<td class="linenos"><div class="linenodiv"><pre>%s</pre></div></td>'
-        '<td class="code"><div class="highlight"><pre>%s</pre></div></td>'
-        '</tr></table>' % (linenos, "".join(code))
+        '<td class="linenos"><div class="linenodiv"><pre>{}</pre></div></td>'
+        '<td class="code"><div class="highlight"><pre>{}</pre></div></td>'
+        '</tr></table>'.format(linenos, "".join(code))
     )

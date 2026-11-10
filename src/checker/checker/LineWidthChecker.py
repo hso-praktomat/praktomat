@@ -5,9 +5,11 @@ Line width checker
 import re
 
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
 from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class LineWidthChecker(Checker):
 
@@ -18,7 +20,7 @@ class LineWidthChecker(Checker):
 
     def title(self) -> str:
         """ Returns the title for this checker category. """
-        return "Maximale Zeilenbreite (%d Zeichen)" % self.max_line_length
+        return f"Maximale Zeilenbreite ({self.max_line_length} Zeichen)"
 
     @staticmethod
     def description() -> str:
@@ -44,8 +46,10 @@ class LineWidthChecker(Checker):
         exclude_re = re.compile(self.exclude, re.IGNORECASE)
 
         sources = env.string_sources()
-        if self.include: sources = [name_content for name_content in sources if include_re.search(name_content[0])]
-        if self.exclude: sources = [name_content1 for name_content1 in sources if not exclude_re.search(name_content1[0])]
+        if self.include:
+            sources = [name_content for name_content in sources if include_re.search(name_content[0])]
+        if self.exclude:
+            sources = [name_content1 for name_content1 in sources if not exclude_re.search(name_content1[0])]
 
         for (name, content) in sources:
             if not name or not content:
@@ -77,6 +81,8 @@ class LineWidthChecker(Checker):
         # That's all!
         return result
 
-from checker.admin import CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
 class LineWidthCheckerInline(CheckerInline[LineWidthChecker]):
     model: type[LineWidthChecker] = LineWidthChecker

@@ -5,7 +5,6 @@ from django.db import models
 from django.utils.html import escape
 from django.utils.translation import gettext_lazy
 
-from .JUnitChecker import RXFAIL
 from checker.admin import CheckerInline
 from checker.basemodels import (
     Checker,
@@ -14,6 +13,8 @@ from checker.basemodels import (
     truncated_log,
 )
 from utilities.safeexec import execute_arglist
+
+from .JUnitChecker import RXFAIL
 
 
 class JavaChecker(Checker):
@@ -39,19 +40,19 @@ class JavaChecker(Checker):
     )
 
     def title(self) -> str:
-        return u"Java based test: " + self.name
+        return "Java based test: " + self.name
 
     @staticmethod
     def description() -> str:
-        return u"This Checker runs a java class. The java class must be existing in the sandbox, or in the folder '" \
+        return "This Checker runs a java class. The java class must be existing in the sandbox, or in the folder '" \
                + settings.JAVA_CUSTOM_LIBS + \
-               u"'. You may want to use CreateFile Checker to " \
-               u"upload the .jar or java file and possibly input data files in the " \
-               u"sandbox before running this check. " \
-               u"JUnit tests will only be able to read input data files if they are " \
-               u"placed in the data/ subdirectory. The following arguments will be " \
-               u"passed to the main routine in the specified class: sandbox directory, " \
-               u"user id, mat_number, solution id"
+               "'. You may want to use CreateFile Checker to " \
+               "upload the .jar or java file and possibly input data files in the " \
+               "sandbox before running this check. " \
+               "JUnit tests will only be able to read input data files if they are " \
+               "placed in the data/ subdirectory. The following arguments will be " \
+               "passed to the main routine in the specified class: sandbox directory, " \
+               "user id, mat_number, solution id"
 
     def output_ok(self, output: str) -> bool:
         return RXFAIL.search(output) is None

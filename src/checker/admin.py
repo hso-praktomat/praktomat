@@ -1,3 +1,5 @@
+import typing as _typing
+
 from django.contrib import admin
 from django.db.models import QuerySet as _QuerySet
 from django.forms.models import ModelForm
@@ -5,9 +7,10 @@ from django.http import HttpRequest as _HttpRequest
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import SafeString as _SafeString
-import typing as _typing
-from .basemodels import Checker, CheckerResult
+
 from tasks.models import Task
+
+from .basemodels import Checker, CheckerResult
 
 _CheckerT = _typing.TypeVar('_CheckerT', bound=Checker)
 
@@ -42,7 +45,7 @@ class CheckerInline(
         # The stub's generic instance attribute is also used on the generated class.
         form = _typing.cast(
             "type[ModelForm[_CheckerT]]",
-            getattr(self.get_formset(request, obj, fields=None), 'form'),
+            getattr(self.get_formset(request, obj, fields=None), 'form'),  # noqa: B009  # Generic form metadata is exposed dynamically.
         )
         fields = list(form.base_fields.keys()) + list(self.get_readonly_fields(request, obj))
         fields.remove('public')
@@ -61,7 +64,7 @@ class CheckerResultAdmin(admin.ModelAdmin[CheckerResult] if _typing.TYPE_CHECKIN
     def get_queryset(
         self, request: _HttpRequest
     ) -> _QuerySet[CheckerResult, CheckerResult]:
-        qs = super(CheckerResultAdmin, self).get_queryset(request)
+        qs = super().get_queryset(request)
         qs = qs.select_related("solution", "solution__task", "solution__author")
         qs = qs.prefetch_related("checker")
         return qs

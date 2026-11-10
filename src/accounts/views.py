@@ -1,33 +1,44 @@
 #from accounts.forms import MyRegistrationForm
-from datetime import datetime
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponseRedirect
-from django.http import HttpResponse
-from django.http import HttpRequest
-from django.urls import reverse
-from django.template import Context, Template, loader
-from django.core.files.uploadedfile import UploadedFile
-from django.conf import settings
-from accounts.forms import MyRegistrationForm, UserChangeForm, ImportForm, ImportTutorialAssignmentForm, ImportMatriculationListForm, ImportUserTextsForm, AcceptDisclaimerForm
-from accounts.models import User, Tutorial
-from accounts.decorators import local_user_required
-from accounts.authentication import require_user
-from django.contrib.auth.models import Group
-from django.contrib.auth.decorators import login_required
-from django.contrib.sites.requests import RequestSite
-from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib import messages
-from django.utils.http import int_to_base36
-from django.core.mail import send_mail
-from django.utils.translation import gettext_lazy
-from configuration import get_settings
-from accounts.forms import ImportLDAPForm
-from accounts.ldap_auth import LDAPUser, fetch_ldapuser_dict, create_localuser_from_ldapuser
-
 import csv
 import io
+import logging
+from datetime import datetime
 from typing import cast
 
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import Group
+from django.contrib.sites.requests import RequestSite
+from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
+from django.core.mail import send_mail
+from django.db import IntegrityError
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
+from django.template import Context, Template, loader
+from django.urls import reverse
+from django.utils.http import int_to_base36
+from django.utils.translation import gettext_lazy
+
+from accounts.authentication import require_user
+from accounts.decorators import local_user_required
+from accounts.forms import (
+    AcceptDisclaimerForm,
+    ImportForm,
+    ImportLDAPForm,
+    ImportMatriculationListForm,
+    ImportTutorialAssignmentForm,
+    ImportUserTextsForm,
+    MyRegistrationForm,
+    UserChangeForm,
+)
+from accounts.ldap_auth import LDAPUser, create_localuser_from_ldapuser, fetch_ldapuser_dict
+from accounts.models import Tutorial, User
+from configuration import get_settings
+
+logger = logging.getLogger(__name__)
 
 def require_uploaded_file(value: object) -> "UploadedFile[bytes]":
     if not isinstance(value, UploadedFile):
@@ -106,7 +117,7 @@ def import_user(request: HttpRequest) -> HttpResponse:
         if form.is_valid():
             try:
                 imported_user = User.import_user(form.cleaned_data['file'])
-                messages.success(request, "The import was successfull. %i users imported." % imported_user.count())
+                messages.success(request, f"The import was successfull. {imported_user.count()} users imported.")
                 if form.cleaned_data['require_reactivation']:
                     for user in [user for user in imported_user if user.is_active]:
                         user.is_active = False
@@ -140,7 +151,7 @@ def import_user(request: HttpRequest) -> HttpResponse:
 @staff_member_required
 def import_ldap_user(request: HttpRequest) -> HttpResponse:
        """ View in the admin """
-       if request.method == 'POST': 
+       if request.method == 'POST':
                form = ImportLDAPForm(request.POST)
                if form.is_valid():
                        tutorial = form.cleaned_data['tutorial']
@@ -156,7 +167,7 @@ def import_ldap_user(request: HttpRequest) -> HttpResponse:
                                else:
                                        udict[uid] = ldap_user
                        if unknown_uids:
-                               messages.add_message(request, messages.ERROR, "ERROR! Import cancelled. Unknown UIDs: %s" % (", ".join(unknown_uids)))
+                               messages.add_message(request, messages.ERROR, "ERROR! Import cancelled. Unknown UIDs: {}".format(", ".join(unknown_uids)))
                                return render(request,'admin/accounts/user/import_ldap.html', {'form':form, 'title':"Import LDAP Users"  })
                        for uid in udict:
                                u = create_localuser_from_ldapuser(username=uid, ldapUser=udict[uid])
@@ -181,11 +192,11 @@ def import_tutorial_assignment(request: HttpRequest) -> HttpResponse:
             try:
                 reader = csv.reader(io.StringIO(file.read().decode('utf-8')), delimiter=str(form.cleaned_data['delimiter']), quotechar=str(form.cleaned_data['quotechar']))
             except UnicodeDecodeError as e:
-                messages.error(request, "Import failed: %s" % str(e))
+                messages.error(request, f"Import failed: {str(e)}")
                 return render(request, 'admin/accounts/user/import_tutorial_assignment.html', {'form': form, 'title':"Import tutorial assignment"  })
             succeeded = not_present = failed = 0
             user_id_column: int = form.cleaned_data['user_id_column']
-            for row in reader:
+            for row_number, row in enumerate(reader, start=1):
                 try:
                     user_id_type = form.cleaned_data['user_id_type']
                     user_id_value = row[user_id_column]
@@ -198,10 +209,27 @@ def import_tutorial_assignment(request: HttpRequest) -> HttpResponse:
                     user.tutorial = tutorial
                     user.save()
                     succeeded += 1
-                except:
+                except (
+                    IndexError,
+                    IntegrityError,
+                    Tutorial.DoesNotExist,
+                    Tutorial.MultipleObjectsReturned,
+                    User.DoesNotExist,
+                    User.MultipleObjectsReturned,
+                    ValidationError,
+                    ValueError,
+                ) as error:
                     failed += 1
+                    logger.warning(
+                        "Could not import tutorial assignment CSV row %d (%s).",
+                        row_number,
+                        type(error).__name__,
+                    )
             #assert False
-            messages.warning(request, "%i assignments were imported successfully, %i users not found, %i failed." % (succeeded, not_present, failed))
+            messages.warning(
+                request,
+                f"{succeeded} assignments were imported successfully, {not_present} users not found, {failed} failed.",
+            )
             return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
     else:
         form = ImportTutorialAssignmentForm()
@@ -218,10 +246,10 @@ def import_user_texts(request: HttpRequest) -> HttpResponse:
             try:
                 reader = csv.reader(io.StringIO(file.read().decode('utf-8')), delimiter=str(form.cleaned_data['delimiter']), quotechar=str(form.cleaned_data['quotechar']))
             except UnicodeDecodeError as e:
-                messages.error(request, "Import failed: %s" % str(e))
+                messages.error(request, f"Import failed: {str(e)}")
                 return render(request, 'admin/accounts/user/import_user_texts.html', {'form': form, 'title':"Import user texts"  })
             succeeded = not_present = failed = 0
-            for row in reader:
+            for row_number, row in enumerate(reader, start=1):
                 try:
                     matching_users = User.objects.filter(mat_number = row[0])
                     if not matching_users.exists():
@@ -232,10 +260,25 @@ def import_user_texts(request: HttpRequest) -> HttpResponse:
                     user.clean_fields()
                     user.save()
                     succeeded += 1
-                except:
+                except (
+                    IndexError,
+                    IntegrityError,
+                    User.DoesNotExist,
+                    User.MultipleObjectsReturned,
+                    ValidationError,
+                    ValueError,
+                ) as error:
                     failed += 1
+                    logger.warning(
+                        "Could not import user-text CSV row %d (%s).",
+                        row_number,
+                        type(error).__name__,
+                    )
             #assert False
-            messages.warning(request, "%i user texts were imported successfully, %i users not found, %i failed." % (succeeded, not_present, failed))
+            messages.warning(
+                request,
+                f"{succeeded} user texts were imported successfully, {not_present} users not found, {failed} failed.",
+            )
             return HttpResponseRedirect(reverse('admin:accounts_user_changelist'))
     else:
         form = ImportUserTextsForm()

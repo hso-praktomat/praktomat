@@ -1,6 +1,7 @@
 import re
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol, cast
+
 from pygments import lexer as lexer_module
 from pygments.lexer import RegexLexer, inherit, words
 from pygments.token import Comment, Keyword, String, Text
@@ -16,7 +17,7 @@ class _ByGroups(Protocol):
     def __call__(self, *tokens: tuple[str, ...]) -> object: ...
 
 
-bygroups = cast(_ByGroups, getattr(lexer_module, 'bygroups'))
+bygroups = cast(_ByGroups, getattr(lexer_module, 'bygroups'))  # noqa: B009  # Pygments exposes this lexer helper dynamically.
 
 __all__ = ['IsarLexer']
 

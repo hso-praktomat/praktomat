@@ -1,13 +1,13 @@
 import os
 import re
-from django.conf import settings
 
+from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
 from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 from utilities.safeexec import execute_arglist
-
 
 RXFAIL = re.compile(r"^\*\*\*", re.MULTILINE)
 
@@ -85,7 +85,7 @@ class IsabelleChecker(Checker):
         )
 
         if timed_out:
-            output += "\n\n---- check aborted after %d seconds ----\n" % settings.TEST_TIMEOUT
+            output += f"\n\n---- check aborted after {settings.TEST_TIMEOUT} seconds ----\n"
 
         if oom_ed:
             output += "\n\n---- check aborted, out of memory ----\n"
@@ -96,7 +96,8 @@ class IsabelleChecker(Checker):
 
         return result
 
-from checker.admin import    CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class IsabelleCheckerInline(CheckerInline[IsabelleChecker]):
     model: type[IsabelleChecker] = IsabelleChecker

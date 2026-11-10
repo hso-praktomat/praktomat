@@ -1,10 +1,10 @@
 import os
 from typing import Any
 
-from django.db import models
-from django.utils.translation import gettext_lazy
 from django.core.exceptions import ValidationError
+from django.db import models
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
 
 from checker.basemodels import (
     Checker,
@@ -13,6 +13,7 @@ from checker.basemodels import (
     CheckerResult,
 )
 from utilities.file_operations import copy_file, unpack_zipfile_to
+
 
 class CheckerWithFile(Checker):
     class Meta(Checker.Meta):
@@ -93,7 +94,7 @@ class CheckerWithFile(Checker):
         if clashes:
             result = self.create_result(env)
             result.set_passed(False)
-            result.set_log("These files already existed. Do NOT include them in your submissions:<br/><ul>\n" + "\n".join(["<li>%s</li>" % escape(f) for f in clashes]) + "</ul>")
+            result.set_log("These files already existed. Do NOT include them in your submissions:<br/><ul>\n" + "\n".join([f"<li>{escape(f)}</li>" for f in clashes]) + "</ul>")
             return result
 
         return None
@@ -119,18 +120,23 @@ class CreateFileChecker(CheckerWithFile):
 
 
     def show_publicly(self, passed: bool) -> bool:
-        return super(CreateFileChecker, self).show_publicly(passed) or (not passed)
+        return super().show_publicly(passed) or (not passed)
 
     def clean(self) -> None:
-        super(CreateFileChecker, self).clean()
-        if not (self.required and self.always and (not self.public)): raise ValidationError("Florian says: CreateFileCheckers have to be required, always, non-public")
+        super().clean()
+        if not (self.required and self.always and not self.public):
+            raise ValidationError("Florian says: CreateFileCheckers have to be required, always, non-public")
 
-from checker.admin import    CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class CopyForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
         """ override public and required """
-        super(CopyForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["public"].initial = False
         self.fields["required"].initial = True
 

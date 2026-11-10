@@ -2,18 +2,17 @@ import os
 import re
 import shlex
 from collections.abc import Collection
-from django.db import models
-from django.utils.translation import gettext_lazy
-from django.utils.html import escape
-from django.template.loader import get_template
+from functools import reduce
 
-from django.core.exceptions import ValidationError
 from django.conf import settings
-
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.template.loader import get_template
+from django.utils.html import escape
+from django.utils.translation import gettext_lazy
 
 from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 from utilities.safeexec import execute_arglist
-from functools import reduce
 
 
 def program_output_flags(flags: str, program: str | None) -> list[str]:
@@ -234,7 +233,7 @@ class CompilerOrLinker(Checker, IncludeHelper):
 
     def has_warnings(self, output: str) -> bool:
         """ Return true if there are any warnings in OUTPUT """
-        return re.compile(self._rx_warnings, re.MULTILINE).search(output) != None
+        return re.compile(self._rx_warnings, re.MULTILINE).search(output) is not None
 
     def logbuilder(
         self, output: str, args: list[str], env: CheckerEnvironment
@@ -280,7 +279,7 @@ class Compiler(CompilerOrLinker):
         return self._compiler
 
     def title(self) -> str:
-        return u"%s - Compiler" % self.language()
+        return f"{self.language()} - Compiler"
 
 
 #    def get_file_names(self,env):
@@ -290,12 +289,13 @@ class Compiler(CompilerOrLinker):
 
     def output_flags(self, env: CheckerEnvironment) -> list[str]:
         self._fetch_output_flags(self._output_flags)
-        return super(Compiler, self).output_flags(env)
+        return super().output_flags(env)
 
     def clean(self) -> None:
-        super(Compiler, self).clean()
+        super().clean()
         rx = re.compile(r"^.*(-c.*(-o.*|%s)).*$")
-        if rx.match(self._output_flags)  : raise ValidationError("You cannot put flag -c in combination with -o ; -c %s doesn't fit together, too.")
+        if rx.match(self._output_flags):
+            raise ValidationError("You cannot put flag -c in combination with -o ; -c %s doesn't fit together, too.")
 
 # ----------------------------- #
 
@@ -311,11 +311,11 @@ class Linker(CompilerOrLinker):
 
 
     _LINK_CHOICES = (
-      (u'out', u'-o %s (Link to executable program)'),
-      (u'so', u'-shared -fPIC -o %s (Link to shared object)'),
+      ('out', '-o %s (Link to executable program)'),
+      ('so', '-shared -fPIC -o %s (Link to shared object)'),
     )
 
-    _LINK_DICT = {u'out': u'-o', u'so': u'-shared -fPIC -o'}
+    _LINK_DICT = {'out': '-o', 'so': '-shared -fPIC -o'}
     _output_flags: "models.CharField[str, str]" = models.CharField(max_length=16, choices=_LINK_CHOICES,default="-o %s", help_text = gettext_lazy('choose link output type. \'%s\' will replaced by output_name. '))
 
 
@@ -329,7 +329,7 @@ class Linker(CompilerOrLinker):
         return True
 
     def title(self) -> str:
-        return u"%s - Linker" % self.language()
+        return f"{self.language()} - Linker"
 
 
 
@@ -339,9 +339,9 @@ class Linker(CompilerOrLinker):
 #        return [name for (name,content) in env.sources() if rxarg.match(name)]
 
     def output_flags(self, env: CheckerEnvironment) -> list[str]:
-        self._fetch_output_flags(self._LINK_DICT[self._output_flags]+ u' ' +self._output_name)
-        myOutputFlags = super(Linker, self).output_flags(env)
-        myOutputFlags[-1] = myOutputFlags[-1]+u"."+self._output_flags #append file ending
+        self._fetch_output_flags(self._LINK_DICT[self._output_flags]+ ' ' +self._output_name)
+        myOutputFlags = super().output_flags(env)
+        myOutputFlags[-1] = myOutputFlags[-1]+"."+self._output_flags #append file ending
         return myOutputFlags
 
 
@@ -367,7 +367,7 @@ class Builder(Checker):
     _main_required: "models.BooleanField[bool, bool]" = models.BooleanField(default = True, help_text = gettext_lazy('Is a submission required to provide a main method?'))
 
     def title(self) -> str:
-        return "%s - Compiler" % self.language()
+        return f"{self.language()} - Compiler"
 
     @staticmethod
     def description() -> str:
@@ -421,7 +421,7 @@ class Builder(Checker):
 
     def has_warnings(self, output: str) -> bool:
         """ Return true if there are any warnings in OUTPUT """
-        return re.compile(self._rx_warnings, re.MULTILINE).search(output) != None
+        return re.compile(self._rx_warnings, re.MULTILINE).search(output) is not None
 
     class NotFoundError(Exception):
         def __init__(self, description: str) -> None:

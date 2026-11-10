@@ -9,5 +9,5 @@ register: template.Library = template.Library()
 def list_item(lst: Sequence[object], i: int) -> object | None:
     try:
         return lst[i]
-    except:
+    except (IndexError, KeyError, TypeError):
         return None

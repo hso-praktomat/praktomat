@@ -1,15 +1,16 @@
+import os
 import re
 
+from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-from checker.basemodels import Checker, CheckerEnvironment, CheckerResult, truncated_log
-from checker.admin import CheckerInline
-from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
-from solutions.models import Solution
+from django.utils.translation import gettext_lazy
 
+from checker.admin import CheckerInline
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult, truncated_log
 from checker.compiler.JavaBuilder import JavaBuilder
+from solutions.models import Solution
+from utilities.safeexec import execute_arglist
 
 RXFAIL       = re.compile(r"^(.*)(FAILURES!!!|your program crashed|cpu time limit exceeded|ABBRUCH DURCH ZEITUEBERSCHREITUNG|Could not find class|Killed|failures)(.*)$",    re.MULTILINE)
 
@@ -18,7 +19,7 @@ class IgnoringJavaBuilder(JavaBuilder):
 
     def get_file_names(self, env: CheckerEnvironment) -> list[str]:
         rxarg = re.compile(self.rxarg())
-        return [name for (name, _content) in env.sources() if rxarg.match(name) and (not name in self._ignore)]
+        return [name for (name, _content) in env.sources() if rxarg.match(name) and (name not in self._ignore)]
 
     def set_ignored_files(self, ignored_files: list[str]) -> None:
         self._ignore = ignored_files
@@ -58,7 +59,7 @@ class JUnitChecker(Checker):
         return "This Checker runs a JUnit Testcases existing in the sandbox. You may want to use CreateFile Checker to create JUnit .java and possibly input data files in the sandbox before running the JavaBuilder. JUnit tests will only be able to read input data files if they are placed in the data/ subdirectory."
 
     def output_ok(self, output: str) -> bool:
-        return (RXFAIL.search(output) == None)
+        return (RXFAIL.search(output) is None)
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
         java_builder = IgnoringJavaBuilder(_flags="", _libs=self.junit_version, _file_pattern=r"^.*\.[jJ][aA][vV][aA]$", _output_flags="", _main_required=False)

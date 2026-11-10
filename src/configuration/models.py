@@ -1,5 +1,8 @@
+from datetime import date, timedelta
+from datetime import datetime as _datetime
+
 from django.db import models
-from datetime import date, datetime as _datetime, timedelta
+
 
 class Settings(models.Model):
     """ Singleton object containing site wide settings configurable by the trainer. """
@@ -7,6 +10,9 @@ class Settings(models.Model):
     class Meta:
         # Django admin adds an 's' to the class name; prevent SettingSS
         verbose_name = 'Setting'
+
+    def __str__(self) -> str:
+        return "Settings"
 
     email_validation_regex: "models.CharField[str, str]" = \
             models.CharField(
@@ -160,4 +166,4 @@ class Chunk(models.Model):
     content: "models.TextField[str, str]" = models.TextField(blank=True)
 
     def __str__(self) -> str:
-        return "%s" % (self.key,)
+        return f"{self.key}"

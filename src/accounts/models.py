@@ -1,32 +1,33 @@
 import datetime
-import re
 import hashlib
 import random
+import re
+from functools import reduce
 from typing import IO, TYPE_CHECKING, Any, Literal
 
-from functools import reduce
-
-from django.utils.translation import gettext_lazy
 from django.conf import settings
-from django.db import models, utils
-from django.contrib.auth.models import User as BasicUser, UserManager
 from django.contrib.admin import display
-from django.db.models import signals
-from django.core.validators import RegexValidator
+from django.contrib.auth.models import User as BasicUser
+from django.contrib.auth.models import UserManager
+from django.core import serializers
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.core import serializers
+from django.core.validators import RegexValidator
+from django.db import models, utils
+from django.db.models import signals
 from django.db.transaction import atomic
+from django.utils.translation import gettext_lazy
 
 from configuration import get_settings
 
 if TYPE_CHECKING:
-    from attestation.models import Attestation
-    from solutions.models import Solution
     from django.db.models.fields.related_descriptors import (
         ManyToManyDescriptor,
         ReverseManyToOneDescriptor,
     )
+
+    from attestation.models import Attestation
+    from solutions.models import Solution
 
 
 def validate_mat_number(value: int | None) -> None:
@@ -51,10 +52,10 @@ class User(BasicUser):
     tutorial: "models.ForeignKey[Tutorial | None, Tutorial | None]" = models.ForeignKey('Tutorial', on_delete=models.SET_NULL, null=True, blank=True, help_text = gettext_lazy("The tutorial the student belongs to."))
     tutorial_id: int | None
     mat_number: "models.IntegerField[int | None, int | None]" = models.IntegerField( null=True, blank=True, validators=[validate_mat_number]) # special blank and unique validation in forms
-    final_grade: "models.CharField[str | None, str | None]" = models.CharField( null=True, blank=True, max_length=100,  help_text = gettext_lazy('The final grade for the whole class.'))
-    programme: "models.CharField[str | None, str | None]" = models.CharField(null=True, blank=True, max_length=100, help_text = gettext_lazy('The programme the student is enlisted in.'))
+    final_grade: "models.CharField[str | None, str | None]" = models.CharField( null=True, blank=True, max_length=100,  help_text = gettext_lazy('The final grade for the whole class.'))  # noqa: DJ001  # Preserve NULL for unset values without a data migration.
+    programme: "models.CharField[str | None, str | None]" = models.CharField(null=True, blank=True, max_length=100, help_text=gettext_lazy('The programme the student is enlisted in.'))  # noqa: DJ001  # Preserve NULL for unset values without a data migration.
     activation_key: "models.CharField[str, str]" = models.CharField(gettext_lazy('activation key'), max_length=40, editable=False)
-    user_text: "models.CharField[str | None, str | None]" = models.CharField(null=True, blank=True, max_length=500, help_text = gettext_lazy("Custom text which will be shown to this student."))
+    user_text: "models.CharField[str | None, str | None]" = models.CharField(null=True, blank=True, max_length=500, help_text=gettext_lazy("Custom text which will be shown to this student."))  # noqa: DJ001  # Preserve NULL for unset values without a data migration.
     accepted_disclaimer: "models.BooleanField[bool, bool]" = models.BooleanField(default=False, help_text="Whether the user accepted the disclaimer.")
 
     # Use UserManager to get the create_user method, etc.
@@ -65,7 +66,7 @@ class User(BasicUser):
         ordering: list[str] = ['first_name', 'last_name']
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(User, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._cached_groups = None
 
     def __str__(self) -> str:
@@ -146,7 +147,7 @@ class User(BasicUser):
 
     def is_shibboleth_user(self) -> bool:
         return not self.has_usable_password() and not self.is_ldap_user()
-	
+
     def is_ldap_user(self) -> bool:
         return self.password == 'LDAP_AUTH'
 
@@ -205,14 +206,14 @@ class User(BasicUser):
                     pass # unique username validation - user already existed
             else:
                 raise ValidationError(
-                    "Invalid model class in user import: %s" % object._meta.label
+                    f"Invalid model class in user import: {object._meta.label}"
                 )
         return User.objects.filter(id__in = imported_user_ids)     # get them fresh from the db, otherwise the user object won't have basicUser attributes set
 
     def clean(self) -> None:
-        super(User, self).clean()
-        if settings.DUMMY_MAT_NUMBERS:			
-            self.mat_number = self.id			
+        super().clean()
+        if settings.DUMMY_MAT_NUMBERS:
+            self.mat_number = self.id
 
     def tutored_users(self) -> "models.QuerySet[User, User] | None":
         tutored_users = None
@@ -254,9 +255,9 @@ class Tutorial(models.Model):
     # A Tutorial may have many tutors as well as a Tutor may have multiple tutorials
     tutors: "models.ManyToManyField[User, models.Model]" = models.ManyToManyField('User', limit_choices_to = {'groups__name': 'Tutor'}, related_name='tutored_tutorials', help_text = gettext_lazy("The tutors in charge of the tutorial."))
 
+    def __str__(self) -> str:
+        return f"{self.name}: {self.tutors_flat()}"
+
     @display(description=gettext_lazy('Tutors'))
     def tutors_flat(self) -> str:
         return reduce(lambda x, y: x + ', ' + y.get_full_name(), self.tutors.all(), '')[2:]
-
-    def __str__(self) -> str:
-        return("%s: %s" % (self.name, self.tutors_flat()))

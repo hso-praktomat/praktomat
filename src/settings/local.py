@@ -5,8 +5,8 @@
 #
 # If you are not deploying on praktomat.cs.kit.edu you need to rewrite this file.
 
-from os.path import join, dirname, basename
 import re
+from os.path import basename, dirname, join
 
 PRAKTOMAT_PATH = dirname(dirname(dirname(__file__)))
 
@@ -50,9 +50,9 @@ if match:
 
     year = int(match.group('year'))
     if match.group('semester') == "WS":
-        site_name += "Wintersemester %d/%d" % (year, year+1)
+        site_name += f"Wintersemester {year}/{year + 1}"
     else:
-        site_name += "Sommersemester %d" % year
+        site_name += f"Sommersemester {year}"
 
     MIRROR = match.group('mirror') is not None
     if MIRROR:
@@ -230,5 +230,6 @@ LANG = "en_US.UTF-8"
 LANGUAGE = "en_US:en"
 
 # Finally load defaults for missing settings.
-from . import defaults
+from . import defaults  # noqa: E402  # Import defaults only after mode-specific settings are initialized.
+
 defaults.load_defaults(globals())

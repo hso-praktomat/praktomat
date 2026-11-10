@@ -7,6 +7,7 @@ from typing import Any
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+
 class Command(BaseCommand):
     help: str = 'Make a user a superuser.'
 
@@ -23,11 +24,11 @@ class Command(BaseCommand):
 
         try:
             user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            raise CommandError('User "%s" does not exist' % username)
+        except User.DoesNotExist as error:
+            raise CommandError(f'User "{username}" does not exist') from error
 
         if verbosity >= 1:
-            self.stdout.write('Found user %s\n' % user)
+            self.stdout.write(f'Found user {user}\n')
         user.is_staff = True
         user.is_active = True
         user.is_superuser = True

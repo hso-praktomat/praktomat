@@ -1,11 +1,12 @@
-from typing import Any
-
-from django.core.management.base import BaseCommand, CommandError
-from django.conf import settings
-
-from os.path import join, dirname as dir
 import shutil
 import tempfile
+from os.path import dirname as dir
+from os.path import join
+from typing import Any
+
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
+
 
 class Command(BaseCommand):
     help: str = 'Copies the demo database into the application support folder'
@@ -29,7 +30,7 @@ class Command(BaseCommand):
             # copy backup
             shutil.copy(backup_archive, application_support_folder)
 
-            print('Successfully installed demo files and database. Backup of old files in "%s"' % join(application_support_folder, 'backup.zip'))
+            print('Successfully installed demo files and database. Backup of old files in "{}"'.format(join(application_support_folder, 'backup.zip')))
 
         except OSError as error:
             message = "An ERROR occurred while installing the demo files."

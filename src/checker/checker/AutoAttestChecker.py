@@ -1,19 +1,19 @@
 """
 AutoAttestChecker (based on code of S.B. (HBRS FB02,2013) updated by Robert Hartmann,HBRS FB02, 2013 - 2016,2020,2022)
 """
+from datetime import datetime
 from typing import Any
 
-
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy
-#from django.utils.encoding import force_unicode
-from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
-from django.core.exceptions import ValidationError
-from utilities.file_operations import *
 
 from accounts.models import User
 from attestation.models import Attestation
-from datetime import datetime
+
+#from django.utils.encoding import force_unicode
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class AutoAttestChecker(Checker):
 
@@ -24,7 +24,7 @@ class AutoAttestChecker(Checker):
     published: "models.BooleanField[bool, bool]" = models.BooleanField(default = True, help_text = gettext_lazy('Indicates whether the user can see the attestation.'))
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(AutoAttestChecker, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         for name, default in (
             ('always', False), ('public', False), ('required', False),
             ('final', True), ('published', True),
@@ -35,17 +35,18 @@ class AutoAttestChecker(Checker):
             field.default = default
 
     def clean(self) -> None:
-        super(AutoAttestChecker, self).clean()
-        if (self.required or self.always or self.public): raise ValidationError("Robert says: AutoAttestChecker have to be non-required, non-always, non-public")
+        super().clean()
+        if self.required or self.always or self.public:
+            raise ValidationError("Robert says: AutoAttestChecker have to be non-required, non-always, non-public")
 
     def title(self) -> str:
         """ Returns the title for this checker category. """
-        return u"Attestation eintragen, wenn alle bisherigen Checker erfolgreiches Ergebnis hatten."
+        return "Attestation eintragen, wenn alle bisherigen Checker erfolgreiches Ergebnis hatten."
 
     @staticmethod
     def description() -> str:
         """ Returns a description for this Checker. """
-        return u"Dies ist keine Prüfung, sondern trägt eine automatische Attestation ein."
+        return "Dies ist keine Prüfung, sondern trägt eine automatische Attestation ein."
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
         """ Runs tests in a special environment. Here's the actual work.
@@ -60,7 +61,7 @@ class AutoAttestChecker(Checker):
                 else:
                     checkers_failed += 1
 
-	#result = CheckerResult(checker=self)
+        #result = CheckerResult(checker=self)
         result = CheckerResult(checker=self,solution=env.solution())
         result.set_passed(checkers_failed == 0)
 
@@ -69,7 +70,7 @@ class AutoAttestChecker(Checker):
             self.author_id: int | None = None    # warum nicht self.author ???
             return result
 
-	# delete all old own Attestations for this solution.
+        # delete all old own Attestations for this solution.
         for a in Attestation.objects.filter(solution=env.solution(), author=self.author):
             a.delete()
 
@@ -90,7 +91,7 @@ class AutoAttestChecker(Checker):
             grades = list(self.task.final_grade_rating_scale.ratingscaleitem_set.all())
             if checkers_failed == 0:
                 if checkers_passed > 0:
-                    result.set_log('All %d required checkers passed.' % checkers_passed)
+                    result.set_log(f'All {checkers_passed} required checkers passed.')
                 else:
                     result.set_log('WARNING: No checkers.')
 
@@ -105,7 +106,7 @@ class AutoAttestChecker(Checker):
                                 final_grade=grades[-1])
                 a.save()
             else:
-                result.set_log('%d required checkers failed.' % checkers_failed)
+                result.set_log(f'{checkers_failed} required checkers failed.')
 #                result.set_solution_id(env.solution())
                 a = Attestation(solution=env.solution(), author=self.author,
                                 public_comment=self.public_comment, private_comment=self.private_comment,
@@ -114,7 +115,8 @@ class AutoAttestChecker(Checker):
                 a.save()
         return result
 
-from checker.admin import    CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class AutoAttestInline(CheckerInline[AutoAttestChecker]):
     model: type[AutoAttestChecker] = AutoAttestChecker

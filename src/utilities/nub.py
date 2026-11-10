@@ -1,7 +1,6 @@
 from collections.abc import Hashable, Iterable
 from typing import TypeVar
 
-
 T = TypeVar("T", bound=Hashable)
 
 

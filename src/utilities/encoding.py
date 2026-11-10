@@ -1,5 +1,7 @@
-import chardet
 import re
+
+import chardet
+
 
 def get_unicode(bytestring: str | bytes) -> str:
     if bytestring:

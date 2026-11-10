@@ -6,17 +6,19 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, override_settings
 from django.core.files.base import ContentFile
 from django.http import Http404, HttpResponse
-from django.test import RequestFactory
+from django.test import RequestFactory, SimpleTestCase, override_settings
 
 from settings.defaults import load_defaults
-from utilities.safeexec import ExecutionResult, execute_arglist, safe_docker, safe_docker_cleanup
 from utilities.file_operations import (
-    InvalidZipFile, create_tempfolder, require_file_name, unpack_zipfile_to,
+    InvalidZipFile,
+    create_tempfolder,
+    require_file_name,
+    unpack_zipfile_to,
 )
-from utilities.views import sendfile, forbidden
+from utilities.safeexec import ExecutionResult, execute_arglist, safe_docker, safe_docker_cleanup
+from utilities.views import forbidden, sendfile
 
 
 class TestHTTPFileResponses(SimpleTestCase):

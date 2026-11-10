@@ -4,9 +4,11 @@ Generate some simple lexical statistics.
 
 import string
 
-from django.utils.translation import gettext
 from django.utils.html import escape
+from django.utils.translation import gettext
+
 from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class LineCounter(Checker):
     """ Lexical Statistics of the sources.
@@ -108,8 +110,8 @@ class LineCounter(Checker):
                 #              + `comment_lines_in_file*100 / lines_in_file` + "%), "
                 #              + `coco_lines_in_file` + " beides ("
                 #              + `coco_lines_in_file*100 / lines_in_file` + "%).<br>\n")
-                l = gettext(
-                    "{0} lines, including {1} code lines ({2}%), {3} comment lines ({4}%), {5} both ({6}%)."
+                description = gettext(
+                    "{0} lines, including {1} code lines ({2}%), {3} comment lines ({4}%), {5} both ({6}%)."  # noqa: UP030  # Keep placeholders reorderable in translations.
                     .format(lines_in_file,
                         code_lines_in_file,
                         code_lines_in_file*100 / lines_in_file,
@@ -117,7 +119,7 @@ class LineCounter(Checker):
                         comment_lines_in_file*100 / lines_in_file,
                         coco_lines_in_file,
                         coco_lines_in_file*100 / lines_in_file))
-                log = log + (    escape(name) + ": " + l + "<br>\n")
+                log = log + (escape(name) + ": " + description + "<br>\n")
 
             except ZeroDivisionError:
                 # FIXME
@@ -140,8 +142,8 @@ class LineCounter(Checker):
             #              + `comment_lines * 100 / lines` + "%), "
             #              + `coco_lines` + " beides ("
             #              + `coco_lines * 100 / lines` + "%).\n")
-            l = gettext(
-                "{0} files, {1} lines, including {2} code lines ({3}%), {4} comment lines ({5}%), {6} both ({7}%)."
+            description = gettext(
+                "{0} files, {1} lines, including {2} code lines ({3}%), {4} comment lines ({5}%), {6} both ({7}%)."  # noqa: UP030  # Keep placeholders reorderable in translations.
                 .format(files,
                     lines,
                     code_lines,
@@ -151,7 +153,7 @@ class LineCounter(Checker):
                     coco_lines,
                     coco_lines * 100 / lines)
                 )
-            log = log + ("<br>" + l + "\n")
+            log = log + ("<br>" + description + "\n")
 
         except ZeroDivisionError:
             # FIXME
@@ -165,6 +167,8 @@ class LineCounter(Checker):
         # That's all!
         return result
 
-from checker.admin import CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
 class LineCounterInline(CheckerInline[LineCounter]):
     model: type[LineCounter] = LineCounter

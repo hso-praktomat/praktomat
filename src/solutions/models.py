@@ -1,41 +1,42 @@
-import zipfile
-import tempfile
+import os
+import re
 import shutil
-import os, re
+import tempfile
+import zipfile
 from collections.abc import Sequence as _Sequence
-from email.mime.base import MIMEBase as _MIMEBase
+from contextlib import ExitStack
 from datetime import datetime
-from email.message import Message
-from email.message import EmailMessage as StdlibEmailMessage
 from email.generator import BytesGenerator
+from email.message import EmailMessage as StdlibEmailMessage
+from email.message import Message
+from email.mime.base import MIMEBase as _MIMEBase
 from email.parser import BytesParser
 from email.policy import Policy
-from contextlib import ExitStack
-from io import BytesIO
-from typing import TYPE_CHECKING, Any as _Any, BinaryIO
-
 from hashlib import sha256
+from io import BytesIO
+from typing import TYPE_CHECKING, BinaryIO
+from typing import Any as _Any
 
-from django.db import models
-from django.utils.translation import gettext_lazy
-from django.core.files import File
-from django.db.models import Max
-from django.db import transaction
 from django.conf import settings
-from django.template.loader import render_to_string
-from django.db.models.signals import post_delete
-from django.dispatch.dispatcher import receiver
+from django.core.files import File
 from django.core.mail import EmailMessage
 from django.core.mail.backends.base import BaseEmailBackend
+from django.db import models, transaction
+from django.db.models import Max
+from django.db.models.signals import post_delete
+from django.dispatch.dispatcher import receiver
+from django.template.loader import render_to_string
+from django.utils.translation import gettext_lazy
 
 from accounts.models import User
+from configuration import get_settings
 from utilities import encoding, file_operations
 from utilities.mimetypes import guess_mime_type_with_fallback as guess_mime_type
-from configuration import get_settings
 
 if TYPE_CHECKING:
-    from django_stubs_ext import StrOrPromise
     from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
+    from django_stubs_ext import StrOrPromise
+
     from attestation.models import AnnotatedSolutionFile
     from attestation.models import Attestation as _Attestation
     from checker.basemodels import CheckerResult as _CheckerResult
@@ -68,8 +69,22 @@ class Solution(models.Model):
     allow_llm_upload: "models.BooleanField[bool, bool]" = models.BooleanField(default = False, verbose_name=gettext_lazy("I agree to my solution being uploaded to an LLM for evaluation purposes."), help_text = gettext_lazy('Indicates whether the student allows the solution to be uploaded to an LLM.'))
 
     def __str__(self) -> str:
-        return "%s:%s:%s" % (self.task, self.author , self.number)
+        return f"{self.task}:{self.author}:{self.number}"
         #return str(self.task) + ":" + str(self.author) + ":" + str(self.number)
+
+    @transaction.atomic
+    def save(self, *args: _Any, **kwargs: _Any) -> None:
+        """Override save calculate the number on first save"""
+        if self.number is None:
+            self.number = (self.task.solution_set.filter(author=self.author).aggregate(Max('number'))['number__max'] or 0) + 1
+            if 'update_fields' in kwargs:
+                kwargs['update_fields'] = {'number'}.union(kwargs['update_fields'])
+        if self.final:
+            # delete old final flag if this is the new final solution
+            self.task.solutions(self.author).update(final=False)
+            # may need to re-run jplag
+            self.task.need_to_re_run_jplag()
+        super().save(*args, **kwargs) # Call the "real" save() method.
 
     def allCheckerResults(self) -> "list[_CheckerResult]":
         results = self.checkerresult_set.all().prefetch_related('artefacts')
@@ -83,20 +98,6 @@ class Solution(models.Model):
     def copySolutionFiles(self, toTempDir: str) -> None:
         for file in self.solutionfile_set.all():
             file.copyTo(toTempDir)
-
-    @transaction.atomic
-    def save(self, *args: _Any, **kwargs: _Any) -> None:
-        """Override save calculate the number on first save"""
-        if self.number == None:
-            self.number = (self.task.solution_set.filter(author=self.author).aggregate(Max('number'))['number__max'] or 0) + 1
-            if 'update_fields' in kwargs:
-                kwargs['update_fields'] = {'number'}.union(kwargs['update_fields'])
-        if self.final:
-            # delete old final flag if this is the new final solution
-            self.task.solutions(self.author).update(final=False)
-            # may need to re-run jplag
-            self.task.need_to_re_run_jplag()
-        super(Solution, self).save(*args, **kwargs) # Call the "real" save() method.
 
     def check_solution(self, run_secret: object = 0, debug_keep_tmp: bool = False, secondary_check: bool = False) -> None:
         """Builds and tests this solution."""
@@ -136,11 +137,11 @@ class Solution(models.Model):
         return [file for file in self.solutionfile_set.all() if (not file.isBinary() or file.isImage() or file.isEmbeddable())]
 
 
-def until_critical(l: "list[_CheckerResult]") -> "list[_CheckerResult]":
+def until_critical(checker_results: "list[_CheckerResult]") -> "list[_CheckerResult]":
     res: list[_CheckerResult] = []
-    for r in l:
-        res.append(r)
-        if r.is_critical():
+    for result in checker_results:
+        res.append(result)
+        if result.is_critical():
             break
     return res
 
@@ -171,6 +172,9 @@ class SolutionFile(models.Model):
 
     ignorred_file_names_re: re.Pattern[str] = re.compile(regex)
 
+    def __str__(self) -> str:
+        return file_operations.require_file_name(self.file).rpartition('/')[2]
+
     def save(self, *args: _Any, **kwargs: _Any) -> None:
         """ override save method to automatically expand zip files"""
         name = file_operations.require_file_name(self.file)
@@ -188,9 +192,6 @@ class SolutionFile(models.Model):
             if 'update_fields' in kwargs:
                 kwargs['update_fields'] = {'mime_type'}.union(kwargs['update_fields'])
             super().save(*args, **kwargs)
-
-    def __str__(self) -> str:
-        return file_operations.require_file_name(self.file).rpartition('/')[2]
 
     def get_hash(self) -> str:
         self.file.seek(0)
@@ -312,7 +313,7 @@ def _write_solutions_zip(
             path = os.path.join(tmpdir, cleanpath)
             file_operations.unpack_zipfile_to(zipchecker.file.path, path,
                 lambda n: None,
-                lambda f: createfile_checker_files.append((
+                lambda f, cleanpath=cleanpath, path=path: createfile_checker_files.append((
                     os.path.join(createfile_checker_files_destination, os.path.join(cleanpath, f)),
                     os.path.join(path, f)
                 ))
@@ -425,13 +426,13 @@ class ConfirmationMessage(EmailMessage):
         cc: _Sequence[str] | None = None,
         reply_to: _Sequence[str] | None = None,
     ) -> None:
-        super(ConfirmationMessage, self).__init__(
+        super().__init__(
             subject, body, from_email, to, bcc=bcc, connection=connection,
             attachments=attachments, headers=headers, cc=cc, reply_to=reply_to,
         )
 
     def message(self, *, policy: Policy | None = None) -> "MessageWrapper":
-        message = super(ConfirmationMessage, self).message()
+        message = super().message()
         return MessageWrapper(message, policy=policy)
 
 class MessageWrapper(StdlibEmailMessage):

@@ -1,10 +1,11 @@
 # Settings for running the test-runner
 
 import locale
+
 locale.setlocale( locale.LC_ALL, 'en_US.UTF-8' )
 
 
-from os.path import join, dirname
+from os.path import dirname, join  # noqa: E402  # Test settings initialize environment before imports.
 
 PRAKTOMAT_PATH = dirname(dirname(dirname(__file__)))
 
@@ -41,5 +42,6 @@ LANG = "en_US.UTF-8"
 LANGUAGE = "en_US:en"
 
 # Finally load defaults for missing settings.
-from . import defaults
+from . import defaults  # noqa: E402  # Import defaults only after mode-specific settings are initialized.
+
 defaults.load_defaults(globals())

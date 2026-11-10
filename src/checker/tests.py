@@ -1,32 +1,50 @@
 import os
-from os.path import dirname, join
-from django.conf import settings
-from utilities.TestSuite import TestCase
-from utilities.file_operations import copy_file, InvalidZipFile
-import unittest
 import shutil
 import tempfile
+import unittest
+from os.path import dirname, join
 from pathlib import Path
 from unittest.mock import Mock, patch
-from django.test import RequestFactory, override_settings
+
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.contenttypes.fields import GenericRelation
 from django.core.exceptions import ValidationError
+from django.core.files import File
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import RequestFactory, override_settings
+
+import checker.checker.AnonymityChecker as AnonymityChecker
+import checker.checker.CheckStyleChecker as CheckStyleChecker
+import checker.checker.CreateFileChecker as CreateFileChecker
+import checker.checker.DejaGnu as DejaGnu
+import checker.checker.InterfaceChecker as InterfaceChecker
+import checker.checker.KeepFileChecker as KeepFileChecker
+import checker.checker.LineCounter as LineCounter
+import checker.checker.LineWidthChecker as LineWidthChecker
+import checker.checker.RChecker as RChecker
+import checker.checker.ScriptChecker as ScriptChecker
+import checker.checker.TextChecker as TextChecker
+import checker.compiler.CBuilder as CBuilder
+import checker.compiler.CLinker as CLinker
+import checker.compiler.JavaBuilder as JavaBuilder
 from accounts.models import User
 from checker.basemodels import (
-    CheckerEnvironment, CheckerFileField, CheckerResult, check_solution,
-    check_with_own_connection, check_multiple, run_checks,
+    CheckerEnvironment,
+    CheckerFileField,
+    CheckerResult,
+    check_multiple,
+    check_solution,
+    check_with_own_connection,
+    run_checks,
 )
-from checker.compiler.Builder import program_output_flags
 from checker.checker.ScriptChecker import CopyForm, ScriptCheckerInline, WarningScriptCheckerFormSet
-from utilities.safeexec import ExecutionResult
-
+from checker.compiler.Builder import program_output_flags
 from solutions.models import Solution, SolutionFile
-from django.core.files import File
 from tasks.models import Task
-from .compiler import *
-from .checker import *
+from utilities.file_operations import InvalidZipFile, copy_file
+from utilities.safeexec import ExecutionResult
+from utilities.TestSuite import TestCase
 
 
 class TestCheckerContracts(TestCase):
@@ -550,8 +568,8 @@ class TestChecker(TestCase):
                 )
             self.solution.check_solution()
             for checkerresult in self.solution.checkerresult_set.all():
-                self.assertIn('Begin', checkerresult.log, "Test did not even start? (%s)" % checkerresult.log)
-                self.assertNotIn('End', checkerresult.log, "Test did finish (no timeout?) (%s)" % checkerresult.log)
+                self.assertIn('Begin', checkerresult.log, f"Test did not even start? ({checkerresult.log})")
+                self.assertNotIn('End', checkerresult.log, f"Test did finish (no timeout?) ({checkerresult.log})")
                 #self.assertIn('Timeout occurred!', checkerresult.log, "Test result does not mention timeout")
                 # (string 'Timeout occurred!' defined in checker/basemodels.py : CheckerResult.set_log)
                 self.assertFalse(checkerresult.passed, "Test succeed (no timeout?)")
@@ -682,7 +700,7 @@ class TestChecker(TestCase):
 
         try:
             for checkerresult in self.solution.checkerresult_set.all():
-                self.assertIn('2', checkerresult.log, "Test did not calculate 1 + 2 (%s)" % checkerresult.log)
+                self.assertIn('2', checkerresult.log, f"Test did not calculate 1 + 2 ({checkerresult.log})")
                 self.assertTrue(checkerresult.passed, checkerresult.log)
                 self.assertTrue(checkerresult.artefacts.exists())
                 self.assertEqual(checkerresult.artefacts.get().path(), "Rplots.pdf")
@@ -719,7 +737,7 @@ class TestChecker(TestCase):
 
         try:
             for checkerresult in self.solution.checkerresult_set.all():
-                self.assertIn('2', checkerresult.log, "Test did not calculate 1 + 2 (%s)" % checkerresult.log)
+                self.assertIn('2', checkerresult.log, f"Test did not calculate 1 + 2 ({checkerresult.log})")
                 self.assertTrue(checkerresult.passed, checkerresult.log)
                 self.assertTrue(checkerresult.artefacts.exists())
                 self.assertEqual(checkerresult.artefacts.get().path(), "Rplots.pdf")
@@ -756,7 +774,7 @@ class TestChecker(TestCase):
 
         try:
             for checkerresult in self.solution.checkerresult_set.all():
-                self.assertIn('Could not find expected R script', checkerresult.log, "Test did not complain (%s)" % checkerresult.log)
+                self.assertIn('Could not find expected R script', checkerresult.log, f"Test did not complain ({checkerresult.log})")
                 self.assertFalse(checkerresult.passed, checkerresult.log)
         finally:
             solution_file.delete()
@@ -796,7 +814,7 @@ class TestChecker(TestCase):
 
         try:
             for checkerresult in self.solution.checkerresult_set.all():
-                self.assertIn('Multiple R scripts found', checkerresult.log, "Test did not complain (%s)" % checkerresult.log)
+                self.assertIn('Multiple R scripts found', checkerresult.log, f"Test did not complain ({checkerresult.log})")
                 self.assertFalse(checkerresult.passed, checkerresult.log)
         finally:
             solution_file.delete()
@@ -826,5 +844,5 @@ class TestChecker(TestCase):
         self.solution.check_solution()
 
         for checkerresult in self.solution.checkerresult_set.all():
-            self.assertIn('Could not find file', checkerresult.log, "Test did not complain (%s)" % checkerresult.log)
+            self.assertIn('Could not find file', checkerresult.log, f"Test did not complain ({checkerresult.log})")
             self.assertFalse(checkerresult.passed, checkerresult.log)

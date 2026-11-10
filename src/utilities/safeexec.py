@@ -1,17 +1,17 @@
 import os
-from os.path import abspath, exists
-import time
-import subprocess
 import string
-import psutil
+import subprocess
+import time
 import uuid
-
-from copy import deepcopy
-from contextlib import ExitStack
 from collections.abc import Mapping, Sequence
+from contextlib import ExitStack
+from copy import deepcopy
+from os.path import abspath, exists
 from typing import NamedTuple, TypedDict
 
+import psutil
 from django.conf import settings
+
 
 # found at http://stackoverflow.com/questions/1230669/subprocess-deleting-child-processes-in-windows
 # should work for linux, too
@@ -19,14 +19,14 @@ from django.conf import settings
 #       wherefor it is necessary to use "ulimit -t 60" command in shell-scripts called by praktomat checkers:
 #       forcing script exit with error after 60 seconds
 def kill_proc_tree(pid: int, including_parent: bool = False) -> None:
-	parent = psutil.Process(pid)
-	children = parent.children(recursive=True)
-	for child in children:
-		child.kill()
-	psutil.wait_procs(children, timeout=5)
-	if including_parent:
-		parent.kill()
-		parent.wait(5)
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+    for child in children:
+        child.kill()
+    psutil.wait_procs(children, timeout=5)
+    if including_parent:
+        parent.kill()
+        parent.wait(5)
 
 class ExecutionResult(NamedTuple):
     output: str
@@ -72,9 +72,9 @@ def execute_arglist(
     # In newer versions, R requires more to be started
     # (see comment in RscriptChecker.py),
     # even if it does not use it.
-    prlimit_prefix = ['prlimit', '--nofile=%d' % filenumberlimit]
+    prlimit_prefix = ['prlimit', f'--nofile={filenumberlimit}']
     if fileseeklimitbytes is not None:
-        prlimit_prefix += ['--fsize=%d' % fileseeklimitbytes]
+        prlimit_prefix += [f'--fsize={fileseeklimitbytes}']
 
     command = prlimit_prefix
 
@@ -190,8 +190,19 @@ def _safe_docker(
     mount_extra_directories: bool,
     rollback: ExitStack,
 ) -> tuple[list[str], str, list[DockerVolume]]:
-    cmd = ["sudo", "docker", "run", "--rm", "--sig-proxy",
-        "--tmpfs", "/tmp", "--tmpfs", "/run", "--tmpfs", "/home"]
+    cmd = [
+        "sudo",
+        "docker",
+        "run",
+        "--rm",
+        "--sig-proxy",
+        "--tmpfs",
+        "/tmp",  # noqa: S108  # The container gets an isolated temporary filesystem.
+        "--tmpfs",
+        "/run",
+        "--tmpfs",
+        "/home",
+    ]
 
     uid = os.getuid()
     gid = os.getgid()
@@ -278,7 +289,7 @@ def _safe_docker(
     cmd += [f"--memory={maxmem}m"]
     for ulimit in ulimits:
         cmd += [f"--ulimit={ulimit}"]
-    
+
     if settings.DOCKER_UID_MOD:
         cmd += [f"--user={uid}:{gid}"]
 
@@ -298,7 +309,7 @@ def _safe_docker(
             external_dir = settings.DOCKER_CONTAINER_EXTERNAL_DIR
         if external_dir is not None:
             cmd += [f"--volume={external_dir}:/external:ro"]
-    
+
 
     if mount_extra_directories:
         extra_external_dirs = [
@@ -334,7 +345,7 @@ def _safe_docker(
     # add environment
     cmd += ["env"]
     for k, v in environment_variables.items():
-        cmd += ["%s=%s" % (k, v)]
+        cmd += [f"{k}={v}"]
 
     return cmd, container_name, volumes
 

@@ -3,11 +3,11 @@ from importlib import import_module
 from typing import TypedDict, TypeVar, cast
 
 import ldap
-from ldap.filter import escape_filter_chars
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.core.exceptions import ImproperlyConfigured
 from django.http import HttpRequest
+from ldap.filter import escape_filter_chars
 
 from accounts.models import User
 from configuration import get_settings
@@ -36,7 +36,7 @@ def load_ldap_group_adapters() -> list[Callable[[User], object]]:
         if not isinstance(module_name, str):
             raise ImproperlyConfigured("LDAP_GROUP_ADAPTERS entries must be module names")
         module = import_module(f'{module_name}.ldap_group_adapter')
-        adapter: object = getattr(module, 'ldap_group_adapter')
+        adapter: object = module.ldap_group_adapter
         if not callable(adapter):
             raise ImproperlyConfigured(f"LDAP group adapter {module_name} is not callable")
         adapters.append(cast(Callable[[User], object], adapter))
@@ -107,7 +107,7 @@ def fetch_ldapuser_dict(uid: str, password: str | None = '') -> LDAPUser | None:
     try:
         results = connection.search_st(
             settings.LDAP_BASE, ldap.SCOPE_SUBTREE,
-            'uid=%s' % escape_filter_chars(uid), attributes_requested, timeout=5,
+            f'uid={escape_filter_chars(uid)}', attributes_requested, timeout=5,
         )
         if len(results) != 1:
             return None

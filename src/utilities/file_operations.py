@@ -1,11 +1,13 @@
-import os
 import grp
+import os
 import tempfile
+import zipfile
 from collections.abc import Callable
+
 from django.conf import settings
 from django.core.files import File
+
 from utilities import encoding
-import zipfile
 
 gid: int | None = None
 if (settings.USEPRAKTOMATTESTER):
@@ -28,7 +30,7 @@ def makedirs(path: str) -> None:
         os.mkdir(path)
         if (gid):
             os.chown(path, -1, gid)
-        os.chmod(path, 0o770)
+        os.chmod(path, 0o770)  # noqa: S103  # Group access is required for tester and web-server sharing.
 
 
 def create_file(
@@ -58,7 +60,7 @@ def create_file(
         # chown :praktomat <path>
         os.chown(path, -1, gid)
         # rwxrwx---     access for praktomattester:praktomat
-        os.chmod(path, 0o770)
+        os.chmod(path, 0o770)  # noqa: S103  # Group access is required for tester and web-server sharing.
 
 
 def copy_file(
@@ -79,7 +81,7 @@ def create_tempfolder(path: str) -> str:
     new_tmpdir = tempfile.mkdtemp(dir=path)
     if (gid):
         os.chown(new_tmpdir, -1, gid)
-    os.chmod(new_tmpdir, 0o770)
+    os.chmod(new_tmpdir, 0o770)  # noqa: S103  # Group access is required for tester and web-server sharing.
     return new_tmpdir
 
 class InvalidZipFile(Exception):
@@ -100,16 +102,16 @@ def unpack_zipfile_to(
     The file_cb is called for every file, after extracting it.
     """
     if not zipfile.is_zipfile(zipfilename):
-        raise InvalidZipFile("File %s is not a zipfile." % zipfilename)
+        raise InvalidZipFile(f"File {zipfilename} is not a zipfile.")
     root = os.path.realpath(to_path)
     with zipfile.ZipFile(zipfilename, 'r') as zip:
         if zip.testzip():
-            raise InvalidZipFile("File %s is invalid." % zipfilename)
+            raise InvalidZipFile(f"File {zipfilename} is invalid.")
 
         for finfo in zip.infolist():
             dest = os.path.realpath(os.path.join(root, finfo.filename))
             if os.path.isabs(finfo.filename) or os.path.commonpath((root, dest)) != root:
-                raise InvalidZipFile("File %s contains illegal path %s." % (zipfilename, finfo.filename))
+                raise InvalidZipFile(f"File {zipfilename} contains illegal path {finfo.filename}.")
             if override_cb is not None and os.path.exists(dest):
                 override_cb(finfo.filename)
             zip.extract(finfo, root)

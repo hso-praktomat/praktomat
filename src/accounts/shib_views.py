@@ -1,26 +1,29 @@
 import datetime
+from codecs import decode, encode
 from collections.abc import Mapping
 from typing import Any as _Any
 
-from codecs import decode, encode
-
+from django.conf import settings
+from django.contrib.auth import login
+from django.contrib.auth.models import Group
+from django.db import transaction
 from django.http import (
     HttpRequest as _HttpRequest,
+)
+from django.http import (
     HttpResponseBase as _HttpResponseBase,
+)
+from django.http import (
     HttpResponseForbidden,
     HttpResponseRedirect,
 )
-from django.template import loader
 from django.shortcuts import render, resolve_url
-from django.contrib.auth import login
-from django.conf import settings
-from django.db import transaction
+from django.template import loader
 
+from accounts.decorators import shibboleth_support_required
 from accounts.models import User
-from django.contrib.auth.models import Group
-from accounts.decorators import *
-
 from configuration import get_settings
+
 
 def parse_attributes(
     META: Mapping[str, object],

@@ -1,46 +1,51 @@
-from os.path import dirname, join
-from datetime import datetime, timedelta
-from collections.abc import Callable
 import difflib
 import io
 import zipfile
+from collections.abc import Callable
+from datetime import datetime, timedelta
+from email import policy
+from email.parser import BytesParser
+from os.path import dirname, join
 from pathlib import Path
 from tempfile import TemporaryDirectory, TemporaryFile
 from unittest.mock import Mock, patch
-from email import policy
-from email.parser import BytesParser
 
-from utilities.TestSuite import TestCase
-from django.core.mail import get_connection
-from django.core.mail import EmailMessage
-from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
+from django.contrib.admin import AdminSite
+from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.files.storage import storages
-from django.test import SimpleTestCase, RequestFactory, override_settings
-from django.contrib.admin import AdminSite
-from django.urls import reverse
-from django.utils.translation import gettext_lazy
-from django.utils.functional import Promise
-
-from checker.checker.TextChecker import TextChecker
-from checker.checker.CreateFileChecker import CreateFileChecker
-from checker.checker.CheckStyleChecker import CheckStyleChecker
-from checker.checker.ScriptChecker import ScriptChecker
-from checker.basemodels import CheckerResult, CheckerResultArtefact
-from accounts.models import User
-from django.contrib.auth.models import Group
-from solutions.forms import SolutionFileForm, SolutionFormSet, ModelSolutionFormSet
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.mail import EmailMessage, get_connection
+from django.core.mail.backends.smtp import EmailBackend as SMTPBackend
+from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.urls import reverse
 from django.utils.datastructures import MultiValueDict
-from solutions.models import (
-    ConfirmationMessage, Solution, SolutionFile, get_solutions_zip,
-    id_for_path, path_for_task, path_for_user, until_critical,
-)
-from solutions.templatetags.highlight import colorize, colorize_table, colorize_diff_table
+from django.utils.functional import Promise
+from django.utils.translation import gettext_lazy
 from pygments.util import ClassNotFound
+
+from accounts.models import User
+from checker.basemodels import CheckerResult, CheckerResultArtefact
+from checker.checker.CheckStyleChecker import CheckStyleChecker
+from checker.checker.CreateFileChecker import CreateFileChecker
+from checker.checker.ScriptChecker import ScriptChecker
+from checker.checker.TextChecker import TextChecker
+from solutions.admin import IsLatestOfOnlyFailedFilter, SolutionAdmin
+from solutions.forms import ModelSolutionFormSet, SolutionFileForm, SolutionFormSet
+from solutions.models import (
+    ConfirmationMessage,
+    Solution,
+    SolutionFile,
+    get_solutions_zip,
+    id_for_path,
+    path_for_task,
+    path_for_user,
+    until_critical,
+)
+from solutions.templatetags.highlight import colorize, colorize_diff_table, colorize_table
 from tasks.models import Task
-from solutions.admin import SolutionAdmin, IsLatestOfOnlyFailedFilter
+from utilities.TestSuite import TestCase
 
 
 class TestSolutionHTTPContracts(TestCase):
@@ -112,9 +117,10 @@ class TestSolutionAdminContracts(TestCase):
         unset_filter = IsLatestOfOnlyFailedFilter(self.request, {}, Solution, self.model_admin)
         self.assertIs(unset_filter.queryset(self.request, queryset), queryset)
         self.assertEqual(
-            getattr(SolutionAdmin.tests_failed, 'admin_order_field'), '_tests_failed_computed_for_sorting',
+            getattr(SolutionAdmin.tests_failed, 'admin_order_field'),  # noqa: B009  # Django admin attaches metadata dynamically.
+            '_tests_failed_computed_for_sorting',
         )
-        self.assertTrue(getattr(SolutionAdmin.tests_failed, 'boolean'))
+        self.assertTrue(getattr(SolutionAdmin.tests_failed, 'boolean'))  # noqa: B009  # Django admin attaches metadata dynamically.
 
     def test_checker_actions_preserve_execution_modes_and_messages(self) -> None:
         queryset = Solution.objects.filter(pk=1)
@@ -472,7 +478,9 @@ class TestHighlightDiffTable(TestCase):
 
     def render(self, original: str, anotated: str, filename: str) -> str:
         differ = difflib.Differ()
-        diff = "\n".join(l.strip("\n") for l in differ.compare(original.splitlines(), anotated.splitlines()))
+        diff = "\n".join(
+            diff_line.strip("\n") for diff_line in differ.compare(original.splitlines(), anotated.splitlines())
+        )
         return colorize_diff_table(diff, filename)
 
     def test_empty_diff(self) -> None:
@@ -602,7 +610,7 @@ def test_concurrently(
             for t in threads:
                 t.join()
             if exceptions:
-                raise Exception('test_concurrently intercepted %s exceptions: %s' % (len(exceptions), exceptions))
+                raise Exception(f'test_concurrently intercepted {len(exceptions)} exceptions: {exceptions}')
         return wrapper
     return test_concurrently_decorator
 

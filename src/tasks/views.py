@@ -1,27 +1,30 @@
 import tempfile
 import zipfile
 from collections.abc import Iterable as _Iterable
-
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render, get_object_or_404
-from django.http import Http404, HttpRequest as _HttpRequest
-from django.http import HttpResponseRedirect, HttpResponse
 from datetime import datetime
+
+import django.utils.timezone
 from django import forms
-from django.urls import reverse
 from django.conf import settings
 from django.contrib import messages
-import django.utils.timezone
-from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.serializers.base import DeserializationError
+from django.db import IntegrityError
+from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest as _HttpRequest
+from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 
-from tasks.models import Task
-from solutions.forms import ModelSolutionFormSet
-from solutions.models import Solution, SolutionFile
-from accounts.models import User
 from accounts.authentication import require_user
+from accounts.models import User
 from attestation.views import user_task_attestation_map
 from configuration import get_settings
+from solutions.forms import ModelSolutionFormSet
+from solutions.models import Solution, SolutionFile
+from tasks.models import Task
+
 
 @login_required
 def taskList(request: _HttpRequest) -> HttpResponse:
@@ -89,8 +92,19 @@ def import_tasks(request: _HttpRequest) -> HttpResponse | HttpResponseRedirect:
                 Task.import_Tasks(form.cleaned_data['file'], request.user, form.cleaned_data['is_template'])
                 messages.success(request, "The import was successful.")
                 return HttpResponseRedirect(reverse('admin:tasks_task_changelist'))
-            except Exception as e:
-                msg = "An Error occurred. The import file was probably malformed: %s" % str(e)
+            except (
+                DeserializationError,
+                IntegrityError,
+                KeyError,
+                ObjectDoesNotExist,
+                OSError,
+                TypeError,
+                UnicodeDecodeError,
+                ValidationError,
+                ValueError,
+                zipfile.BadZipFile,
+            ) as e:
+                msg = f"An Error occurred. The import file was probably malformed: {str(e)}"
                 form.add_error("file", msg)
     else:
         form = ImportForm()
@@ -122,13 +136,13 @@ def model_solution(request: _HttpRequest, task_id: str) -> HttpResponse:
         formset = ModelSolutionFormSet(request.POST, request.FILES, instance=solution)
         if formset.is_valid():
             try:
-                solution.save();
+                solution.save()
                 # no deleting the old solution:
                 # delete will cascade on db level deleting checker results and checker
                 # as this isn't easily prevented just keep the old solution around until the task is deleted
                 formset.save()
                 solution.check_solution(request.session)
-                task.model_solution = solution;
+                task.model_solution = solution
                 task.save()
             except:
                 solution.delete()    # delete files

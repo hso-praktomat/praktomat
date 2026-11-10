@@ -1,12 +1,12 @@
-from django.contrib.auth.decorators import user_passes_test
-from django.conf import settings
-from django.http import Http404
-from django.http import HttpResponseBase
-from django.contrib.auth.base_user import AbstractBaseUser
-from django.contrib.auth.models import AnonymousUser
 from collections.abc import Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
+
+from django.conf import settings
+from django.contrib.auth.base_user import AbstractBaseUser
+from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.models import AnonymousUser
+from django.http import Http404, HttpResponseBase
 
 from accounts.authentication import resolve_user
 from accounts.models import User

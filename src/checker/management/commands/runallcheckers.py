@@ -1,9 +1,10 @@
 from typing import Any
 
-from django.core.management.base import BaseCommand
-from django.core.management.base import CommandParser
+from django.core.management.base import BaseCommand, CommandParser
 from django.db.models import QuerySet
+
 from tasks.models import Task
+
 
 class Command(BaseCommand):
     help = 'Run all checkers for expired tasks where not all checkers are finished.'
@@ -22,10 +23,10 @@ class Command(BaseCommand):
             if not task.expired():
                 continue
             if not task.all_checker_finished:
-                self.stdout.write('Running all checkers for "%s"\n' % task.title)
+                self.stdout.write(f'Running all checkers for "{task.title}"\n')
                 task.check_all_final_solutions(secondary_check = secondary_check)
                 task.check_all_latest_only_failed_solutions()
             else:
-                self.stdout.write('Running all checkers for unchecked solutions in "%s"\n' % task.title)
+                self.stdout.write(f'Running all checkers for unchecked solutions in "{task.title}"\n')
                 task.check_unchecked_final_solutions(secondary_check = secondary_check)
         self.stdout.write('Done')

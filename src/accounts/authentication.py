@@ -1,5 +1,6 @@
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.contrib.auth.models import AnonymousUser, User as BasicUser
+from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import User as BasicUser
 from django.core.exceptions import PermissionDenied
 from django.http import HttpRequest
 

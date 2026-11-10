@@ -1,8 +1,8 @@
-from django.test import TestCase
-
-import sys
 import locale
 import os
+import sys
+
+from django.test import TestCase
 
 
 class SystemLocaleTest(TestCase):
@@ -44,7 +44,7 @@ class SystemLocaleTest(TestCase):
         os_lang=os.getenv("LANG")
         assert os_lang is not None, "OS environment variable LANG is not defined. It have to define UTF-8"
         self.assertNotEqual(os_lang, "", msg="OS environment variable LANG has no value.")
-        self.assertTrue('UTF-8' in os_lang.upper(), msg="OS environment variable LANG is not defining UTF-8: it is \"%s\" " % os_lang )
+        self.assertTrue('UTF-8' in os_lang.upper(), msg=f"OS environment variable LANG is not defining UTF-8: it is \"{os_lang}\" " )
 
     def test_LANGUAGE_environmentvariable_is_not_None(self) -> None:
         os_language=os.getenv("LANGUAGE")

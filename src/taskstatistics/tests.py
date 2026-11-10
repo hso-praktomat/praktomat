@@ -1,34 +1,31 @@
-from django.test import TestCase
-
-# Create your tests here.
-
-from django.urls import resolve
-
-
-from django.http import HttpRequest, HttpResponse
-from django.template.loader import render_to_string
-
-from django.db import connection
-from django.db.backends.base.introspection import FieldInfo
-
-from django.contrib.messages.middleware import MessageMiddleware
-from django.contrib.sessions.middleware import SessionMiddleware
-
-from taskstatistics.models import TasksStatistic
-from taskstatistics.views import tasks_statistic
-from taskstatistics.views import prepare_statistic_data
-from taskstatistics.views import prepare_graphic_list
-from taskstatistics.views import tasks_statistic_download
-
-from tasks.models import Task
-
-from collections import OrderedDict
-from unittest.mock import Mock, patch
 import base64
 import csv
 import io
-from django.test import SimpleTestCase
-from taskstatistics.views import StatisticRow, UserUploads, boxblot_to_graphic_list
+from collections import OrderedDict
+from unittest.mock import Mock, patch
+
+from django.contrib.messages.middleware import MessageMiddleware
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.db import connection
+from django.db.backends.base.introspection import FieldInfo
+from django.http import HttpRequest, HttpResponse
+from django.template.loader import render_to_string
+from django.test import SimpleTestCase, TestCase
+
+# Create your tests here.
+from django.urls import resolve
+
+from tasks.models import Task
+from taskstatistics.models import TasksStatistic
+from taskstatistics.views import (
+    StatisticRow,
+    UserUploads,
+    boxblot_to_graphic_list,
+    prepare_graphic_list,
+    prepare_statistic_data,
+    tasks_statistic,
+    tasks_statistic_download,
+)
 
 
 class TestStatisticsBoundary(SimpleTestCase):
@@ -217,7 +214,7 @@ class TasksStatisticTest(TestCase):
         self.client.login(username='trainer', password='demo')
         responseC = self.client.get('/tasks/statistic')
         self.assertEqual(responseC.status_code, 200) # should work
-        self.assertIn("<table".encode("utf-8"), responseC.content, "There should be a html table on statistic overview page for trainers.")
+        self.assertIn(b"<table", responseC.content, "There should be a html table on statistic overview page for trainers.")
         self.client.logout()
 
     def test_column_order_as_basis_for_html_table(self) -> None:
@@ -238,7 +235,7 @@ class TasksStatisticTest(TestCase):
         self.client.login(username='trainer', password='demo')
         responseC = self.client.get('/tasks/statistic')
         self.assertEqual(responseC.status_code, 200) # should work
-        self.assertIn("<a href=/tasks/statistic/download".encode("utf-8"), responseC.content, "There should be a download link on statistic overview page")
+        self.assertIn(b"<a href=/tasks/statistic/download", responseC.content, "There should be a download link on statistic overview page")
         self.client.logout() # without login a statistic view should possible, if there are data.
         responseC = self.client.get('/tasks/statistic/download')
         self.assertEqual(responseC.status_code, 200) # should work

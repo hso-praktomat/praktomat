@@ -1,5 +1,6 @@
-from django.conf import settings
 import mimetypes
+
+from django.conf import settings
 
 for (mimetype, extension) in settings.MIMETYPE_ADDITIONAL_EXTENSIONS:
     mimetypes.add_type(mimetype, extension, strict=True)

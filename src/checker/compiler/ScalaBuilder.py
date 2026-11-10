@@ -3,12 +3,14 @@ A Scala compiler for construction.
 """
 
 import os
+from functools import reduce
 from typing import Any
 
 from django.conf import settings
-from checker.compiler.JavaBuilder import ClassFileGeneratingBuilder
 from django.template.loader import get_template
-from functools import reduce
+
+from checker.compiler.JavaBuilder import ClassFileGeneratingBuilder
+
 
 class ScalaBuilder(ClassFileGeneratingBuilder):
     """ A Scala compiler. """
@@ -25,14 +27,17 @@ class ScalaBuilder(ClassFileGeneratingBuilder):
         t = get_template('checker/compiler/scala_builder_report.html')
         return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
 
-from checker.admin import CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
 
 
 class CheckerForm(AlwaysChangedModelForm):
     """ override default values for the model fields """
 
     def __init__(self, **args: Any) -> None:
-        super(CheckerForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["_flags"].initial = ""
         self.fields["_output_flags"].initial = ""
         self.fields["_file_pattern"].initial = r"^[A-Z][a-zA-Z0-9_]*\.scala$"

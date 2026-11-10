@@ -1,18 +1,20 @@
 import os
 import re
-from django.conf import settings
 
+from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
 from checker.basemodels import (
     Checker,
     CheckerEnvironment,
     CheckerFileField,
     CheckerResult,
 )
-from utilities.safeexec import execute_arglist
 from utilities.file_operations import copy_file
+from utilities.safeexec import execute_arglist
+
 
 class CheckStyleChecker(Checker):
 
@@ -74,11 +76,12 @@ class CheckStyleChecker(Checker):
         result.set_log(log)
 
 
-        result.set_passed(not timed_out and not oom_ed and not exitcode and (not re.match('Starting audit...\nAudit done.', output) == None))
+        result.set_passed(not timed_out and not oom_ed and not exitcode and (re.match('Starting audit...\nAudit done.', output) is not None))
 
         return result
 
-from checker.admin import    CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class CheckStyleCheckerInline(CheckerInline[CheckStyleChecker]):
     model: type[CheckStyleChecker] = CheckStyleChecker

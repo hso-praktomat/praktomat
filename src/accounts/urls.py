@@ -1,16 +1,14 @@
+from django.conf import settings  # for switching via ACCOUNT_CHANGE_POSSIBLE
+
+# Uncomment the next two lines to enable the admin:
+# for some reason include('django.contrib.auth.urls') wouldn't work with {% url ... %} aka reverse()
+from django.contrib.auth import views as auth_views
 from django.urls import re_path
 from django.urls.resolvers import URLPattern
 from django.views.generic.base import TemplateView
 
-from django.conf import settings   # for switching via ACCOUNT_CHANGE_POSSIBLE
-
 import accounts.shib_views
 import accounts.views
-
-# Uncomment the next two lines to enable the admin:
-
-# for some reason include('django.contrib.auth.urls') wouldn't work with {% url ... %} aka reverse()
-from django.contrib.auth import views as auth_views
 
 # TODO check if URLS are working after solving merge conflicts
 urlpatterns: list[URLPattern] = [

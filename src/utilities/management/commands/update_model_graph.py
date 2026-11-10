@@ -1,7 +1,9 @@
+from os.path import dirname as dir
+from os.path import join
+
 from django.core import management
 from django.core.management.base import BaseCommand
 
-from os.path import join, dirname as dir
 
 class Command(BaseCommand):
     help: str = 'Updates the vector images in documentation/modelgraph. Requires installation of graphviz and pygraphviz.'

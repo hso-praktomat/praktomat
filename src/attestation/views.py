@@ -1,32 +1,42 @@
-from django.conf import settings   # for switching via ACCOUNT_CHANGE_POSSIBLE
-
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render, get_object_or_404
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-from django.forms.models import modelformset_factory
-from django.db.models import Count, QuerySet
-from django.db import transaction
-from django.contrib.auth.models import Group
-from django.views.decorators.cache import cache_control
-from django.http import HttpRequest, HttpResponse
-from django.template import loader
-from django import forms
 import datetime
-from decimal import Decimal
 from collections.abc import Iterable, Iterator
+from decimal import Decimal
 from typing import TypedDict
+from xml.sax import SAXParseException
 
-from tasks.models import Task, HtmlInjector
-from solutions.models import Solution
-from checker.basemodels import check_solution
-from attestation.models import Attestation, AnnotatedSolutionFile, RatingResult, RatingScale, RatingScaleItem
-from attestation.forms import AnnotatedFileFormSet, RatingResultFormSet, AttestationForm, AttestationPreviewForm, PublishFinalGradeForm, GenerateRatingScaleForm, FinalGradeOptionForm
-from accounts.models import User, Tutorial
+from django import forms
+from django.conf import settings  # for switching via ACCOUNT_CHANGE_POSSIBLE
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import Group
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.serializers.base import DeserializationError
+from django.db import transaction
+from django.db.models import Count, QuerySet
+from django.forms.models import modelformset_factory
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
+from django.template import loader
+from django.urls import reverse
+from django.views.decorators.cache import cache_control
+
 from accounts.authentication import require_user
+from accounts.models import Tutorial, User
 from accounts.views import access_denied
+from attestation.forms import (
+    AnnotatedFileFormSet,
+    AttestationForm,
+    AttestationPreviewForm,
+    FinalGradeOptionForm,
+    GenerateRatingScaleForm,
+    PublishFinalGradeForm,
+    RatingResultFormSet,
+)
+from attestation.models import AnnotatedSolutionFile, Attestation, RatingResult, RatingScale, RatingScaleItem
+from checker.basemodels import check_solution
 from configuration import get_settings
+from solutions.models import Solution
+from tasks.models import HtmlInjector, Task
 
 
 class _RatingSource(TypedDict):
@@ -119,12 +129,12 @@ def statistics(request: HttpRequest, task_id: str) -> HttpResponse:
     if request.user.is_trainer:
         # Each Tutorials ratings
         for t in Tutorial.objects.all():
-            rating_sources.append({'title'   : "Final Grades for Students in Tutorial %s" % str(t),
-                                'desc'    : "This chart shows the distribution of final grades for students from Tutorial %s. Plagiarism is excluded." % str(t),
+            rating_sources.append({'title'   : f"Final Grades for Students in Tutorial {str(t)}",
+                                'desc'    : f"This chart shows the distribution of final grades for students from Tutorial {str(t)}. Plagiarism is excluded.",
                                 'ratings' : RatingScaleItem.objects.filter(attestation__solution__task=task_id, attestation__solution__plagiarism=False, attestation__final=True, attestation__solution__author__tutorial = t)})
         for t in User.objects.filter(groups__name='Tutor'):
-            rating_sources.append({'title'   : "Final Grades for Attestations created by %s" % str(t),
-                                'desc'    : "This chart shows the distribution of final grades for Attestations created by %s. Plagiarism is excluded." % str(t),
+            rating_sources.append({'title'   : f"Final Grades for Attestations created by {str(t)}",
+                                'desc'    : f"This chart shows the distribution of final grades for Attestations created by {str(t)}. Plagiarism is excluded.",
                                 'ratings' : RatingScaleItem.objects.filter(attestation__solution__task=task_id, attestation__solution__plagiarism=False, attestation__final=True, attestation__author__id = t.id)})
     else:
         # The Tutorials ratings
@@ -164,16 +174,16 @@ def statistics(request: HttpRequest, task_id: str) -> HttpResponse:
                 buckets[bucket_index].append(point['value'])
             medians: list[_MedianPoint] = []
             for i in range(n):
-                date = first['date'] + ((span//2)*(2*i+1) // n);
+                date = first['date'] + ((span//2)*(2*i+1) // n)
                 if buckets[i]:
                     buckets[i].sort()
                     value = buckets[i][((len(buckets[i])+1)//2)-1]
                 else:
                     value = None
-                medians.append({'date': date, 'value': value});
+                medians.append({'date': date, 'value': value})
 
             runtimes.append({
-                             'checker': "%d: %s" % (checker_index, checker.title()),
+                             'checker': f"{checker_index}: {checker.title()}",
                              'runtimes': checker_runtimes,
                              'medians': medians
             })
@@ -638,7 +648,7 @@ def tutorial_overview(
             if grade is not None:
                 totals[i] += grade
                 nr_of_grades[i] += 1
-    averages = [total / (count or 1) for total, count in zip(totals, nr_of_grades)]
+    averages = [total / (count or 1) for total, count in zip(totals, nr_of_grades, strict=False)]
 
     return render(request, "attestation/tutorial_overview.html", {'other_tutorials':other_tutorials, 'tutorial':tutorial, 'rating_list':rating_list, 'tasks':tasks, 'final_grades_published': get_settings().final_grades_published, 'averages':averages})
 
@@ -738,8 +748,15 @@ def update_attestations(request: HttpRequest) -> HttpResponse:
             try:
                 Attestation.update_Attestations(request, form.cleaned_data['file'])
                 return render(request, 'admin/attestation/update.html', {'form': form, 'title':"Update Attestations"  })
-            except Exception as e:
-                msg = "An Error occured. The import file was propably malformed.: %s" % str(e)
+            except (
+                DeserializationError,
+                ObjectDoesNotExist,
+                SAXParseException,
+                TypeError,
+                ValueError,
+                ValidationError,
+            ) as e:
+                msg = f"An Error occured. The import file was propably malformed.: {str(e)}"
                 form.add_error("file", msg)
     else:
         form = ImportForm()

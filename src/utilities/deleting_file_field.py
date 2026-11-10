@@ -4,12 +4,13 @@ from django.db import models
 from django.db.models import signals
 from django.db.models.fields.files import FieldFile
 
+
 class DeletingFileField(models.FileField):
     """ FileField subclass that deletes the referenced file when the model object itself is deleted. This was the default behavior in django 1.2 but was dropped in 1.2.5 because of possible data loss in rollbacks or if you referenced the file in another model. Changing the file will non the less leave orphaned files."""
     def contribute_to_class(
         self, cls: type[models.Model], name: str, **kwargs: Any
     ) -> None:
-        super(DeletingFileField, self).contribute_to_class(
+        super().contribute_to_class(
             cls, name, **kwargs
         )
         signals.post_delete.connect(self.delete_file, sender=cls)

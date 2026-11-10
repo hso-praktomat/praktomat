@@ -1,18 +1,22 @@
-from django.test.runner import DiscoverRunner
-from django.test import TestCase as DjangoTestCase
-from django.conf import settings
-from django.db.backends.base.base import BaseDatabaseWrapper
-from django.http import HttpResponseBase
+import logging
 from os.path import dirname, join
 from shutil import rmtree
 from typing import Any
+
+from django.conf import settings
+from django.db.backends.base.base import BaseDatabaseWrapper
+from django.http import HttpResponseBase
+from django.test import TestCase as DjangoTestCase
+from django.test.runner import DiscoverRunner
+
+logger = logging.getLogger(__name__)
 
 class TestSuiteRunner(DiscoverRunner):
     testSuiteUploadRoot: str = join(settings.UPLOAD_ROOT, 'TestSuite')
 
     def setup_test_environment(self, **kwargs: Any) -> None:
         """ Change the upload root to not mess up the production folder """
-        super(TestSuiteRunner, self).setup_test_environment(**kwargs)
+        super().setup_test_environment(**kwargs)
         settings.UPLOAD_ROOT = self.testSuiteUploadRoot
         # storage object is lazy and is not updated by simply updating the settings
         from django.core.files.storage import FileSystemStorage, storages
@@ -27,15 +31,15 @@ class TestSuiteRunner(DiscoverRunner):
         """ Prefill database with some testdata. Rollbacks ensure that the database is in the state after create_test_data().
         Rollbacks need to be supported by the database otherwise the db will be flushed after every test.
         This is much quicker than creating everything in setUp() and more flexible than fixtures as you can use files. """
-        x = super(TestSuiteRunner, self).setup_databases(**kwargs)
+        x = super().setup_databases(**kwargs)
         create_test_data()
         return x
 
     def teardown_test_environment(self, **kwargs: Any) -> None:
-        super(TestSuiteRunner, self).teardown_test_environment(**kwargs)
+        super().teardown_test_environment(**kwargs)
         try:
             rmtree(self.testSuiteUploadRoot)
-        except:
+        except FileNotFoundError:
             pass
 
 
@@ -47,12 +51,11 @@ class TestCase(DjangoTestCase):
     ) -> None:
         """ Asserts whether the request was redirected to a specific view function. """
         from urllib.parse import urlparse
+
         from django.urls import resolve
         self.assertTrue(hasattr(response, 'redirect_chain'),
                         msg="Please use client.get(...,follow=True) with assertRedirectsToView")
-        redirect_chain: list[tuple[str, int]] = getattr(
-            response, 'redirect_chain'
-        )
+        redirect_chain: list[tuple[str, int]] = getattr(response, 'redirect_chain')  # noqa: B009  # HttpResponseBase omits test-client metadata.
         self.assertTrue(len(redirect_chain) > 0,
                         msg="No redirection found")
         url = redirect_chain[-1][0]
@@ -60,15 +63,16 @@ class TestCase(DjangoTestCase):
 
 
 
-from accounts.models import User, Tutorial
-from django.contrib.auth.models import Group
-from tasks.models import Task
-from solutions.models import Solution, SolutionFile
-from attestation.models import Attestation
+from datetime import datetime, timedelta  # noqa: E402  # Test harness setup must precede project imports.
 
-from datetime import datetime, timedelta
+from django.contrib.auth.models import Group  # noqa: E402  # Test harness setup must precede project imports.
+from django.core.files import File  # noqa: E402  # Test harness setup must precede project imports.
 
-from django.core.files import File
+from accounts.models import Tutorial, User  # noqa: E402  # Test harness setup must precede project imports.
+from attestation.models import Attestation  # noqa: E402  # Test harness setup must precede project imports.
+from solutions.models import Solution, SolutionFile  # noqa: E402  # Test harness setup must precede project imports.
+from tasks.models import Task  # noqa: E402  # Test harness setup must precede project imports.
+
 
 def create_test_data() -> None:
     """ Fills the test db with objects needed in the unit tests. """
@@ -116,4 +120,4 @@ def create_test_data() -> None:
 def dump(obj: object) -> None:
     """ Kinda like obj.__meta__ but shows more, very usefull for testcase debugging. """
     for attr in dir(obj):
-        print("obj.%s = %s" % (attr, getattr(obj, attr)))
+        logger.debug("obj.%s = %s", attr, getattr(obj, attr))

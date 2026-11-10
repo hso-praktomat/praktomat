@@ -190,13 +190,14 @@ class TextChecker(Checker):
         return f'<p><span class="{css_class}"><strong>{status}:</strong></span> {message}</p>'
 
     def _format_hits(self, hits: list[tuple[str, int, str]]) -> str:
-        return f"<ul>{''.join(f'<li>{escape(f)} Zeile {l}</li>' for f, l, _ in hits)}</ul>"
+        return f"<ul>{''.join(f'<li>{escape(filename)} Zeile {line_number}</li>' for filename, line_number, _ in hits)}</ul>"
 
     def _format_system_message(self, level: str, message: str) -> str:
         return f'<p><em>{level}:</em> {message}</p>'
 
 
-from checker.admin import CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class TextCheckerInline(CheckerInline[TextChecker]):
     model: type[TextChecker] = TextChecker

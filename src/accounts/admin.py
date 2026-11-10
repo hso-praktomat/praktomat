@@ -1,24 +1,28 @@
+import typing as _typing
 from random import randint
-from django.utils.translation import gettext_lazy
+
 from django.contrib import admin, messages
-from django.contrib.auth.models import User as UserBase, Group
-from django.contrib.auth.admin import UserAdmin as UserBaseAdmin, GroupAdmin as GroupBaseAdmin
-from django.db.models import Count, QuerySet as _QuerySet
+from django.contrib.auth.admin import GroupAdmin as GroupBaseAdmin
+from django.contrib.auth.admin import UserAdmin as UserBaseAdmin
+from django.contrib.auth.models import Group
+from django.contrib.auth.models import User as UserBase
+from django.db.models import Count
+from django.db.models import QuerySet as _QuerySet
 from django.db.transaction import atomic
 from django.forms import ModelForm as _ModelForm
-from django.http import HttpRequest as _HttpRequest, HttpResponse as _HttpResponse
+from django.http import HttpRequest as _HttpRequest
+from django.http import HttpResponse as _HttpResponse
 from django.shortcuts import get_object_or_404
 from django.urls import URLPattern as _URLPattern
+from django.urls import reverse
+from django.utils.html import format_html
 from django.utils.safestring import SafeString as _SafeString
-import typing as _typing
-from accounts.models import User, Tutorial
-from accounts.forms import AdminUserCreationForm, AdminUserChangeForm
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy
 
 import accounts.views
-
-from django.utils.html import format_html
-from django.utils.safestring import mark_safe
-from django.urls import reverse
+from accounts.forms import AdminUserChangeForm, AdminUserCreationForm
+from accounts.models import Tutorial, User
 
 
 class UserAdmin(UserBaseAdmin[User] if _typing.TYPE_CHECKING else UserBaseAdmin):
@@ -117,10 +121,10 @@ class UserAdmin(UserBaseAdmin[User] if _typing.TYPE_CHECKING else UserBaseAdmin)
 
     def get_urls(self) -> list[_URLPattern]:
         """ Add URL to user import """
-        urls = super(UserAdmin, self).get_urls()
+        urls = super().get_urls()
         from django.urls import re_path
         my_urls = [re_path(r'^import/$', accounts.views.import_user, name='user_import')]
-        my_urls += [re_path(r'^import_ldap/$', accounts.views.import_ldap_user, name='ldap_user_import')] 
+        my_urls += [re_path(r'^import_ldap/$', accounts.views.import_ldap_user, name='ldap_user_import')]
         my_urls += [re_path(r'^import_tutorial_assignment/$', accounts.views.import_tutorial_assignment, name='import_tutorial_assignment')]
         my_urls += [re_path(r'^import_user_texts/$', accounts.views.import_user_texts, name='import_user_texts')]
         return my_urls + urls
@@ -130,9 +134,10 @@ class UserAdmin(UserBaseAdmin[User] if _typing.TYPE_CHECKING else UserBaseAdmin)
             return format_html (
                 '<a href="{1}">Solutions by {0}</a> • <a href="{2}">Attestations for {0}</a> • <a href="{3}">Attestations by {0}</a>',
                 instance,
-                reverse('admin:solutions_solution_changelist') + ("?author__user_ptr__exact=%d" % instance.pk),
-                reverse('admin:attestation_attestation_changelist') + ("?solution__author__user_ptr__exact=%d" % instance.pk),
-                reverse('admin:attestation_attestation_changelist') + ("?author__exact=%d" % instance.pk),
+                reverse('admin:solutions_solution_changelist') + f"?author__user_ptr__exact={instance.pk}",
+                reverse('admin:attestation_attestation_changelist')
+                + f"?solution__author__user_ptr__exact={instance.pk}",
+                reverse('admin:attestation_attestation_changelist') + f"?author__exact={instance.pk}",
                 )
         else:
             return ""
@@ -151,7 +156,7 @@ class UserAdmin(UserBaseAdmin[User] if _typing.TYPE_CHECKING else UserBaseAdmin)
             if is_trainer and not was_trainer and not (obj.is_staff and obj.is_superuser):
                 obj.is_superuser = True
                 obj.is_staff = True
-                messages.warning(request, 'The user "%s" was automatically made staff member and superuser (because he was made a trainer)' % obj)
+                messages.warning(request, f'The user "{obj}" was automatically made staff member and superuser (because he was made a trainer)')
             obj.save()
         else:
             # need to save object to set many2many relationship
@@ -183,7 +188,7 @@ admin.site.register(User, UserAdmin)
 class GroupAdmin(GroupBaseAdmin):
     def get_urls(self) -> list[_URLPattern]:
         """ Add URL to user import """
-        urls = super(GroupAdmin, self).get_urls()
+        urls = super().get_urls()
         from django.urls import re_path
         my_urls = [re_path(r'^(\d+)/import_matriculation_list/$', accounts.views.import_matriculation_list, name='import_matriculation_list')]
         return my_urls + urls
@@ -204,6 +209,6 @@ class TutorialAdmin(
 
     @admin.display(description='View (Tutor Site)')
     def view_url(self, tutorial: Tutorial) -> _SafeString:
-        return mark_safe('<a href="%s">View</a>' % (reverse('tutorial_overview', args=[tutorial.id])))
+        return mark_safe('<a href="{}">View</a>'.format(reverse('tutorial_overview', args=[tutorial.id])))
 
 admin.site.register(Tutorial, TutorialAdmin)

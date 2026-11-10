@@ -1,15 +1,20 @@
-import os, re, sys
+import os
+import re
 import shlex
+import sys
 from typing import TYPE_CHECKING, Any, cast
 
-from django.db import models
-from django.core.files import File
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files import File
+from django.db import models
 from django.forms.models import BaseInlineFormSet, ModelForm
 from django.http import HttpRequest
-from django.utils.translation import gettext_lazy
-from django.utils.html import escape
 from django.utils.encoding import force_str
+from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
+from checker.admin import AlwaysChangedModelForm, CheckerInline
 from checker.basemodels import (
     Checker,
     CheckerEnvironment,
@@ -17,10 +22,9 @@ from checker.basemodels import (
     CheckerResult,
     truncated_log,
 )
-from checker.admin import    CheckerInline, AlwaysChangedModelForm
-from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
 from tasks.models import Task
+from utilities.file_operations import copy_file, require_file_name
+from utilities.safeexec import execute_arglist
 
 EXIT_CODE_PASSED_WITH_WARNING = 121
 
@@ -56,7 +60,7 @@ class ScriptChecker(Checker):
         filename = self.filename if self.filename else self.shell_script.path
         path = os.path.join(env.tmpdir(), os.path.basename(filename))
         copy_file(self.shell_script.path, path)
-        os.chmod(path, 0o750)
+        os.chmod(path, 0o750)  # noqa: S103  # Group read/execute access is required by the sandbox runner.
 
         # Run the tests -- execute dumped shell script 'script.sh'
 
@@ -119,8 +123,8 @@ class ScriptChecker(Checker):
 
         return result
 
-from checker.admin import    CheckerInline
-from django.contrib import messages
+from django.contrib import messages  # noqa: E402  # Keep checker setup ahead of optional admin integration.
+
 
 class WarningScriptCheckerFormSet(
     BaseInlineFormSet[ScriptChecker, Task, ModelForm[ScriptChecker]]
@@ -133,10 +137,10 @@ class WarningScriptCheckerFormSet(
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.request: HttpRequest = kwargs.pop('request', None)
-        super(WarningScriptCheckerFormSet, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def save(self, *args: Any, **kwargs: Any) -> list[ScriptChecker]:
-        scriptcheckers = super(WarningScriptCheckerFormSet, self).save(*args, **kwargs)
+        scriptcheckers = super().save(*args, **kwargs)
 
         for checker in scriptcheckers:
             script = checker.shell_script
@@ -147,8 +151,7 @@ class WarningScriptCheckerFormSet(
 
             # In universal newline mode, Python will interpret '\r', '\n' and '\r\n' as line endings.
             # Because Djangos FileField.open does not know how to handle a newline parameter, we call open from io directly.
-            from io import open as alias_open
-            script.file = alias_open(script.path,mode="r",newline=None)
+            script.file = open(script.path,newline=None)
 
             # make sure self.newlines is populated
             script.readline()
@@ -156,7 +159,7 @@ class WarningScriptCheckerFormSet(
             script.readline()
 
             if (script.newlines is None) or ("\r\n" in script.newlines):
-                messages.add_message(self.request, messages.WARNING, "Script File %s does not appear to use UNIX line-endings. Instead it uses: %s" % (script.name, repr(script.newlines)))
+                messages.add_message(self.request, messages.WARNING, f"Script File {script.name} does not appear to use UNIX line-endings. Instead it uses: {repr(script.newlines)}")
 
             script.close()
 
@@ -165,7 +168,7 @@ class WarningScriptCheckerFormSet(
 class CopyForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
         """ override public and required """
-        super(CopyForm, self).__init__(**args)
+        super().__init__(**args)
 
     def clean_filename(self) -> str:
         filename: object = self.cleaned_data['filename']

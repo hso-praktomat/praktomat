@@ -3,18 +3,18 @@ Dump files containing input, expected output and the shell script running diff.
 """
 
 import os
-
 import os.path
 
-from django.utils.translation import gettext_lazy
-from django.utils.html import escape
-from django.utils.encoding import force_str
-from checker.basemodels import Checker, CheckerEnvironment, CheckerFileField, CheckerResult
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils.encoding import force_str
+from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
+from checker.basemodels import Checker, CheckerEnvironment, CheckerFileField, CheckerResult
+from utilities import encoding
+from utilities.file_operations import copy_file, require_file_name
 from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
-
-
 
 
 class DiffChecker(Checker):
@@ -25,17 +25,18 @@ class DiffChecker(Checker):
 
 
     def clean(self) -> None:
-        super(DiffChecker, self).clean()
-        if (not self.shell_script or not self.input_file or not self.output_file): raise ValidationError("Robert says: DiffChecker have to have an Shell script, an Inputfile and an Outputfile")
+        super().clean()
+        if not self.shell_script or not self.input_file or not self.output_file:
+            raise ValidationError("Robert says: DiffChecker have to have an Shell script, an Inputfile and an Outputfile")
 
     def title(self) -> str:
         """ Returns the title for this checker category. """
-        return u"Ausgaben mit 'diff' prüfen."
+        return "Ausgaben mit 'diff' prüfen."
 
     @staticmethod
     def description() -> str:
         """ Returns a description for this Checker. """
-        return u"Diese Prüfung wird bestanden, wenn erwartete und tatsächliche Ausgabe übereinstimmen."
+        return "Diese Prüfung wird bestanden, wenn erwartete und tatsächliche Ausgabe übereinstimmen."
 
     def run(self, env: CheckerEnvironment) -> CheckerResult:
         """ Runs tests in a special environment. Here's the actual work.
@@ -106,7 +107,8 @@ class DiffChecker(Checker):
         return result
 
 
-from checker.admin import    CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class DiffCheckerInline(CheckerInline[DiffChecker]):
     model: type[DiffChecker] = DiffChecker

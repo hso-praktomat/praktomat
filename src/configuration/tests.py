@@ -1,15 +1,15 @@
-from utilities.TestSuite import TestCase
-
-from configuration.models import Chunk
-from django.template import Context, Template, TemplateSyntaxError
-from django.core.cache import cache
-from unittest.mock import patch
 from datetime import date
+from unittest.mock import patch
 
+from django.core.cache import cache
 from django.db import migrations
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.writer import MigrationWriter
+from django.template import Context, Template, TemplateSyntaxError
 from django.test import SimpleTestCase
+
+from configuration.models import Chunk
+from utilities.TestSuite import TestCase
 
 
 class TestHistoricalMigrationContracts(SimpleTestCase):
@@ -100,8 +100,8 @@ class TestHistoricalMigrationContracts(SimpleTestCase):
                 self.assertEqual(len(migration.operations), 1)
                 operation = migration.operations[0]
                 assert isinstance(operation, migrations.RunPython)
-                self.assertEqual(getattr(operation.code, '__name__'), callback_name)
-                self.assertEqual(getattr(operation.code, '__module__'), f'{app}.migrations.{name}')
+                self.assertEqual(getattr(operation.code, '__name__'), callback_name)  # noqa: B009  # Callable metadata is not exposed by Django's stubs.
+                self.assertEqual(getattr(operation.code, '__module__'), f'{app}.migrations.{name}')  # noqa: B009  # Callable metadata is not exposed by Django's stubs.
                 self.assertFalse(operation.reversible)
                 serialized, _ = MigrationWriter.serialize(operation)
                 self.assertIn(f'{app}.migrations.{name}.{callback_name}', serialized)

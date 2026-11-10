@@ -5,7 +5,9 @@ A FORTRAN compiler for construction.
 from typing import Any
 
 from django.conf import settings
+
 from checker.compiler.Builder import Builder
+
 
 class FortranBuilder(Builder):
     """ A FORTRAN compiler for construction. """
@@ -17,12 +19,16 @@ class FortranBuilder(Builder):
 
 
 
-from checker.admin import CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class CheckerForm(AlwaysChangedModelForm):
     """ override default values for the model fields """
     def __init__(self, **args: Any) -> None:
-        super(CheckerForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["_flags"].initial = "-Wall -static"
         #self.fields["_output_flags"].initial = "-o %s"
         #self.fields["_libs"].initial = ""

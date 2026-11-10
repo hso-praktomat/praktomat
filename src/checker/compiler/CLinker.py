@@ -2,17 +2,15 @@
 A C compiler for construction.
 """
 
+import os
+import re
 from typing import Any
 
 from django.conf import settings
-from checker.compiler.Builder import Linker
-from checker.compiler.Builder import LibraryHelper
-from checker.compiler.Builder import MainNeedHelper
+
 from checker.basemodels import CheckerEnvironment
-
-import os, re
+from checker.compiler.Builder import LibraryHelper, Linker, MainNeedHelper
 from utilities.safeexec import execute_arglist
-
 
 
 class CLinker(Linker, LibraryHelper, MainNeedHelper):
@@ -51,12 +49,12 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
                         cmd = [os.path.join(script_dir, self._OBJECTINSPECTOR)] + self._OBJINSPECT_PAR + [os.path.join(dirpath,filename)]
                         [objinfo, _, exitcode, _, _] = execute_arglist(cmd , env.tmpdir(), self.environment(), timeout=settings.TEST_TIMEOUT, fileseeklimit=settings.TEST_MAXFILESIZE, filenumberlimit=settings.TEST_MAXFILENUMBER, extradirs=[script_dir])
                         if exitcode != 0 :
-                            raise self.NotFoundError("Internal Server Error. Processing files %s" % ",".join(obj_files)+"\n"+objinfo)
+                            raise self.NotFoundError("Internal Server Error. Processing files {}".format(",".join(obj_files))+"\n"+objinfo)
                         tmp = re.search(nm_rx, objinfo)
                         if tmp:
                             return tmp.group(2)
 
-        raise self.NotFoundError("An object containing the main symbol (i.e. 'int main(int argc, char* argv[])' ) could not be found in the files %s" % ", ".join(obj_files))
+        raise self.NotFoundError("An object containing the main symbol (i.e. 'int main(int argc, char* argv[])' ) could not be found in the files {}".format(", ".join(obj_files)))
 
 
 # todo: code review
@@ -82,7 +80,7 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
 
         #rxarg = re.compile(self.rxarg())
         #return [name for (name,content) in env.sources() if rxarg.match(name)]
-        return super(CLinker,self).get_file_names(env)
+        return super().get_file_names(env)
 
     def logbuilder(
         self, output: str, args: list[str], env: "CheckerEnvironment"
@@ -120,13 +118,17 @@ class CLinker(Linker, LibraryHelper, MainNeedHelper):
 
 
 
-from checker.admin import CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class CheckerForm(AlwaysChangedModelForm):
 
     """ override default values for the model fields """
     def __init__(self, **args: Any) -> None:
-        super(CheckerForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["_flags"].initial = "-Wl,--warn-common"
         #self.fields["_output_flags"].initial = "-o %s"
         #self.fields["_output_flags"].default = "-o %s"

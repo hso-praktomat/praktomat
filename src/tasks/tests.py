@@ -1,25 +1,25 @@
-from os.path import dirname, join
 from datetime import datetime, timedelta
 from io import BytesIO
-from zipfile import ZipFile
+from os.path import dirname, join
 from tempfile import SpooledTemporaryFile
 from unittest.mock import patch
+from zipfile import ZipFile
 
-from utilities.TestSuite import TestCase
-from accounts.models import Tutorial, User
-from attestation.models import RatingScale, RatingScaleItem
+from django.contrib.admin import AdminSite
 from django.core import serializers
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
-from django.urls import reverse
-from django.contrib.admin import AdminSite
 from django.test import RequestFactory
+from django.urls import reverse
 
+from accounts.models import Tutorial, User
+from attestation.models import RatingScale, RatingScaleItem
 from checker.checker.ScriptChecker import ScriptChecker, ScriptCheckerInline
 from checker.checker.TextChecker import TextChecker, TextCheckerInline
-from tasks.admin import TaskAdmin
 from solutions.models import Solution
+from tasks.admin import TaskAdmin
 from tasks.models import DeadlineExtension, MediaFile, SubmissionBlacklistEntry, Task
+from utilities.TestSuite import TestCase
 
 
 class TestTaskAdminContracts(TestCase):
@@ -79,7 +79,10 @@ class TestTaskAdminContracts(TestCase):
             model_admin.run_all_checkers_on_finals(request, queryset)
         check.assert_called_once_with()
         self.assertIn('3 final solutions', message.call_args.args[1])
-        self.assertEqual(getattr(TaskAdmin.run_all_checkers_on_finals, 'short_description'), 'check only finals (Admin)')
+        self.assertEqual(
+            getattr(TaskAdmin.run_all_checkers_on_finals, 'short_description'),  # noqa: B009  # Django admin attaches metadata dynamically.
+            'check only finals (Admin)',
+        )
 
 
 class TestTaskExport(TestCase):

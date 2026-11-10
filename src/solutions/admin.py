@@ -1,15 +1,16 @@
+import typing as _typing
+
 from django.contrib import admin
+from django.db.models import Max
 from django.db.models import QuerySet as _QuerySet
 from django.http import HttpRequest as _HttpRequest
-from solutions.models import Solution, SolutionFile
-from checker.basemodels import CheckerResult
-from checker.basemodels import check_multiple
 from django.urls import reverse
-from django.db.models import Max
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 from django.utils.safestring import SafeString as _SafeString
-import typing as _typing
+from django.utils.safestring import mark_safe
+
+from checker.basemodels import CheckerResult, check_multiple
+from solutions.models import Solution, SolutionFile
 
 
 def _boolean_annotation(solution: Solution, name: str) -> bool:
@@ -73,7 +74,7 @@ class IsLatestOfOnlyFailedFilter(admin.SimpleListFilter):
 #           print("is_latest_failed_attempt:", is_latest_failed_attempt)
            latestfailed = (not successfull_solution_from_user_for_task_available) and is_latest_failed_attempt
 #           print("latestfailed:",latestfailed)
-           if True == latestfailed:
+           if latestfailed:
 #               print("FOUND, put to list" )
                filterlist += [solution.id]
 #        print("===============")
@@ -118,7 +119,7 @@ class SolutionAdmin(admin.ModelAdmin[Solution] if _typing.TYPE_CHECKING else adm
     def get_queryset(
         self, request: _HttpRequest
     ) -> _QuerySet[Solution, Solution]:
-        queryset = super(SolutionAdmin,self).get_queryset(request)
+        queryset = super().get_queryset(request)
         from django.db.models import Exists, OuterRef
         from django.db.models.expressions import RawSQL
 
@@ -222,14 +223,14 @@ class SolutionAdmin(admin.ModelAdmin[Solution] if _typing.TYPE_CHECKING else adm
         self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
     ) -> None:
         count = self.mod_plagiarism(queryset, True)
-        self.message_user(request, "%d solutions marked as plagiated" % count)
+        self.message_user(request, f"{count} solutions marked as plagiated")
 
     @admin.action(description="Mark as not plagiated")
     def mark_no_plagiarism(
         self, request: _HttpRequest, queryset: _QuerySet[Solution, Solution]
     ) -> None:
         count = self.mod_plagiarism(queryset, False)
-        self.message_user(request, "%d solutions marked as not plagiated" % count)
+        self.message_user(request, f"{count} solutions marked as not plagiated")
 
 
     @admin.display(description='Edit (Admin Site)')
@@ -238,15 +239,15 @@ class SolutionAdmin(admin.ModelAdmin[Solution] if _typing.TYPE_CHECKING else adm
 
     @admin.display(description='View (User Site)')
     def view_url(self, solution: Solution) -> _SafeString:
-        return mark_safe('<a href="%s">View</a>' % (reverse('solution_detail_full', args=[solution.id])))
+        return mark_safe('<a href="{}">View</a>'.format(reverse('solution_detail_full', args=[solution.id])))
 
     @admin.display(description='Download')
     def download_url(self, solution: Solution) -> _SafeString:
-        return mark_safe('<a href="%s">Download</a>' % (reverse('solution_download', args=[solution.id])))
+        return mark_safe('<a href="{}">Download</a>'.format(reverse('solution_download', args=[solution.id])))
 
     @admin.display(description='Run Checker (incl. those run at submission)')
     def run_checker_url(self, solution: Solution) -> _SafeString:
-        return mark_safe('<a href="%s">Run Checkers</a>' % (reverse('solution_run_checker', args=[solution.id])))
+        return mark_safe('<a href="{}">Run Checkers</a>'.format(reverse('solution_run_checker', args=[solution.id])))
 
     @admin.display(description='Solution author', ordering='author')
     def show_author(self, instance: Solution) -> _SafeString:
@@ -257,7 +258,7 @@ class SolutionAdmin(admin.ModelAdmin[Solution] if _typing.TYPE_CHECKING else adm
     def useful_links(self, instance: Solution) -> _SafeString | str:
         if instance.pk:
             return format_html ('<a href="{0}">Attestations of this solution</a> • <a href="{1}">User Site view of this solution</a>',
-                reverse('admin:attestation_attestation_changelist') + ("?solution__exact=%d" % instance.pk),
+                reverse('admin:attestation_attestation_changelist') + f"?solution__exact={instance.pk}",
                 reverse('solution_detail', args=[instance.pk])
                 )
         else:

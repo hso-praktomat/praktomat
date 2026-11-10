@@ -1,30 +1,36 @@
-from utilities.TestSuite import TestCase
-
-from accounts.models import Tutorial, User, validate_mat_number
-from django.contrib.auth.models import Group
-from django.contrib.auth.models import User as BasicUser
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core import serializers
-from django.test import RequestFactory, override_settings
-from django.http import Http404, HttpRequest, HttpResponse
-from django.contrib.auth.models import AnonymousUser
-from django.contrib.sessions.middleware import SessionMiddleware
-from django.urls import reverse
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+
 import ldap
-from accounts.ldap_auth import load_ldap_group_adapters, create_localuser_from_ldapuser, fetch_ldapuser_dict, LDAPBackend, LDAPUser
 from asgiref.sync import async_to_sync
+from django import forms
+from django.contrib.auth.models import AnonymousUser, Group
+from django.contrib.auth.models import User as BasicUser
+from django.contrib.sessions.middleware import SessionMiddleware
+from django.core import serializers
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import Http404, HttpRequest, HttpResponse
+from django.test import RequestFactory, override_settings
+from django.urls import reverse
+
 from accounts.authentication import require_user, resolve_user
-from accounts.decorators import local_user_required, shibboleth_user_required, shibboleth_support_required
-from accounts.middleware import AuthenticationMiddleware, DisclaimerAcceptanceMiddleware, LogoutInactiveUserMiddleware
-from solutions.models import SolutionFile
+from accounts.decorators import local_user_required, shibboleth_support_required, shibboleth_user_required
 from accounts.forms import AdminUserChangeForm, AdminUserCreationForm, MyRegistrationForm
+from accounts.ldap_auth import (
+    LDAPBackend,
+    LDAPUser,
+    create_localuser_from_ldapuser,
+    fetch_ldapuser_dict,
+    load_ldap_group_adapters,
+)
+from accounts.middleware import AuthenticationMiddleware, DisclaimerAcceptanceMiddleware, LogoutInactiveUserMiddleware
+from accounts.models import Tutorial, User, validate_mat_number
 from accounts.shib_views import parse_attributes
 from accounts.views import require_uploaded_file
-from django import forms
+from solutions.models import SolutionFile
+from utilities.TestSuite import TestCase
 
 
 class TestAccountHTTPContracts(TestCase):
@@ -730,8 +736,8 @@ class TestModelContracts(TestCase):
         for method in (
             User.activation_key_expired, User.is_activated, User.can_activate
         ):
-            self.assertIs(getattr(method, 'boolean'), True)
-        self.assertEqual(str(getattr(Tutorial.tutors_flat, 'short_description')), 'Tutors')
+            self.assertIs(getattr(method, 'boolean'), True)  # noqa: B009  # Django admin decorates callables with this metadata.
+        self.assertEqual(str(getattr(Tutorial.tutors_flat, 'short_description')), 'Tutors')  # noqa: B009  # Django admin metadata is dynamically attached.
 
     def test_user_manager_returns_custom_users(self) -> None:
         user = User.objects.create_user(

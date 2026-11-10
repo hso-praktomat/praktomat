@@ -1,19 +1,17 @@
-from os.path import dirname, join
 from os import environ as os_environ
-
-from django.test import TestCase
-from django.db.models import Field
-from django.urls import reverse
-
-from django.contrib.admin.sites import AdminSite
+from os.path import dirname, join
 from unittest import skipIf
 
-from checker.checker.CUnitChecker_v2 import UnitCheckerCopyForm
-from checker.checker.CUnitChecker_v2 import CUnitChecker2
-from solutions.models import Solution
+from django.contrib.admin.sites import AdminSite
+from django.db.models import Field
+from django.test import TestCase
+from django.urls import reverse
+
 from accounts.models import User
-from tasks.models import Task
 from attestation.models import RatingScale, RatingScaleItem
+from checker.checker.CUnitChecker_v2 import CUnitChecker2, UnitCheckerCopyForm
+from solutions.models import Solution
+from tasks.models import Task
 
 
 class ModelCUnitCppUnitCheckerTests(TestCase):
@@ -47,7 +45,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
             #http://localhost:8000/admin/tasks/task/import/ + istemplate aktiv
             response = self.client.get('/admin/tasks/task/import/')
             self.assertEqual(response.status_code, 200) # should work
-            self.assertIn("Import Task".encode("utf-8"),response.content)
+            self.assertIn(b"Import Task",response.content)
             self.assertTemplateUsed(response,'admin/tasks/task/import.html')
             response = self.client.post('/admin/tasks/task/import/', data={
                                'file': f,
@@ -60,7 +58,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
             all_tasks = list(Task.objects.order_by('id').values())
             taskID=all_tasks[-1]['id']
             #after importing it should be possible to call Task Admin change View for that task
-            response = self.client.get('/admin/tasks/task/%s/change/'%(taskID))
+            response = self.client.get(f'/admin/tasks/task/{taskID}/change/')
             self.assertEqual(response.status_code, 200) # should work
             self.assertTemplateUsed(response,'admin/tasks/task/change_form.html')
             #print(response.content)
@@ -97,7 +95,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
             self.assertEqual(0,len(solutions)) # there should be no solutions.
             tasks = list(Task.objects.filter(id__exact=taskID).values())
             self.assertTrue(1==len(tasks) and taskID==tasks[0]['id']) # there should be one task having taskID
-            response = self.client.get('/tasks/%s/solutionupload/'%(taskID))
+            response = self.client.get(f'/tasks/{taskID}/solutionupload/')
             self.assertEqual(response.status_code, 200) # should work
             self.assertTemplateUsed(response,'solutions/solution_list.html')
             response = self.client.post(reverse('solution_list', args=[taskID]), data={
@@ -107,19 +105,19 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
                             }, xhr=True, follow=True)
             self.assertEqual(response.status_code, 200) # should work
             self.assertTemplateUsed(response,'solutions/solution_detail.html')
-            self.assertNotIn("Upload solution denied for now".encode("utf-8"),response.content)
+            self.assertNotIn(b"Upload solution denied for now",response.content)
             #there should be no CUNIT missing error in response
-            if "cannot find -lcunit".encode("utf-8") in response.content:
+            if b"cannot find -lcunit" in response.content:
                 self.fail("could not find Cunit installation. Fix your system installation.")
-            if "fatal error: CUnit/Basic.h".encode("utf-8") in response.content:
+            if b"fatal error: CUnit/Basic.h" in response.content:
                 self.fail("could not find Cunit installation. Fix your system installation.")
             #there should be no CPPUNIT missing error in response
-            if "cannot find -lcppunit".encode("utf-8") in response.content:
+            if b"cannot find -lcppunit" in response.content:
                 self.fail("could not find CPPunit installation. Fix your system installation.")
-            if "fatal error: cppunit/TestFixture.h".encode("utf-8") in response.content:
+            if b"fatal error: cppunit/TestFixture.h" in response.content:
                 self.fail("could not find CPPunit installation. Fix your system installation.")
-            self.assertIn("This is your current final solution".encode("utf-8"),response.content)
-        return openedfile;
+            self.assertIn(b"This is your current final solution",response.content)
+        return openedfile
 
 
     def test_CUnitCppUnit_Checker_model_TestApp_label(self) -> None:
@@ -230,7 +228,7 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertIn('_auth_user_id', self.client.session) # check if one user is logged in
         self.assertEqual(int(self.client.session['_auth_user_id']), self.trainer.id) # check if correct student has logged in
         #http://localhost:8000/admin/tasks/task/6/change/
-        response = self.client.get('/admin/tasks/task/%s/change/'%(taskid))
+        response = self.client.get(f'/admin/tasks/task/{taskid}/change/')
         # name of  FileField file ends with "test_uebung11_NsIpkLQ.c"
         # value of CharField filename ends with "test_uebung11.c"
         # there should be a form warning, if both names are different,
@@ -313,12 +311,12 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertIn('_auth_user_id', self.client.session) # check if one user is logged in
         app_label = "tasks"
         model_name = "task"
-        change_url = reverse('admin:%s_%s_changelist' %(app_label, model_name))
+        change_url = reverse(f'admin:{app_label}_{model_name}_changelist')
         data = {'action': 'run_all_checkers',
                 '_selected_action': [taskid, ]}
         response = self.client.post(change_url, data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("0 final solutions were successfully checked".encode("utf-8"),response.content)
+        self.assertIn(b"0 final solutions were successfully checked",response.content)
 
 
     def test_taskAdmin_action_runallcheckers_onTaskWithOneSolutionUploads(self) -> None:
@@ -350,9 +348,9 @@ class ModelCUnitCppUnitCheckerTests(TestCase):
         self.assertIn('_auth_user_id', self.client.session) # check if one user is logged in
         app_label = "tasks"
         model_name = "task"
-        change_url = reverse('admin:%s_%s_changelist' %(app_label, model_name))
+        change_url = reverse(f'admin:{app_label}_{model_name}_changelist')
         data = {'action': 'run_all_checkers',
                 '_selected_action': [taskid, ]}
         response = self.client.post(change_url, data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("1 final solutions were successfully checked".encode("utf-8"),response.content) #ToDo: The message should be really in singular, but for now, I want to pass the UnitTest
+        self.assertIn(b"1 final solutions were successfully checked",response.content) #ToDo: The message should be really in singular, but for now, I want to pass the UnitTest

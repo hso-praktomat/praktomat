@@ -1,21 +1,29 @@
-import os, sys, mimetypes
+import mimetypes
+import os
+import sys
 from urllib.parse import quote
+
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import (
-    HttpRequest as _HttpRequest,
-    HttpResponse,
-    HttpResponseBase as _HttpResponseBase,
     Http404,
+    HttpResponse,
+)
+from django.http import (
+    HttpRequest as _HttpRequest,
+)
+from django.http import (
+    HttpResponseBase as _HttpResponseBase,
 )
 from django.shortcuts import get_object_or_404
-from django.conf import settings
-from django.views.static import serve
 from django.utils.encoding import smart_str
+from django.views.static import serve
 
-from accounts.views import access_denied
 from accounts.authentication import require_user
+from accounts.views import access_denied
 from solutions.models import Solution
 from tasks.models import Task
+
 
 def serve_unrestricted(
     request: _HttpRequest, path: str

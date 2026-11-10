@@ -5,9 +5,11 @@ InterfaceChecker.
 import re
 
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
 from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class InterfaceChecker(Checker):
 
@@ -53,17 +55,17 @@ class InterfaceChecker(Checker):
 
                 expression = re.compile(baseExp + self._cleanName(iname), re.MULTILINE)
                 if expression.search(noComments):
-                    if not iname in implemented:
+                    if iname not in implemented:
                         implemented.append(iname)
 
                 expression = re.compile(extExp + self._cleanName(iname), re.MULTILINE)
                 if expression.search(noComments):
-                    if not iname in implemented:
+                    if iname not in implemented:
                         implemented.append(iname)
 
         # check if all interfaces were implemented
         for interface in [self.interface1, self.interface2, self.interface3, self.interface4, self.interface5, self.interface6, self.interface7]: ##self.interface_set.all()
-            if not interface in implemented: ## interface.name
+            if interface not in implemented: ## interface.name
                 passed = 0
                 log += "Interface " + escape(interface) + " wurde nicht implementiert.<BR>" ## interface.name
 
@@ -120,7 +122,8 @@ class InterfaceChecker(Checker):
 ##    extra = 6
 
 
-from checker.admin import    CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class InterfaceCheckerInline(CheckerInline[InterfaceChecker]):
     model: type[InterfaceChecker] = InterfaceChecker

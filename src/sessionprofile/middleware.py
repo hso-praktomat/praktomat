@@ -29,7 +29,7 @@ from django.http import HttpRequest, HttpResponseBase
 from sessionprofile.models import SessionProfile
 
 
-class SessionProfileMiddleware(object):
+class SessionProfileMiddleware:
 
     def process_response(
         self, request: HttpRequest, response: HttpResponseBase

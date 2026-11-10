@@ -1,6 +1,6 @@
 # Settings for development in the source tree
 
-from os.path import join, dirname
+from os.path import dirname, join
 
 # set Debug mode True or False; in development version should be True
 DEBUG = True
@@ -8,7 +8,7 @@ DEBUG = True
 PRAKTOMAT_PATH = dirname(dirname(dirname(__file__)))
 
 # The name that will be displayed on top of the page and in emails.
-SITE_NAME = u'Development Praktomat- some non ascii letters in site name: ä ü ö ß'
+SITE_NAME = 'Development Praktomat- some non ascii letters in site name: ä ü ö ß'
 
 # Identifie this Praktomat among multiple installation on one webserver
 PRAKTOMAT_ID = '2021t'
@@ -142,7 +142,8 @@ LANG = "en_US.UTF-8"
 LANGUAGE = "en_US:en"
 
 # Finally load defaults for missing settings.
-from . import defaults
+from . import defaults  # noqa: E402  # Import defaults only after mode-specific settings are initialized.
+
 MIDDLEWARE: list[str] = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

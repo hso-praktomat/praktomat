@@ -1,11 +1,11 @@
 # From http://www.obeythetestinggoat.com/how-to-log-exceptions-to-stderr-in-django.html
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 
 from django.http import HttpRequest, HttpResponseBase
 
 
-class ExceptionLoggingMiddleware(object):
+class ExceptionLoggingMiddleware:
     def __init__(
         self, get_response: Callable[[HttpRequest], HttpResponseBase]
     ) -> None:

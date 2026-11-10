@@ -25,6 +25,8 @@ jobs:
         .venv/bin/python -m pip install -r requirements.txt -r requirements-dev.txt
     - name: Run strict Pyright
       run: .venv/bin/python -m pyright --project . --warnings
+    - name: Run Ruff
+      run: .venv/bin/python -m ruff check src
 
   test:
     name: Run tests (Python ${{ matrix.python-version }})

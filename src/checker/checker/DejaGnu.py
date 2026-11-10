@@ -3,14 +3,15 @@ DejaGnu Tests.
 """
 
 import os
-from os.path import join
 import re
+from os.path import join
 from typing import Any
 
-from django.db import models
 from django.conf import settings
-from django.utils.translation import gettext_lazy
+from django.db import models
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
 from checker.basemodels import (
     Checker,
     CheckerEnvironment,
@@ -18,9 +19,9 @@ from checker.basemodels import (
     CheckerResult,
 )
 from checker.compiler.Builder import Builder
-from utilities.safeexec import execute_arglist
 from utilities import encoding
 from utilities.file_operations import create_file, makedirs
+from utilities.safeexec import execute_arglist
 
 # Stuff to highlight in output
 RXFAIL       = re.compile(r"^(.*)(FAIL|ERROR|Abort|Exception |your program crashed|cpu time limit exceeded|"
@@ -31,7 +32,7 @@ RXRUN_BY   = re.compile(r"Run By .* on ")
 # Stuff to remove from output
 RXREMOVE   = re.compile(r"(Schedule of variations:.*interface file.)|(Running \./[ -z]*/[a-z]*\.exp \.\.\.)", re.DOTALL)
 
-class DejaGnu(object):
+class DejaGnu:
     """ Common superclass for all DejaGnu-related stuff. """
 
     # Directories
@@ -164,7 +165,7 @@ class DejaGnuTester(Checker, DejaGnu):
                 _summary = encoding.get_unicode(fd.read())
             with open(os.path.join(testsuite, program_name + ".log"),"rb") as fd:
                 log = encoding.get_unicode(fd.read())
-        except:
+        except (OSError, UnicodeDecodeError):
             _summary = ""
             log = ""
 
@@ -218,12 +219,16 @@ class DejaGnuSetup(Checker, DejaGnu):
 
         return self.create_result(env)
 
-from checker.admin import    CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class SetupForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
         """ override public and required """
-        super(SetupForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["public"].initial = False
         self.fields["required"].initial = False
 

@@ -2,17 +2,17 @@ import re
 
 from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy
-from django.utils.html import escape
 from django.template.loader import get_template
-from checker.basemodels import CheckerEnvironment, CheckerResult, truncated_log
-from checker.admin import CheckerInline
-from solutions.models import Solution
-from utilities.safeexec import execute_arglist
-from utilities import encoding
+from django.utils.html import escape
+from django.utils.translation import gettext_lazy
 
-from checker.compiler.HaskellBuilder import HaskellBuilder
+from checker.admin import CheckerInline
+from checker.basemodels import CheckerEnvironment, CheckerResult, truncated_log
 from checker.checker.CreateFileChecker import CheckerWithFile, CopyForm
+from checker.compiler.HaskellBuilder import HaskellBuilder
+from solutions.models import Solution
+from utilities import encoding
+from utilities.safeexec import execute_arglist
 
 RXFAIL       = re.compile(r"^(.*)(FAILURES!!!|your program crashed|cpu time limit exceeded|ABBRUCH DURCH ZEITUEBERSCHREITUNG|Could not find class|Killed|failures)(.*)$",    re.MULTILINE)
 

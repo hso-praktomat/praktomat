@@ -4,11 +4,10 @@ AnonymityChecker.
 
 import re
 
-from django.utils.translation import gettext
-from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
-
 from django.utils.html import escape
+from django.utils.translation import gettext
 
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 
 # Helpers
 
@@ -116,7 +115,9 @@ Please remove your name and user id and submit again.""")
         return result
 
 
-from checker.admin import CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
 class AnonymityCheckerInline(CheckerInline[AnonymityChecker]):
     model: type[AnonymityChecker] = AnonymityChecker
 fieldsets = (

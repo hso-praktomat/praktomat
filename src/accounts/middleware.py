@@ -1,26 +1,29 @@
-from accounts.authentication import require_user, resolve_user
-from configuration import get_settings
+from functools import partial
+from typing import cast
 
+from asgiref.sync import sync_to_async
 from django.contrib.auth import logout
 from django.contrib.auth.base_user import AbstractBaseUser
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth.middleware import (
     AuthenticationMiddleware as DjangoAuthenticationMiddleware,
-    get_user,
-    auser,
 )
+from django.contrib.auth.middleware import (
+    auser,
+    get_user,
+)
+from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest, HttpResponseRedirect
 from django.urls import reverse
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.functional import SimpleLazyObject
-from asgiref.sync import sync_to_async
-from functools import partial
-from typing import cast
+
+from accounts.authentication import require_user, resolve_user
+from configuration import get_settings
 
 
 async def application_auser(request: HttpRequest) -> AbstractBaseUser | AnonymousUser:
     user = await sync_to_async(resolve_user)(await auser(request))
-    setattr(request, '_acached_user', user)
+    setattr(request, '_acached_user', user)  # noqa: B010  # Django authentication middleware uses this private cache attribute.
     return user
 
 

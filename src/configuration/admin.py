@@ -1,7 +1,9 @@
+from typing import TYPE_CHECKING
+
 from django.contrib import admin
 from django.http import HttpRequest
-from typing import TYPE_CHECKING
-from .models import Settings, Chunk
+
+from .models import Chunk, Settings
 
 
 class ChunkInline(admin.StackedInline[Chunk, Settings] if TYPE_CHECKING else admin.StackedInline):

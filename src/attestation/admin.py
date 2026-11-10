@@ -1,14 +1,26 @@
-from django.contrib import admin
-from django import forms
-from django.db.models import QuerySet as _QuerySet
-from django.http import HttpRequest as _HttpRequest, HttpResponse as _HttpResponse
-from attestation.models import *
-from django.urls import URLPattern as _URLPattern, reverse
-from django.utils.html import format_html
-from django.utils.safestring import SafeString as _SafeString
 import typing as _typing
 
+from django import forms
+from django.contrib import admin
+from django.db.models import QuerySet as _QuerySet
+from django.http import HttpRequest as _HttpRequest
+from django.http import HttpResponse as _HttpResponse
+from django.urls import URLPattern as _URLPattern
+from django.urls import reverse
+from django.utils.html import format_html
+from django.utils.safestring import SafeString as _SafeString
+
 import attestation.views
+from attestation.models import (
+    AnnotatedSolutionFile,
+    Attestation,
+    Rating,
+    RatingAspect,
+    RatingResult,
+    RatingScale,
+    RatingScaleItem,
+)
+from tasks.models import Task
 
 admin.autodiscover()
 
@@ -95,7 +107,7 @@ class AttestationAdmin(admin.ModelAdmin[Attestation] if _typing.TYPE_CHECKING el
 
     def get_urls(self) -> list[_URLPattern]:
         """ Add URL to Attestation update """
-        urls = super(AttestationAdmin, self).get_urls()
+        urls = super().get_urls()
         from django.urls import re_path
         my_urls = [re_path(r'^update/$', attestation.views.update_attestations, name='attestation_update')]
         return my_urls + urls

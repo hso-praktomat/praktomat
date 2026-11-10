@@ -10,9 +10,9 @@ from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils.timezone import now
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from accounts.authentication import require_user
 from tasks.models import Task
@@ -98,13 +98,12 @@ def boxblot_to_graphic_list(
     figure = Figure()
     axes = cast(_StatisticsFigure, figure).subplots()
     axes.set_title(
-        "Task %d : %s\n Submitters passed Posttest: %d \n Submitters passed Pretest but failed Posttest: %d\n Submitters failed Pretest: %d\n Uploads accepted: %d\n Uploads rejected: %d"
-        % (
-            task_id, dtupel['title'], _number(dtupel, 'submitters_passed_finals'),
-            _number(dtupel, 'submitters_failed_finals'),
-            _number(dtupel, 'submitters_latest_not_accepted'),
-            _number(dtupel, 'uploads_accepted'), _number(dtupel, 'uploads_rejected'),
-        )
+        f"Task {task_id} : {dtupel['title']}\n "
+        f"Submitters passed Posttest: {_number(dtupel, 'submitters_passed_finals')} \n "
+        f"Submitters passed Pretest but failed Posttest: {_number(dtupel, 'submitters_failed_finals')}\n "
+        f"Submitters failed Pretest: {_number(dtupel, 'submitters_latest_not_accepted')}\n "
+        f"Uploads accepted: {_number(dtupel, 'uploads_accepted')}\n "
+        f"Uploads rejected: {_number(dtupel, 'uploads_rejected')}"
     )
     groups: list[tuple[UploadStatus, str, tuple[str, str, str, str, str, str]]] = [
         ('postpassed', 'posttest\n passed', (

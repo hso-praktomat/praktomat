@@ -1,8 +1,10 @@
-from configuration.models import Chunk
 from django import template
 from django.core.cache import cache
-from django.template.base import Parser as _Parser, Token as _Token
+from django.template.base import Parser as _Parser
+from django.template.base import Token as _Token
 from django.template.context import Context as _Context
+
+from configuration.models import Chunk
 
 register = template.Library()
 
@@ -12,7 +14,7 @@ def do_get_chunk(parser: _Parser, token: _Token) -> "ChunkNode":
     # split_contents() knows not to split quoted strings.
     tokens = token.split_contents()
     if len(tokens) < 2 or len(tokens) > 3:
-        raise template.TemplateSyntaxError("%r tag should have either 2 or 3 arguments" % (tokens[0],))
+        raise template.TemplateSyntaxError(f"{tokens[0]!r} tag should have either 2 or 3 arguments")
     tag_name, key = tokens[:2]
     try:
         cache_time = int(tokens[2]) if len(tokens) == 3 else 0
@@ -20,7 +22,7 @@ def do_get_chunk(parser: _Parser, token: _Token) -> "ChunkNode":
         raise template.TemplateSyntaxError("Chunk cache time must be an integer") from error
     # Check to see if the key is properly double/single quoted
     if not (key[0] == key[-1] and key[0] in ('"', "'")):
-        raise template.TemplateSyntaxError("%r tag's argument should be in quotes" % tag_name)
+        raise template.TemplateSyntaxError(f"{tag_name!r} tag's argument should be in quotes")
     # Send key without quotes and caching time
     return ChunkNode(key[1:-1], cache_time)
 

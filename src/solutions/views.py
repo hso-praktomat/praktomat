@@ -1,34 +1,29 @@
 import tempfile
-
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render, get_object_or_404
-from django.http import Http404
-from django.http import HttpRequest
-from django.http import HttpResponseRedirect, HttpResponse
-from django.urls import reverse
-from django.views.decorators.cache import cache_control
-from django.template import loader
-from django.conf import settings
-from django.core.mail import send_mail, get_connection , mail_admins
-from django.utils.translation import gettext_lazy
-from django.contrib.sites.requests import RequestSite
-
-
 from datetime import datetime, timedelta
 
-from tasks.models import Task, HtmlInjector
-from attestation.models import Attestation
-from solutions.models import Solution, get_solutions_zip, ConfirmationMessage
-from solutions.forms import SolutionUploadForm, SolutionFormSet
-from accounts.views import access_denied
-from accounts.models import User
-from accounts.authentication import require_user
-from configuration import get_settings
-from checker.basemodels import Checker
-from checker.basemodels import check_solution
+from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.contrib.sites.requests import RequestSite
+from django.core.mail import get_connection, mail_admins, send_mail
+from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render
+from django.template import loader
+from django.urls import reverse
+from django.utils.translation import gettext_lazy
+from django.views.decorators.cache import cache_control
 
+from accounts.authentication import require_user
+from accounts.models import User
+from accounts.views import access_denied
+from attestation.models import Attestation
+from checker.basemodels import Checker, check_solution
+from configuration import get_settings
+from solutions.forms import SolutionFormSet, SolutionUploadForm
+from solutions.models import ConfirmationMessage, Solution, get_solutions_zip
+from tasks.models import HtmlInjector, Task
 from utilities.safeexec import execute_arglist
+
 
 @login_required
 @cache_control(must_revalidate=True, no_cache=True, no_store=True, max_age=0) #reload the page from the server even if the user used the back button
@@ -101,7 +96,7 @@ def solution_list(
                 dt_string = exnow.strftime("%d/%m/%Y %H:%M:%S")
                 # Send Encoding Error to user via mail
                 myRequestUser = User.objects.filter(id=request.user.id)
-                myerrmsg = " %s => %s " % (type(inst).__name__, inst)
+                myerrmsg = f" {type(inst).__name__} => {inst} "
                 t = loader.get_template('solutions/submission_upload_UnicodeError_email.html')
                 c = {
                       'protocol' : request.is_secure() and "https" or "http",
@@ -235,7 +230,7 @@ def solution_detail(
 
     if full and not (request.user.is_trainer or request.user.is_tutor or request.user.is_superuser):
         return access_denied(request)
-    
+
     if request.user.is_user and solution.task.should_hide(request.user):
         return access_denied(request)
 

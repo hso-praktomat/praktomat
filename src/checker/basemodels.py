@@ -1,36 +1,35 @@
+import logging
 import os.path
 import shutil
 import sys
 import time
 from collections.abc import Callable, Iterable
+from datetime import datetime
+from functools import partial
+from multiprocessing import Pool
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
-from django.db import models
-from tasks.models import Task
-from solutions.models import Solution
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
-from django.utils.translation import gettext_lazy
-from django.core.files.storage import Storage
-from django.utils.encoding import force_str
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files import File
+from django.core.files.storage import Storage
+from django.core.mail import mail_admins
+from django.db import connection, models
 from django.db.models.signals import post_delete
 from django.dispatch.dispatcher import receiver
+from django.template import loader
+from django.utils.encoding import force_str
+from django.utils.translation import gettext_lazy
+
+from accounts.models import User
+from solutions.models import Solution
+from tasks.models import Task
 from utilities import file_operations
 from utilities.deleting_file_field import DeletingFileField
 
-from functools import partial
-from multiprocessing import Pool
-
-from django.db import connection
-
-from accounts.models import User
-from tasks.models import Task
-from django.template import loader
-from django.core.mail import mail_admins
-from datetime import datetime
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
@@ -39,7 +38,7 @@ if TYPE_CHECKING:
 
 def get_checkerfile_storage_path(instance: "Checker", filename: str) -> str:
     """ Use this function as upload_to parameter for filefields. """
-    return 'CheckerFiles/Task_%s/%s/%s' % (instance.task.pk, instance.__class__.__name__, filename)
+    return f'CheckerFiles/Task_{instance.task.pk}/{instance.__class__.__name__}/{filename}'
 
 
 class CheckerFileField(DeletingFileField):
@@ -55,7 +54,7 @@ class CheckerFileField(DeletingFileField):
     ) -> None:
         # increment filename length from 100 to 500
         kwargs['max_length'] = kwargs.get('max_length', 500)
-        super(CheckerFileField, self).__init__(verbose_name, name, upload_to, storage, **kwargs)
+        super().__init__(verbose_name, name, upload_to, storage, **kwargs)
 
 class Checker(models.Model):
     """ A Checker implements some quality assurance.
@@ -130,7 +129,8 @@ class Checker(models.Model):
         return []
 
     def clean(self) -> None:
-        if self.required and (not self.show_publicly(False)): raise ValidationError("Checker is required, but failure isn't publicly reported to student during submission")
+        if self.required and not self.show_publicly(False):
+            raise ValidationError("Checker is required, but failure isn't publicly reported to student during submission")
 
 
 class CheckerEnvironment:
@@ -246,6 +246,9 @@ class CheckerResult(models.Model):
     )
     creation_date: "models.DateTimeField[datetime, datetime]" = models.DateTimeField(auto_now_add=True)
     runtime: "models.IntegerField[int, int]" = models.IntegerField(default=0, help_text=gettext_lazy('Runtime in milliseconds'))
+
+    def __str__(self) -> str:
+        return f"Checker result {self.pk} for solution {self.solution_id}"
 
     def title(self) -> str:
         """ Returns the title of the Checker that did run. """
@@ -367,7 +370,7 @@ def check_solution(
     secondary_check: bool = False,
 ) -> None:
     """Builds and tests this solution."""
-    
+
     # set up environment
     env = CheckerEnvironment(solution)
 
@@ -464,7 +467,7 @@ def run_checks(
                 else:
                     try:
                         result = checker.run(env)
-                    except Exception as error:
+                    except Exception as error:  # noqa: BLE001  # Any checker failure must produce a failed result and admin notification.
                         result = checker.create_result(env)
                         result.set_log("The Checker caused an unexpected internal error.")
                         result.set_passed(False)
@@ -474,7 +477,7 @@ def run_checks(
                         dt_string = exnow.strftime("%d/%m/%Y %H:%M:%S")
 #                        myRequestUser = User.objects.filter(id=request.user.id)
                         myTask = Task.objects.filter(id=solution.task_id)
-                        myerrmsg = " %s => %s " % (type(error).__name__, error)
+                        myerrmsg = f" {type(error).__name__} => {error} "
                         plaintext = loader.get_template('checker/exception.txt')
                         htmly = loader.get_template('checker/exception.html')
                         c = {
@@ -489,7 +492,12 @@ def run_checks(
                         }
                         mail_admins(gettext_lazy("%s : checker in %s failed")%(settings.SITE_NAME, myTask), plaintext.render(c),html_message=htmly.render(c))
                         if settings.DEBUG :
-                            print (gettext_lazy("%s : checker in %s failed \n %s")%(settings.SITE_NAME, myTask, plaintext.render(c)))
+                            logger.debug(
+                                "%s : checker in %s failed \n %s",
+                                settings.SITE_NAME,
+                                myTask,
+                                plaintext.render(c),
+                            )
                         #raise
             else:
                 # make non passed result

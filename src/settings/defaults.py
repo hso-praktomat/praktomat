@@ -1,5 +1,6 @@
 from collections.abc import Mapping, MutableMapping, Sequence
 from typing import TypeVar, cast
+
 from django.http import HttpRequest
 
 # This module collects all defaults settings for the praktomat
@@ -9,9 +10,10 @@ from django.http import HttpRequest
 # The following variables have _no_ sane default, and need to be set!
 no_defaults = [ "SITE_NAME", "PRAKTOMAT_ID", "BASE_HOST", "BASE_PATH", "UPLOAD_ROOT", "PRIVATE_KEY", "CERTIFICATE"]
 
-import os
-from os.path import abspath, dirname, join
-import utilities.log_filter
+import os  # noqa: E402  # Settings bootstrap runs before path-dependent imports.
+from os.path import abspath, dirname, join  # noqa: E402  # Settings bootstrap runs before path-dependent imports.
+
+import utilities.log_filter  # noqa: E402  # Settings bootstrap runs before project imports.
 
 T = TypeVar('T')
 
@@ -38,13 +40,13 @@ def _string_sequence(settings: Mapping[str, object], name: str) -> list[str]:
 def load_defaults(settings: MutableMapping[str, object]) -> None:
     missing = [ v for v in no_defaults if v not in settings]
     if missing:
-        raise RuntimeError("Variables without defaults not set: %s" % ", ".join(missing))
+        raise RuntimeError("Variables without defaults not set: {}".format(", ".join(missing)))
 
     UPLOAD_ROOT = _setting(settings, 'UPLOAD_ROOT', str)
     BASE_PATH = _setting(settings, 'BASE_PATH', str)
     PRAKTOMAT_ID = _setting(settings, 'PRAKTOMAT_ID', str)
 
-    class D(object):
+    class D:
 
         def __setattr__(self, k: str, v: object) -> None:
             settings.setdefault(k, v)
@@ -191,7 +193,7 @@ def load_defaults(settings: MutableMapping[str, object]) -> None:
             with open(secret_keyfile) as f:
                 secret_key = f.read()
             if not secret_key:
-                raise RuntimeError("File %s empty!" % secret_keyfile)
+                raise RuntimeError(f"File {secret_keyfile} empty!")
         else:
             import uuid
             secret_key = uuid.uuid4().hex
@@ -392,8 +394,8 @@ def load_defaults(settings: MutableMapping[str, object]) -> None:
 
     d.LDAP_ENABLED = False
     d.AUTHENTICATION_BACKENDS = (
-	    'accounts.ldap_auth.LDAPBackend',
-	    _setting(settings, 'AUTH_BACKEND', str),
+        'accounts.ldap_auth.LDAPBackend',
+        _setting(settings, 'AUTH_BACKEND', str),
     )
     d.LDAP_URI="ldap://ldap.DOMAINNAME.TOPLEVEL"
     d.LDAP_BASE="dc=DOMAINNAME,dc=TOPLEVEL"

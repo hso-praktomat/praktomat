@@ -1,32 +1,31 @@
-from datetime import date, datetime, timedelta
-import tempfile
-import typing as _typing
 import decimal as _decimal
-import zipfile
 import os
 import os.path
 import shutil
+import tempfile
+import typing as _typing
+import zipfile
 from contextlib import ExitStack
+from datetime import date, datetime, timedelta
 
 from django.apps import apps
-from django.db import models
-from django.db import transaction
+from django.conf import settings
 from django.core import serializers
 from django.core.exceptions import ValidationError
 from django.core.files import File
-from django.utils.translation import gettext_lazy
-from django.conf import settings
+from django.db import models, transaction
 from django.db.models.fields.files import FieldFile
+from django.utils.translation import gettext_lazy
 
 from accounts.models import User
 from configuration import get_settings
-
 from utilities.deleting_file_field import DeletingFileField
 from utilities.file_operations import require_file_name
 from utilities.safeexec import execute_arglist
 
 if _typing.TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
+
     from attestation.models import Rating as _Rating
     from attestation.models import RatingScale as _RatingScale
     from checker.basemodels import Checker as _Checker
@@ -200,9 +199,9 @@ class Task(models.Model):
         if not hasattr(settings, 'JPLAGJAR'):
             raise RuntimeError("Setting JPLAGJAR not set")
         if not os.path.exists(settings.JPLAGJAR):
-            raise RuntimeError("Setting JPLAGJAR points to non-existing file %s" % settings.JPLAGJAR)
-        if not lang in self.jplag_languages():
-            raise RuntimeError("Unknown jplag settings %s" % lang)
+            raise RuntimeError(f"Setting JPLAGJAR points to non-existing file {settings.JPLAGJAR}")
+        if lang not in self.jplag_languages():
+            raise RuntimeError(f"Unknown jplag settings {lang}")
 
         # Remember jplag setting
         configuration = get_settings()
@@ -257,8 +256,8 @@ class Task(models.Model):
         cls, queryset: "models.QuerySet[Task, Task]"
     ) -> "tempfile.SpooledTemporaryFile[bytes]":
         """ Serializes a task queryset and related checkers to xml and bundles it with all files into a zipfile  """
-        from solutions.models import Solution, SolutionFile
         from attestation.models import RatingScaleItem
+        from solutions.models import Solution, SolutionFile
 
         # fetch tasks, media objects, checker and serialize
         task_objects = list(queryset)
@@ -316,9 +315,9 @@ class Task(models.Model):
     def _import_tasks(
         cls, zip: zipfile.ZipFile, solution_author: User, is_template: bool
     ) -> None:
-        from solutions.models import Solution, SolutionFile
         from attestation.models import RatingScale, RatingScaleItem
         from checker.basemodels import Checker
+        from solutions.models import Solution, SolutionFile
 
         data = zip.read('data.xml').decode('utf-8')
 
@@ -335,7 +334,7 @@ class Task(models.Model):
                  MediaFile, HtmlInjector, Checker),
             ):
                 raise ValidationError(
-                    "Invalid model class in task import: %s" % object._meta.label
+                    f"Invalid model class in task import: {object._meta.label}"
                 )
             old_id = int(object.pk)
             #since Django Debug Toolbar didn't catch logger output, I print to console while in debugging mode
@@ -437,10 +436,10 @@ class Task(models.Model):
             solution.check_solution(run_secret=True)
 
 def get_mediafile_storage_path(instance: "MediaFile", filename: str) -> str:
-    return 'TaskMediaFiles/Task_%s/%s' % (instance.task.pk, filename)
+    return f'TaskMediaFiles/Task_{instance.task.pk}/{filename}'
 
 def get_htmlinjectorfile_storage_path(instance: "HtmlInjector", filename: str) -> str:
-    return 'TaskHtmlInjectorFiles/Task_%s/%s' % (instance.task.pk, filename)
+    return f'TaskHtmlInjectorFiles/Task_{instance.task.pk}/{filename}'
 
 def exam_is_active(user: User) -> bool:
     for task in Task.objects.all():
@@ -465,6 +464,9 @@ class MediaFile(models.Model):
     task_id: int
     media_file: DeletingFileField = DeletingFileField(upload_to=get_mediafile_storage_path, max_length=500)
     description: "models.CharField[str, str]" = models.CharField(null=False, blank=True, max_length=255, default="", help_text = gettext_lazy("A short description of this file"))
+
+    def __str__(self) -> str:
+        return f"{self.task}: {self.basename()}"
 
     def basename(self) -> str:
         name = require_file_name(self.media_file)
@@ -496,6 +498,9 @@ class HtmlInjector(models.Model):
     )
     html_file: DeletingFileField = DeletingFileField(upload_to=get_htmlinjectorfile_storage_path, max_length=500)
 
+    def __str__(self) -> str:
+        return f"HTML injector for {self.task}"
+
 
 class SubmissionBlacklistEntry(models.Model):
     if _typing.TYPE_CHECKING:
@@ -505,6 +510,9 @@ class SubmissionBlacklistEntry(models.Model):
     task_id: int
     user: "models.ForeignKey[User, User]" = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={"groups__name": "User"})
     user_id: int
+
+    def __str__(self) -> str:
+        return f"{self.user} is blacklisted from {self.task}"
 
 
 class DeadlineExtension(models.Model):
@@ -516,3 +524,6 @@ class DeadlineExtension(models.Model):
     user: "models.ForeignKey[User, User]" = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={"groups__name": "User"})
     user_id: int
     timestamp: "models.DateTimeField[datetime, datetime]" = models.DateTimeField(help_text = gettext_lazy("The time up until the user has time to complete the task. This time will be extended by the duration configured with the deadline tolerance setting in case the student just missed the extended deadline."))
+
+    def __str__(self) -> str:
+        return f"Deadline extension for {self.user} on {self.task} until {self.timestamp}"

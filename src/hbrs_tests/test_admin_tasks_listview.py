@@ -1,10 +1,10 @@
+from django.contrib.admin.sites import AdminSite
 from django.test import TestCase
 from django.urls import reverse
 
-from django.contrib.admin.sites import AdminSite
-
 from accounts.models import User
 from tasks.models import Task
+
 
 class ModelTaskAdminTests(TestCase):
 
@@ -32,9 +32,9 @@ class ModelTaskAdminTests(TestCase):
         self.assertEqual(all_tasks[-1]['title'].encode('utf-8'),b"German Umlauts \xC3\xA4\xC3\xB6\xC3\xBC")
         app_label = "tasks"
         model_name = "task"
-        response = self.client.get(reverse('admin:%s_%s_changelist' %(app_label, model_name)))
-        self.assertNotIn("Internal Server Error".encode("utf-8"),response.content, msg="Admin site : tasks task : shows \"Internal Server Error\"")
-        self.assertIn("äöü".encode("utf-8"), response.content, msg="Admin site : tasks task : do not show task with german umlauts in title")
+        response = self.client.get(reverse(f'admin:{app_label}_{model_name}_changelist'))
+        self.assertNotIn(b"Internal Server Error",response.content, msg="Admin site : tasks task : shows \"Internal Server Error\"")
+        self.assertIn("äöü".encode(), response.content, msg="Admin site : tasks task : do not show task with german umlauts in title")
 
 
     def test_TaskAdmin_ChangeView_shows_Umlauts(self) -> None:
@@ -45,7 +45,7 @@ class ModelTaskAdminTests(TestCase):
         self.assertEqual(all_tasks[-1]['title'].encode('utf-8'),b"German Umlauts \xC3\xA4\xC3\xB6\xC3\xBC")
         app_label = "tasks"
         model_name = "task"
-        response = self.client.get('/admin/%s/%s/%s/change/'%(app_label,model_name,all_tasks[-1]['id']))
-        self.assertEqual(response.status_code, 200, msg="Admin site : tasks task : Status was %s != 200 : while forward lookup via URL" % response.status_code)
-        self.assertNotIn("Internal Server Error".encode("utf-8"),response.content, msg="Admin site : tasks task : change : shows \"Internal Server Error\"")
-        self.assertIn("äöü".encode("utf-8"), response.content, msg="Admin site : tasks task : change : do not show task with german umlauts in title")
+        response = self.client.get('/admin/{}/{}/{}/change/'.format(app_label,model_name,all_tasks[-1]['id']))
+        self.assertEqual(response.status_code, 200, msg=f"Admin site : tasks task : Status was {response.status_code} != 200 : while forward lookup via URL")
+        self.assertNotIn(b"Internal Server Error",response.content, msg="Admin site : tasks task : change : shows \"Internal Server Error\"")
+        self.assertIn("äöü".encode(), response.content, msg="Admin site : tasks task : change : do not show task with german umlauts in title")

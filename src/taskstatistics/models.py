@@ -1,5 +1,6 @@
-from django.db import models
 from typing import TYPE_CHECKING
+
+from django.db import models
 
 if TYPE_CHECKING:
     from tasks.models import Task
@@ -37,6 +38,10 @@ class TasksStatistic(models.Model):
     median_uploads_only_failed: "models.BigIntegerField[int, int]" = models.BigIntegerField()
     up_quart_upl_only_failed: "models.BigIntegerField[int, int]" = models.BigIntegerField(verbose_name='upper quartiel uploads only failed')
     up_whisker_upl_only_failed: "models.BigIntegerField[int, int]" = models.BigIntegerField(verbose_name='upper whisker uploads only failed')
+
     class Meta:
          managed = False
          db_table = 'dbview_tasksstatistic'
+
+    def __str__(self) -> str:
+        return self.title

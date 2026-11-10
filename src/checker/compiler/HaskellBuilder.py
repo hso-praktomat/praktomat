@@ -2,17 +2,19 @@
 A Haskell compiler.
 """
 
-import os, re
+import os
+import re
+from functools import reduce
 from typing import Any
 
-from checker.basemodels import CheckerEnvironment, CheckerResult
-from checker.compiler.Builder import Builder
 from django.conf import settings
 from django.template.loader import get_template
 from django.utils.html import escape
 
+from checker.basemodels import CheckerEnvironment, CheckerResult
+from checker.compiler.Builder import Builder
 from utilities.safeexec import execute_arglist
-from functools import reduce
+
 
 class HaskellBuilder(Builder):
     """ A Haskell Compiler """
@@ -30,8 +32,8 @@ class HaskellBuilder(Builder):
         raise self.NotFoundError("A module Main containing the function main :: IO () could not be found.")
 
     def libs(self) -> list[str]:
-        required_libs = super(HaskellBuilder, self).libs()
-        return [x for l in [["-package", lib] for lib in required_libs] for x in l]
+        required_libs = super().libs()
+        return [argument for library_flags in [["-package", lib] for lib in required_libs] for argument in library_flags]
 
     def flags(self, env: CheckerEnvironment) -> list[str]:
         """ Always use -v1, since we grep the output for linked binaries, if any"""
@@ -56,7 +58,8 @@ class HaskellBuilder(Builder):
         [output, _, _, _, _]  = execute_arglist(args, env.tmpdir(), environ)
 
         has_main = re.search(r"^Linking ([^ ]*) ...$", output, re.MULTILINE)
-        if has_main: self._detected_main = has_main.group(1)
+        if has_main:
+            self._detected_main = has_main.group(1)
 
         output = escape(output)
         output = self.enhance_output(env, output)
@@ -67,7 +70,8 @@ class HaskellBuilder(Builder):
 
         # Now that submission was successfully built, try to find the main modules name again
         try:
-            if passed : env.set_program(self.main_module(env))
+            if passed:
+                env.set_program(self.main_module(env))
         except self.NotFoundError as e:
             passed = not self._main_required
             log += "<pre>" + str(e) + "</pre>"
@@ -76,12 +80,16 @@ class HaskellBuilder(Builder):
         result.set_log(log)
         return result
 
-from checker.admin import CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class CheckerForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
         """ override default values for the model fields """
-        super(CheckerForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["_flags"].initial = "-XSafe"
         self.fields["_output_flags"].initial = ""
         #self.fields["_libs"].initial = ""

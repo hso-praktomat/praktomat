@@ -1,12 +1,10 @@
+from django.contrib.admin.sites import AdminSite
 from django.test import TestCase
 from django.urls import reverse
 
-from django.contrib.admin.sites import AdminSite
-
 from accounts.models import User
-from tasks.models import Task
-
 from solutions.models import Solution
+from tasks.models import Task
 
 
 class ModelSolutionAdminTests(TestCase):
@@ -43,23 +41,23 @@ class ModelSolutionAdminTests(TestCase):
     def test_SolutionAdmin_ListView_shows_Umlauts(self) -> None:
         app_label = "solutions"
         model_name = "solution"
-        response = self.client.get(reverse('admin:%s_%s_changelist' %(app_label, model_name)))
-        self.assertEqual(response.status_code, 200, msg="Admin site : solutions solution : Status was %s != 200 : while forward lookup via URL" % response.status_code)
-        self.assertNotIn("Internal Server Error".encode("utf-8"),response.content, msg="Admin site : solutions solution : shows \"Internal Server Error\"")
+        response = self.client.get(reverse(f'admin:{app_label}_{model_name}_changelist'))
+        self.assertEqual(response.status_code, 200, msg=f"Admin site : solutions solution : Status was {response.status_code} != 200 : while forward lookup via URL")
+        self.assertNotIn(b"Internal Server Error",response.content, msg="Admin site : solutions solution : shows \"Internal Server Error\"")
 
     def test_SolutionAdmin_ChangeView_shows_Umlauts(self) -> None:
         all_solutions = list(Solution.objects.order_by('id').values())
         app_label = "solutions"
         model_name = "solution"
-        response = self.client.get('/admin/%s/%s/%s/change/'%(app_label,model_name,all_solutions[-1]['id']))
-        self.assertEqual(response.status_code, 200, msg="Admin site : solutions solution : Status was %s != 200 : while forward lookup via URL" % response.status_code)
-        self.assertNotIn("Internal Server Error".encode("utf-8"),response.content, msg="Admin site : solutions solution : change : shows \"Internal Server Error\"")
+        response = self.client.get('/admin/{}/{}/{}/change/'.format(app_label,model_name,all_solutions[-1]['id']))
+        self.assertEqual(response.status_code, 200, msg=f"Admin site : solutions solution : Status was {response.status_code} != 200 : while forward lookup via URL")
+        self.assertNotIn(b"Internal Server Error",response.content, msg="Admin site : solutions solution : change : shows \"Internal Server Error\"")
 
 
     def test_SolutionAdmin_UserView_shows_Umlauts(self) -> None:
         all_solutions = list(Solution.objects.order_by('id').values())
         response = self.client.get(reverse('solution_detail_full', args=[all_solutions[-1]['id']]))
-        self.assertEqual(response.status_code, 200, msg="Admin site : solutions solution : Status was %s != 200 : while forward lookup via URL" % response.status_code)
-        self.assertIn("Fußballspieler".encode("utf-8"), response.content, msg="Admin site : solutions solution : user view : does not contain the right solution file \"Fußballspieler.java\"")
-        self.assertIn("just have some utf-8 coded german umlauts äüö".encode("utf-8"), response.content, msg="Admin site : solutions solution : user view : does not contain the right solution file \"Fußballspieler.java\" having german umlauts in java line comment")
-        self.assertNotIn("Internal Server Error".encode("utf-8"),response.content, msg="Admin site : solutions solution : user view : shows \"Internal Server Error\"")
+        self.assertEqual(response.status_code, 200, msg=f"Admin site : solutions solution : Status was {response.status_code} != 200 : while forward lookup via URL")
+        self.assertIn("Fußballspieler".encode(), response.content, msg="Admin site : solutions solution : user view : does not contain the right solution file \"Fußballspieler.java\"")
+        self.assertIn("just have some utf-8 coded german umlauts äüö".encode(), response.content, msg="Admin site : solutions solution : user view : does not contain the right solution file \"Fußballspieler.java\" having german umlauts in java line comment")
+        self.assertNotIn(b"Internal Server Error",response.content, msg="Admin site : solutions solution : user view : shows \"Internal Server Error\"")

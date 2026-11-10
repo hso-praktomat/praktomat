@@ -1,29 +1,39 @@
 from datetime import datetime, timedelta
-from unittest.mock import patch
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import patch
 
-from utilities.TestSuite import TestCase
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.urls import reverse
 from django import forms
-from django.forms.utils import ErrorList
 from django.contrib.admin import AdminSite
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.forms.utils import ErrorList
 from django.test import RequestFactory
+from django.urls import reverse
 
 from accounts.models import User
 from attestation.admin import AttestationAdmin
-from attestation.views import user_task_attestation_map
-from checker.checker.TextChecker import TextChecker
-from checker.basemodels import CheckerResult
-from solutions.models import Solution
-from tasks.models import Task
-from attestation.models import AnnotatedSolutionFile, Attestation, Rating, RatingAspect, RatingResult, RatingScale, RatingScaleItem
 from attestation.forms import (
-    AttestationForm, RatingResultForm, AnnotatedFileForm,
-    AnnotatedFileFormSet, RatingResultFormSet,
+    AnnotatedFileForm,
+    AnnotatedFileFormSet,
+    AttestationForm,
+    RatingResultForm,
+    RatingResultFormSet,
 )
-from solutions.models import SolutionFile
+from attestation.models import (
+    AnnotatedSolutionFile,
+    Attestation,
+    Rating,
+    RatingAspect,
+    RatingResult,
+    RatingScale,
+    RatingScaleItem,
+)
+from attestation.views import user_task_attestation_map
+from checker.basemodels import CheckerResult
+from checker.checker.TextChecker import TextChecker
+from solutions.models import Solution, SolutionFile
+from tasks.models import Task
+from utilities.TestSuite import TestCase
 
 
 class TestAnnotationDiffContracts(TestCase):

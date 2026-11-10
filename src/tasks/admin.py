@@ -1,20 +1,21 @@
+import typing as _typing
+from timeit import default_timer as timer
+
 from django.contrib import admin
 from django.db import models
-from django.http import HttpRequest as _HttpRequest, HttpResponse as _HttpResponse
-from django.urls import URLPattern as _URLPattern, reverse
+from django.http import HttpRequest as _HttpRequest
+from django.http import HttpResponse as _HttpResponse
+from django.urls import URLPattern as _URLPattern
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.safestring import SafeString as _SafeString
-import typing as _typing
-
-from tasks.models import Task, MediaFile, HtmlInjector, SubmissionBlacklistEntry, DeadlineExtension
-from solutions.models import Solution
-from attestation.admin import RatingAdminInline
-from accounts.authentication import require_user
 
 import tasks.views
-
+from accounts.authentication import require_user
+from attestation.admin import RatingAdminInline
 from checker.admin import CheckerInline
-from timeit import default_timer as timer
+from solutions.models import Solution
+from tasks.models import DeadlineExtension, HtmlInjector, MediaFile, SubmissionBlacklistEntry, Task
 
 admin.autodiscover()
 
@@ -109,7 +110,7 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
         for task in queryset:
             count += task.check_all_final_solutions()
         end = timer()
-        self.message_user(request, "%d final solutions were successfully checked (%d seconds elapsed)." % (count, end-start))
+        self.message_user(request, f"{count} final solutions were successfully checked ({end - start} seconds elapsed).")
 
     @admin.action(description="recheck only latest failed (Admin)")
     def run_all_checkers_on_latest_only_failed(
@@ -121,7 +122,9 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
         for task in queryset:
             count += task.check_all_latest_only_failed_solutions()
         end = timer()
-        self.message_user(request, "%d users with only failed solutions were checked (%d seconds elapsed)." % (count, end-start))
+        self.message_user(
+            request, f"{count} users with only failed solutions were checked ({end - start} seconds elapsed)."
+        )
 
 
     @admin.action(description="run all checkers (Trainer)")
@@ -149,7 +152,9 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
                                         count += 1
                         tcount += 1
         end = timer()
-        self.message_user(request, "Deleted %d Attestations over %d Tasks: LoopTimer: %d " %(count, tcount, end-start),"warning")
+        self.message_user(
+            request, f"Deleted {count} Attestations over {tcount} Tasks: LoopTimer: {end - start} ", "warning"
+        )
 
     @admin.action(description="recheck all submissions with uploadtime checker (Admin)")
     def run_all_uploadtime_checkers_on_all(
@@ -157,13 +162,14 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
     ) -> None:
         """ Rerun on all solutions all checkers which are running at uploadtime """
         request.user = require_user(request)
-        from checker.basemodels import check_multiple, check_solution
-        from accounts.models import User
-        from django.template import loader
-        from django.contrib.sites.requests import RequestSite
         from django.conf import settings
+        from django.contrib.sites.requests import RequestSite
         from django.core.mail import send_mail
+        from django.template import loader
         from django.utils.translation import gettext_lazy
+
+        from accounts.models import User
+        from checker.basemodels import check_multiple, check_solution
         myRequestUser = User.objects.filter(id=request.user.id)
         allstart = timer()
         task_set = queryset
@@ -225,9 +231,14 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
                 elif not request.user.email and latestfailed_user_solution.author.email:
                     send_mail(gettext_lazy("%s lost final submission confirmation") % settings.SITE_NAME, t.render(c), None, [latestfailed_user_solution.author.email])
             end = timer()
-            self.message_user(request, "Task %s : Checked %d authors lost their finals: LoopTimer: %d seconds elapsed "%(task.title, len(users_missing_in_new_final_solution),(end-start)),"warning")
+            self.message_user(
+                request,
+                f"Task {task.title} : Checked {len(users_missing_in_new_final_solution)} authors lost their finals: "
+                f"LoopTimer: {end - start} seconds elapsed ",
+                "warning",
+            )
         allend = timer()
-        self.message_user(request, "%d Tasks rechecked : LoopTimer: %d seconds elapsed" % (task_set.count(),allend-allstart))
+        self.message_user(request, f"{task_set.count()} Tasks rechecked : LoopTimer: {allend - allstart} seconds elapsed")
 
 
     @admin.action(description="Run checkers for unchecked final solutions (Admin)")
@@ -240,7 +251,7 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
         for task in queryset:
             count += task.check_unchecked_final_solutions()
         end = timer()
-        self.message_user(request, "%d final solutions were successfully checked (%d seconds elapsed)." % (count, end-start))
+        self.message_user(request, f"{count} final solutions were successfully checked ({end - start} seconds elapsed).")
 
 
     @admin.action(description="unset all checker finished (Admin)")
@@ -255,13 +266,17 @@ class TaskAdmin(admin.ModelAdmin[Task] if _typing.TYPE_CHECKING else admin.Model
             task.save()
             count += 1
         end = timer()
-        self.message_user(request, "State of attribute \"all_checker_finished\" at %d Tasks resetted to \"FALSE\": LoopTimer: %d " % (count, end-start),"warning")
+        self.message_user(
+            request,
+            f'State of attribute "all_checker_finished" at {count} Tasks resetted to "FALSE": LoopTimer: {end - start} ',
+            "warning",
+        )
 
 
 
     def get_urls(self) -> list[_URLPattern]:
         """ Add URL to task import """
-        urls = super(TaskAdmin, self).get_urls()
+        urls = super().get_urls()
         from django.urls import re_path
         my_urls = [re_path(r'^import/$', tasks.views.import_tasks, name='task_import')]
         return my_urls + urls

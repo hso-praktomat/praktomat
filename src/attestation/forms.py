@@ -1,9 +1,9 @@
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from django.forms.models import ModelForm, inlineformset_factory, BaseInlineFormSet
 from django import forms
+from django.forms.models import BaseInlineFormSet, ModelForm, inlineformset_factory
 
-from attestation.models import Attestation, AnnotatedSolutionFile, RatingResult, SolutionFile
+from attestation.models import AnnotatedSolutionFile, Attestation, RatingResult, SolutionFile
 from configuration.models import Settings
 
 
@@ -20,7 +20,7 @@ class AttestationForm(
 
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(AttestationForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         final_grade_rating_scale = self.instance.solution.task.final_grade_rating_scale
         if final_grade_rating_scale:
             field = self.fields['final_grade']
@@ -55,7 +55,7 @@ class AnnotatedFileForm(
         except SolutionFile.DoesNotExist:
             raise forms.ValidationError(
                 f"No Solutionfile exists by id{solution_file_id}"
-            )
+            ) from None
 
         return solution_file
 
@@ -68,7 +68,7 @@ class RatingResultForm(
     ModelForm[RatingResult] if TYPE_CHECKING else ModelForm
 ):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super(RatingResultForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         ratingResult = self.instance
         self.fields['mark'].label = ratingResult.rating.aspect.name
         self.fields['mark'].help_text = ratingResult.rating.aspect.description

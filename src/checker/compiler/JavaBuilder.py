@@ -2,16 +2,17 @@
 A Java bytecode compiler for construction.
 """
 
-import os, re
+import os
+import re
+from functools import reduce
 from typing import Any
 
-from checker.compiler.Builder import Builder
 from django.conf import settings
 from django.template.loader import get_template
-from checker.basemodels import CheckerEnvironment
 
+from checker.basemodels import CheckerEnvironment
+from checker.compiler.Builder import Builder
 from utilities.safeexec import execute_arglist
-from functools import reduce
 
 
 class ClassFileGeneratingBuilder(Builder):
@@ -41,7 +42,7 @@ class ClassFileGeneratingBuilder(Builder):
                             raise self.NotFoundError(f"Could not identify the main class in {filename}:\n{classinfo}")
                         return match.group(5)
 
-        raise self.NotFoundError("A class containing the main method ('public static void main(String[] args)') could not be found in the files %s" % ", ".join(class_files))
+        raise self.NotFoundError("A class containing the main method ('public static void main(String[] args)') could not be found in the files {}".format(", ".join(class_files)))
 
 class JavaBuilder(ClassFileGeneratingBuilder):
     """     A Java bytecode compiler for construction. """
@@ -54,7 +55,7 @@ class JavaBuilder(ClassFileGeneratingBuilder):
     _env['JAVAP'] = settings.JAVAP
 
     def libs(self) -> list[str]:
-        required_libs = super(JavaBuilder, self).libs()
+        required_libs = super().libs()
 
         return ["-cp", ".:"+(":".join([ settings.JAVA_LIBS[lib] for lib in required_libs if lib in settings.JAVA_LIBS ]))]
 
@@ -68,12 +69,16 @@ class JavaBuilder(ClassFileGeneratingBuilder):
         t = get_template('checker/compiler/java_builder_report.html')
         return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
 
-from checker.admin import CheckerInline, AlwaysChangedModelForm
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class CheckerForm(AlwaysChangedModelForm):
     def __init__(self, **args: Any) -> None:
         """ override default values for the model fields """
-        super(CheckerForm, self).__init__(**args)
+        super().__init__(**args)
         self.fields["_flags"].initial = ""
         self.fields["_output_flags"].initial = ""
         #self.fields["_libs"].initial = ""

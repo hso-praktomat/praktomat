@@ -10,7 +10,7 @@ def do_get_motd(parser: Parser, token: Token) -> "MotdNode":
     # split_contents() knows not to split quoted strings.
     tokens = token.split_contents()
     if len(tokens) != 1:
-        raise template.TemplateSyntaxError("%r tag should have no arguments" % (tokens[0],))
+        raise template.TemplateSyntaxError(f"{tokens[0]!r} tag should have no arguments")
     return MotdNode()
 
 class MotdNode(template.Node):
@@ -20,6 +20,6 @@ class MotdNode(template.Node):
     def render(self, context: Context) -> str:
         if not settings.SYSADMIN_MOTD_URL:
             return ''
-        return '<iframe src="%s" id="motd" onLoad="resize(\'motd\')" width="100%%"> </iframe>' % settings.SYSADMIN_MOTD_URL
+        return f'<iframe src="{settings.SYSADMIN_MOTD_URL}" id="motd" onLoad="resize(\'motd\')" width="100%"> </iframe>'
 
 register.tag('motd', do_get_motd)

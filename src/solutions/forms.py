@@ -1,16 +1,17 @@
-from django.utils.translation import gettext_lazy
-from django.core.files import File
-from django.forms.models import ModelForm, inlineformset_factory, BaseInlineFormSet
-from django import forms
-import zipfile
-from utilities.mimetypes import guess_mime_type_with_fallback as guess_mime_type
 import re
 import typing as _typing
+import zipfile
+from typing import cast
+
+from django import forms
+from django.core.files import File
+from django.forms.models import BaseInlineFormSet, ModelForm, inlineformset_factory
+from django.utils.translation import gettext_lazy
 
 from solutions.models import Solution, SolutionFile
 from utilities import encoding
 from utilities.file_operations import require_file_name
-from typing import cast
+from utilities.mimetypes import guess_mime_type_with_fallback as guess_mime_type
 
 ziptype_re = re.compile(r'^application/(zip|x-zip|x-zip-compressed|x-compressed)$')
 tartype_re = re.compile(r'^application/(tar|x-tar|x-tar-compressed)$')
@@ -47,7 +48,7 @@ class SolutionFileForm(
                 # undo the consuming the read method has done
                 data.seek(0)
                 if contains_NUL_char(content):
-                    raise forms.ValidationError(gettext_lazy("The plain text file '%(file)s' contains a NUL character, which is not supported." %{'file':data.name}))
+                    raise forms.ValidationError(gettext_lazy("The plain text file '{file}' contains a NUL character, which is not supported.".format(file=data.name)))
             if ziptype_re.match(contenttype):
                 try:
                     with zipfile.ZipFile(data) as zip:
@@ -62,7 +63,7 @@ class SolutionFileForm(
                             ignorred = SolutionFile.ignorred_file_names_re.search(filename)
                             is_text_file = not ignorred and mime_type and mime_type.startswith("text")
                             if is_text_file and contains_NUL_char(zip.read(filename)):
-                                raise forms.ValidationError(gettext_lazy("The plain text file '%(file)s' in this zip file contains a NUL character, which is not supported." %{'file':filename}))
+                                raise forms.ValidationError(gettext_lazy("The plain text file '{file}' in this zip file contains a NUL character, which is not supported.".format(file=filename)))
                         # check whole zip instead of contained files
                         #if fileinfo.file_size > max_file_size:
                         #    raise forms.ValidationError(gettext_lazy("The file '%(file)s' is bigger than %(size)KiB which is not suported." %{'file':fileinfo.filename, 'size':max_file_size_kib}))
@@ -75,7 +76,10 @@ class SolutionFileForm(
             elif tartype_re.match(contenttype):
                 raise forms.ValidationError(gettext_lazy('Tar files are not supported, please upload the files individually or use a zip file.'))
             if data.size > max_file_size:
-                raise forms.ValidationError(gettext_lazy("The file '%(file)s' is bigger than %(size)d KiB which is not supported." %{'file':data.name, 'size':max_file_size_kib}))
+                raise forms.ValidationError(
+                    gettext_lazy("The file '%(file)s' is bigger than %(size)d KiB which is not supported.")
+                    % {'file': data.name, 'size': max_file_size_kib}  # Keep Django's lazy translated mapping interpolation.
+                )
             return data
 
 class MyBaseInlineFormSet(
@@ -84,7 +88,7 @@ class MyBaseInlineFormSet(
     else BaseInlineFormSet
 ):
     def clean(self) -> None:
-        super(MyBaseInlineFormSet, self).clean()
+        super().clean()
         if not any(form.changed_data for form in self.forms):
             raise forms.ValidationError(gettext_lazy('You must choose at least one file.'))
 

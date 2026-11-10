@@ -1,12 +1,12 @@
 import os
-from django.conf import settings
 
+from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
 from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
 from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
 
 
 class RChecker(Checker):
@@ -56,8 +56,8 @@ class RChecker(Checker):
 
         if self.r_script:
             if self.r_script not in R_files:
-                output = "<p>Could not find expected R script %s.</p>" % self.r_script
-                output += "<p>R scripts found: %s</p>" % ", ".join(map(escape, R_files))
+                output = f"<p>Could not find expected R script {self.r_script}.</p>"
+                output += "<p>R scripts found: {}</p>".format(", ".join(map(escape, R_files)))
                 result = self.create_result(env)
                 result.set_log(output)
                 result.set_passed(False)
@@ -67,7 +67,7 @@ class RChecker(Checker):
         else:
             if len(R_files) > 1:
                 output = "<p>Multiple R scripts found in submission.</p>"
-                output += "<p>R scripts found: %s</p>" % ", ".join(map(escape, R_files))
+                output += "<p>R scripts found: {}</p>".format(", ".join(map(escape, R_files)))
                 output +=" <p>Please submit exactly one file ending in <tt>.R</tt></p>"
                 result = self.create_result(env)
                 result.set_log(output)
@@ -102,7 +102,7 @@ class RChecker(Checker):
             output += "\n\n---- script execution aborted, out of memory ----\n"
 
         if exitcode != 0:
-            output += "\n\n---- Rscript finished with exitcode %d ----\n" % exitcode
+            output += f"\n\n---- Rscript finished with exitcode {exitcode} ----\n"
 
         rplots_path = os.path.join(env.tmpdir(), "Rplots.pdf")
         rplots_exists = os.path.isfile(rplots_path)
@@ -114,7 +114,7 @@ class RChecker(Checker):
                 result.add_artefact("Rplots.pdf", rplots_path)
 
         if self.require_plots and not rplots_exists:
-            output += "\n\n---- No Rplots.pdf file was generated, this was required ----\n" % exitcode
+            output += "\n\n---- No Rplots.pdf file was generated, this was required ----\n"
         result.set_log('<pre>' + escape(output) + '</pre>')
         result.set_passed(exitcode == 0
             and not timed_out
@@ -123,7 +123,8 @@ class RChecker(Checker):
 
         return result
 
-from checker.admin import    CheckerInline
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
 
 class RCheckerInline(CheckerInline[RChecker]):
     model: type[RChecker] = RChecker

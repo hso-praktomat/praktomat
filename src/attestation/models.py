@@ -1,24 +1,25 @@
-from collections.abc import Iterable
-from typing import TYPE_CHECKING
-from django.db import models, transaction
-from django.conf import settings
-from django.http import HttpRequest
-from django.core.files.uploadedfile import UploadedFile
-from tasks.models import Task
-from solutions.models import Solution, SolutionFile
-from django.utils.translation import gettext_lazy
-from django.core.mail import EmailMessage
-from django.core import serializers
-from django.core.serializers.base import DeserializedObject
-from django.template import loader
-from django.contrib.sites.requests import RequestSite
-from django.contrib import messages
-from datetime import datetime
-from utilities.nub import nub
 import difflib
+from collections.abc import Iterable
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.sites.requests import RequestSite
+from django.core import serializers
+from django.core.files.uploadedfile import UploadedFile
+from django.core.mail import EmailMessage
+from django.core.serializers.base import DeserializedObject
+from django.db import models, transaction
+from django.http import HttpRequest
+from django.template import loader
+from django.utils.translation import gettext_lazy
 
 from accounts.models import User
 from configuration import get_settings
+from solutions.models import Solution, SolutionFile
+from tasks.models import Task
+from utilities.nub import nub
 
 if TYPE_CHECKING:
     from django.db.models.fields.related_descriptors import ReverseManyToOneDescriptor
@@ -46,6 +47,9 @@ class Attestation(models.Model):
     final: "models.BooleanField[bool, bool]" = models.BooleanField(default = False, help_text = gettext_lazy('Indicates whether the attestation is ready to be published'))
     published: "models.BooleanField[bool, bool]" = models.BooleanField(default = False, help_text = gettext_lazy('Indicates whether the user can see the attestation.'))
     published_on: "models.DateTimeField[datetime | None, datetime | None]" = models.DateTimeField(blank=True, null=True, help_text = gettext_lazy('The Date/Time the attestation was published.'))
+
+    def __str__(self) -> str:
+        return f"Attestation for {self.solution} by {self.author}"
 
     def publish(self, request: HttpRequest, by: User) -> None:
         """ Publish attestation and send email to user """
@@ -187,7 +191,10 @@ class Attestation(models.Model):
         for object in (tosave_attestation + tosave_ratingresult):
             object.save()
 
-        messages.success(request, "Updated %d attestations, and %d rating results." % (len(tosave_attestation), len(tosave_ratingresult)))
+        messages.success(
+            request,
+            f"Updated {len(tosave_attestation)} attestations, and {len(tosave_ratingresult)} rating results.",
+        )
 
         return
 
@@ -203,6 +210,9 @@ class AnnotatedSolutionFile(models.Model):
     solution_file: "models.ForeignKey[SolutionFile, SolutionFile]" = models.ForeignKey(SolutionFile, on_delete=models.CASCADE)
     solution_file_id: int
     content: "models.TextField[str, str]" = models.TextField(help_text = gettext_lazy('The content of the solution file annotated by the tutor.'), blank = True)
+
+    def __str__(self) -> str:
+        return self.solution_file.__str__()
 
     def has_anotations(self) -> bool:
         original = self.solution_file.content().replace("\r\n", "\n").replace("\r", "\n")
@@ -223,10 +233,7 @@ class AnnotatedSolutionFile(models.Model):
         original = strip_blank_border_lines(self.solution_file.content().replace("\r\n", "\n").replace("\r", "\n").splitlines())
         anotated = strip_blank_border_lines(self.content.replace("\r\n", "\n").replace("\r", "\n").splitlines())
         result = list(d.compare(original, anotated))
-        return "\n".join([l.strip("\n") for l in result])
-
-    def __str__(self) -> str:
-        return self.solution_file.__str__()
+        return "\n".join([diff_line.strip("\n") for diff_line in result])
 
 class RatingAspect(models.Model):
     """ describes a review aspect which the reviewer has to evaluate """
@@ -285,7 +292,7 @@ class Rating(models.Model):
     scale_id: int
 
     def __str__(self) -> str:
-        return "%s - %s - %s" % (self.task.title, self.aspect.name, self.scale.name)
+        return f"{self.task.title} - {self.aspect.name} - {self.scale.name}"
 
 class RatingResult(models.Model):
     """ the rating of particular aspect of a specific solution """
@@ -306,6 +313,8 @@ class Script(models.Model):
     """ save java script function of the rating overview page """
     script: "models.TextField[str, str]" = models.TextField(blank=True, help_text = gettext_lazy("This JavaScript will calculate a recommend end note for every user based on final grade of every task."), default="""var sum = 0.0;\nfor (x = 0; x != grades.length; ++x) {\n    grade = parseFloat(grades[x]);\n    if (!isNaN(grade)) {\n        sum += grade;\n    }\n}\nresult=sum;""")
 
+    def __str__(self) -> str:
+        return "Attestation script"
 
 
 

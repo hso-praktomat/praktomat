@@ -4,12 +4,12 @@ if TYPE_CHECKING:
     from . import (
         Builder,
         CBuilder,
+        CLinker,
         CXXBuilder,
-        JavaBuilder,
         FortranBuilder,
         HaskellBuilder,
+        JavaBuilder,
         ScalaBuilder,
-        CLinker,
     )
 
 __all__ = [    "Builder",
@@ -19,5 +19,5 @@ __all__ = [    "Builder",
             "FortranBuilder",
             "HaskellBuilder",
             "ScalaBuilder",
-			"CLinker",
+            "CLinker",
             ]
