@@ -30,6 +30,7 @@ fi
 
 export LANGUAGE="${LANGUAGE:-en_US:en}"
 export CI="${CI:-true}"
+export PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}"
 
 "$PYTHON" -m pyright --project . --warnings
 "$PYTHON" -m ruff check src
