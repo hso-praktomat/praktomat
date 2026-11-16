@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   check:
-    name: Run checks (Python ${{ matrix.python-version }})
+    name: Run tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     env:
       LANGUAGE: en_US:en
