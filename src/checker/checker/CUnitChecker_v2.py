@@ -88,7 +88,7 @@ class IgnoringCXXBuilder2(CXXBuilder):
 class CUnitChecker2(CheckerWithFile):
     """New Checker for CUnit and CPPUnit Unittests"""
 
-      # code based upon JUnitChecker but has changed so much to become completly independent from JUnitChecker
+    # code based upon JUnitChecker but has changed so much to become completly independent from JUnitChecker
     # You can write testcode with
     # https://sourceforge.net/projects/cunit/
     # https://sourceforge.net/projects/cppunit/
