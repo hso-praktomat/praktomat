@@ -54,6 +54,9 @@ jobs:
       run: conda list
     - name: Pip freeze
       run: pip freeze
+    - name: Audit Python dependencies
+      run: pip-audit
+      continue-on-error: true
     - name: Display Python and SQLite version
       run: |
         python --version && python -c "import sqlite3; print(\"SQLite \" + sqlite3.sqlite_version);"
