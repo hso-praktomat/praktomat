@@ -2,6 +2,8 @@
 *.swo
 *.pyc
 *.pyo
+.coverage
+coverage.xml
 .installed.cfg
 .settings
 bin

@@ -13,7 +13,9 @@ from django.core.management import call_command
 from django.http import Http404, HttpResponse
 from django.test import RequestFactory, SimpleTestCase, override_settings
 
+from accounts.models import User
 from settings.defaults import load_defaults
+from tasks.models import Task
 from utilities.file_operations import (
     InvalidZipFile,
     create_tempfolder,
@@ -21,6 +23,7 @@ from utilities.file_operations import (
     unpack_zipfile_to,
 )
 from utilities.safeexec import ExecutionResult, execute_arglist, safe_docker, safe_docker_cleanup
+from utilities.TestSuite import TestCase
 from utilities.views import forbidden, sendfile
 
 
@@ -51,12 +54,87 @@ class TestHTTPFileResponses(SimpleTestCase):
                     self.assertIs(sendfile(request, path.name), response)
                     serve.assert_called_once_with(request, path.name, document_root=root)
 
+    def test_unknown_file_type_uses_binary_content_type(self) -> None:
+        with TemporaryDirectory() as root, override_settings(UPLOAD_ROOT=root, MOD_XSENDFILE_V1_0=False):
+            path = Path(root) / "file-without-extension"
+            path.write_bytes(b"data")
+            with patch("utilities.views.sys.argv", ["apache"]):
+                response = sendfile(RequestFactory().get("/"), path.name)
+
+        self.assertEqual(response["Content-Type"], "application/octet-stream")
+
     def test_missing_file_is_not_found_in_both_response_paths(self) -> None:
         with TemporaryDirectory() as root, override_settings(UPLOAD_ROOT=root):
             request = RequestFactory().get("/")
             for view in (sendfile, forbidden):
                 with self.subTest(view=view), self.assertRaises(Http404):
                     view(request, "missing.txt")
+
+    def test_unmatched_upload_paths_are_forbidden(self) -> None:
+        with TemporaryDirectory() as root:
+            path = Path(root) / "unmatched.txt"
+            path.write_text("protected")
+            with override_settings(UPLOAD_ROOT=root):
+                response = self.client.get("/upload/unmatched.txt")
+
+        self.assertEqual(response.status_code, 403)
+
+
+class TestFileServingAccess(TestCase):
+    def test_staff_only_files_reject_students_and_allow_staff(self) -> None:
+        with TemporaryDirectory() as root:
+            file = Path(root) / "CheckerFiles" / "secret.txt"
+            file.parent.mkdir()
+            file.write_text("checker data")
+            with (
+                override_settings(UPLOAD_ROOT=root, MOD_XSENDFILE_V1_0=False),
+                patch("utilities.views.sys.argv", ["apache"]),
+            ):
+                self.client.force_login(User.objects.get(username="user"))
+                self.assertEqual(self.client.get("/upload/CheckerFiles/secret.txt").status_code, 403)
+
+                self.client.force_login(User.objects.get(username="trainer"))
+                response = self.client.get("/upload/CheckerFiles/secret.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-Sendfile"], str(file))
+
+    def test_hidden_media_is_denied_to_student_and_visible_media_is_served(self) -> None:
+        with TemporaryDirectory() as root:
+            file = Path(root) / "TaskMediaFiles" / "Task_1" / "media.txt"
+            file.parent.mkdir(parents=True)
+            file.write_text("task media")
+            with (
+                override_settings(UPLOAD_ROOT=root, MOD_XSENDFILE_V1_0=False),
+                patch("utilities.views.sys.argv", ["apache"]),
+            ):
+                self.client.force_login(User.objects.get(username="user"))
+                with patch.object(Task, "should_hide_media", return_value=True) as should_hide:
+                    self.assertEqual(self.client.get("/upload/TaskMediaFiles/Task_1/media.txt").status_code, 403)
+                    should_hide.assert_called_once()
+
+                with patch.object(Task, "should_hide_media", return_value=False):
+                    response = self.client.get("/upload/TaskMediaFiles/Task_1/media.txt")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-Sendfile"], str(file))
+
+    def test_task_media_hidden_for_students_does_not_hide_it_from_staff(self) -> None:
+        with TemporaryDirectory() as root:
+            file = Path(root) / "TaskMediaFiles" / "Task_1" / "media.txt"
+            file.parent.mkdir(parents=True)
+            file.write_text("task media")
+            with (
+                override_settings(UPLOAD_ROOT=root, MOD_XSENDFILE_V1_0=False),
+                patch("utilities.views.sys.argv", ["apache"]),
+            ):
+                self.client.force_login(User.objects.get(username="trainer"))
+                with patch.object(Task, "should_hide_media") as should_hide:
+                    response = self.client.get("/upload/TaskMediaFiles/Task_1/media.txt")
+
+        should_hide.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["X-Sendfile"], str(file))
 
 
 class TestManagementCommands(SimpleTestCase):

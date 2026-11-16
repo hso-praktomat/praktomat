@@ -25,7 +25,7 @@ from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy
 from pygments.util import ClassNotFound
 
-from accounts.models import User
+from accounts.models import Tutorial, User
 from checker.basemodels import CheckerResult, CheckerResultArtefact
 from checker.checker.CheckStyleChecker import CheckStyleChecker
 from checker.checker.CreateFileChecker import CreateFileChecker
@@ -49,6 +49,81 @@ from utilities.TestSuite import TestCase
 
 
 class TestSolutionHTTPContracts(TestCase):
+    def test_solution_download_permissions_follow_role_and_scope(self) -> None:
+        solution = Solution.objects.get(task_id=1)
+        student = solution.author
+        tutor = User.objects.get(username="tutor")
+        trainer = User.objects.get(username="trainer")
+        tutorial = student.tutorial
+        assert tutorial is not None
+        unrelated_student = User.objects.create_user("unrelated-download-user")
+        unrelated_student.groups.add(Group.objects.get(name="User"))
+        unrelated_tutor = User.objects.create_user("unrelated-download-tutor")
+        unrelated_tutor.groups.add(Group.objects.get(name="Tutor"))
+        tutor.tutored_tutorials.add(tutorial)
+
+        with patch(
+            "solutions.views.get_solutions_zip",
+            side_effect=[io.BytesIO(b"student archive"), io.BytesIO(b"tutor archive"), io.BytesIO(b"trainer archive")],
+        ) as create_archive:
+            self.client.force_login(student)
+            self.assertEqual(self.client.get(reverse("solution_download", args=[solution.pk])).status_code, 200)
+            self.assertEqual(self.client.get(reverse("solution_download_full", args=[solution.pk])).status_code, 403)
+            self.assertEqual(
+                self.client.get(reverse("solution_download_artifacts", args=[solution.pk])).status_code, 403
+            )
+            self.client.force_login(unrelated_student)
+            self.assertEqual(self.client.get(reverse("solution_download", args=[solution.pk])).status_code, 403)
+            self.client.force_login(unrelated_tutor)
+            self.assertEqual(self.client.get(reverse("solution_download", args=[solution.pk])).status_code, 403)
+            self.client.force_login(tutor)
+            self.assertEqual(self.client.get(reverse("solution_download", args=[solution.pk])).status_code, 200)
+            self.client.force_login(trainer)
+            self.assertEqual(self.client.get(reverse("solution_download", args=[solution.pk])).status_code, 200)
+
+        self.assertEqual(create_archive.call_count, 3)
+
+    def test_tutor_task_download_is_limited_to_tutored_tutorial(self) -> None:
+        task = Task.objects.get(pk=1)
+        original_solution = Solution.objects.get(task=task)
+        original_solution.final = True
+        original_solution.save()
+        original_tutorial = original_solution.author.tutorial
+        assert original_tutorial is not None
+        other_tutorial = Tutorial.objects.create(name="Other tutorial")
+        other_student = User.objects.create_user("other-download-user")
+        other_student.groups.add(Group.objects.get(name="User"))
+        other_student.tutorial = other_tutorial
+        other_student.save()
+        other_solution = Solution.objects.create(task=task, author=other_student, final=True)
+        tutor = User.objects.get(username="tutor")
+        tutor.tutored_tutorials.add(original_tutorial)
+
+        with patch(
+            "solutions.views.get_solutions_zip",
+            side_effect=[io.BytesIO(b"tutor archive"), io.BytesIO(b"trainer archive")],
+        ) as create_archive:
+            self.client.force_login(tutor)
+            self.assertEqual(
+                self.client.get(reverse("solution_download_for_task", args=[task.pk])).status_code,
+                200,
+            )
+            tutor_solutions = create_archive.call_args_list[0].args[0]
+            self.assertEqual([solution.pk for solution in tutor_solutions], [original_solution.pk])
+
+            self.client.force_login(User.objects.get(username="trainer"))
+            self.assertEqual(
+                self.client.get(reverse("solution_download_for_task", args=[task.pk])).status_code,
+                200,
+            )
+            trainer_solutions = create_archive.call_args_list[1].args[0]
+            self.assertEqual(
+                {solution.pk for solution in trainer_solutions},
+                {original_solution.pk, other_solution.pk},
+            )
+
+        self.assertEqual(create_archive.call_count, 2)
+
     def test_checker_table_keeps_model_rows_and_missing_result_cells(self) -> None:
         task = Task.objects.get(pk=1)
         first_solution = Solution.objects.get(task=task)
@@ -617,6 +692,17 @@ class TestViews(TestCase):
                 follow=True,
             )
         self.assertEqual(response.status_code, 403)
+
+    def test_post_solution_at_submission_limit_is_denied_without_creating_solution(self) -> None:
+        self.task.submission_maxpossible = 1
+        self.task.save()
+        solution_count = self.task.solution_set.count()
+        self.assertEqual(solution_count, 1)
+
+        response = self.client.post(reverse("solution_list", args=[self.task.id]))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self.task.solution_set.count(), solution_count)
 
     def test_get_solution(self) -> None:
         response = self.client.get(reverse("solution_detail", args=[self.task.solution_set.all()[0].id]))

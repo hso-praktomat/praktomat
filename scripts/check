@@ -48,6 +48,13 @@ if [ "$full" -eq 1 ]; then
         configuration.tests solutions.tests tasks.tests taskstatistics.tests \
         hbrs_tests --noinput
     "$PYTHON" -m coverage report
+    "$PYTHON" -m coverage xml -o coverage.xml
+    diff_cover="$(dirname "$PYTHON")/diff-cover"
+    if [ -x "$diff_cover" ]; then
+        "$diff_cover" coverage.xml --compare-branch="${COMPARE_BRANCH:-origin/master}" --fail-under=80
+    else
+        diff-cover coverage.xml --compare-branch="${COMPARE_BRANCH:-origin/master}" --fail-under=80
+    fi
 else
     "$PYTHON" src/manage-test.py test \
         utilities.tests accounts.tests attestation.tests checker.tests \
