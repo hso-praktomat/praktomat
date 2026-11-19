@@ -1,6 +1,10 @@
-from django.db import migrations, models
+from django.apps.registry import Apps
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db import migrations
 
-def settings_warning_message_chunk(apps, schema_editor):
+def settings_warning_message_chunk(
+    apps: Apps, schema_editor: BaseDatabaseSchemaEditor
+) -> None:
     Chunk = apps.get_model("configuration", "Chunk")
     Chunk.objects.get_or_create(key="warning message")[0].save()
 

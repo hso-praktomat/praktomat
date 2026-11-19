@@ -1,0 +1,7 @@
+ruff==0.16.9
+pyright==1.1.414
+django-stubs==6.0.9
+types-Pygments==2.21.0.20260819
+diff-cover==9.2.0
+coverage
+pip-audit==2.10.1

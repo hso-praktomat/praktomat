@@ -1,62 +1,92 @@
-import shutil, os, re, subprocess
-from django.conf import settings
+import os
+import re
 
+from django.conf import settings
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-from checker.basemodels import Checker, CheckerFileField
+from django.utils.translation import gettext_lazy
+
+from checker.basemodels import (
+    Checker,
+    CheckerEnvironment,
+    CheckerFileField,
+    CheckerResult,
+)
+from utilities.file_operations import copy_file
 from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
+
 
 class CheckStyleChecker(Checker):
+    name: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        default="CheckStyle",
+        help_text=gettext_lazy("Name to be displayed on the solution detail page."),
+    )
+    configuration: CheckerFileField = CheckerFileField(
+        help_text=gettext_lazy("XML configuration of CheckStyle. See http://checkstyle.sourceforge.net/")
+    )
 
-    name = models.CharField(max_length=100, default="CheckStyle", help_text=gettext_lazy("Name to be displayed on the solution detail page."))
-    configuration = CheckerFileField(help_text=gettext_lazy("XML configuration of CheckStyle. See http://checkstyle.sourceforge.net/"))
-
-    def title(self):
-        """ Returns the title for this checker category. """
+    def title(self) -> str:
+        """Returns the title for this checker category."""
         return self.name
 
     @staticmethod
-    def description():
-        """ Returns a description for this Checker. """
+    def description() -> str:
+        """Returns a description for this Checker."""
         return "Runs checkstyle (http://checkstyle.sourceforge.net/)."
 
-
-    def run(self, env):
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
 
         # Save save check configuration
         config_path = os.path.join(env.tmpdir(), "checks.xml")
         copy_file(self.configuration.path, config_path)
 
         # Run the tests
-        environ = {}
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
+        environ: dict[str, str] = {}
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
 
-        args = [settings.JVM, "-cp", settings.CHECKSTYLEALLJAR, "-Dbasedir=.", "com.puppycrawl.tools.checkstyle.Main", "-c", "checks.xml"] + [name for (name, content) in env.sources()]
-        [output, error, exitcode, timed_out, oom_ed] = execute_arglist(args, working_directory=env.tmpdir(),environment_variables=environ)
+        args = [
+            settings.JVM,
+            "-cp",
+            settings.CHECKSTYLEALLJAR,
+            "-Dbasedir=.",
+            "com.puppycrawl.tools.checkstyle.Main",
+            "-c",
+            "checks.xml",
+        ] + [name for (name, _content) in env.sources()]
+        [output, _, exitcode, timed_out, oom_ed] = execute_arglist(
+            args,
+            working_directory=env.tmpdir(),
+            environment_variables=environ,
+        )
 
         # Remove Praktomat-Path-Prefixes from result:
-        #output = re.sub(r"^"+re.escape(env.tmpdir())+"/+", "", output, flags=re.MULTILINE)
-        output = re.sub(r""+re.escape(env.tmpdir())+"/+","",output,flags=re.MULTILINE)
+        # output = re.sub(r"^"+re.escape(env.tmpdir())+"/+", "", output, flags=re.MULTILINE)
+        output = re.sub(r"" + re.escape(env.tmpdir()) + "/+", "", output, flags=re.MULTILINE)
 
         result = self.create_result(env)
 
-        log = '<pre>' + escape(output) + '</pre>'
+        log = "<pre>" + escape(output) + "</pre>"
         if timed_out:
             log = log + '<div class="error">Timeout occured!</div>'
         if oom_ed:
             log = log + '<div class="error">Out of memory!</div>'
         result.set_log(log)
 
-
-        result.set_passed(not timed_out and not oom_ed and not exitcode and (not re.match('Starting audit...\nAudit done.', output) == None))
+        result.set_passed(
+            not timed_out
+            and not oom_ed
+            and not exitcode
+            and (re.match("Starting audit...\nAudit done.", output) is not None)
+        )
 
         return result
 
-from checker.admin import    CheckerInline
 
-class CheckStyleCheckerInline(CheckerInline):
-    model = CheckStyleChecker
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
+class CheckStyleCheckerInline(CheckerInline[CheckStyleChecker]):
+    model: type[CheckStyleChecker] = CheckStyleChecker

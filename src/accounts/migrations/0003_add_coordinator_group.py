@@ -1,6 +1,9 @@
-from django.db import migrations, models
+from django.apps.registry import Apps
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db import migrations
 
-def add_coordinator_group(apps, schema_editor):
+
+def add_coordinator_group(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     Group = apps.get_model("auth", "Group")
     coordinator = Group.objects.get_or_create(name="Coordinator")[0]
     coordinator.save()

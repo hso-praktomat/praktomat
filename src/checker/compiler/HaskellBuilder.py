@@ -2,68 +2,87 @@
 A Haskell compiler.
 """
 
-import os, re
-import string
-from checker.compiler.Builder import Builder
+import os
+import re
+from functools import reduce
+from typing import Any
+
 from django.conf import settings
 from django.template.loader import get_template
 from django.utils.html import escape
 
+from checker.basemodels import CheckerEnvironment, CheckerResult
+from checker.compiler.Builder import Builder
 from utilities.safeexec import execute_arglist
-from functools import reduce
+
 
 class HaskellBuilder(Builder):
-    """ A Haskell Compiler """
+    """A Haskell Compiler"""
 
     # Initialization sets own attributes to default values.
-    _compiler    = settings.GHC
-    _language    = "Haskell"
-    _env            = {}
-    _detected_main  = None
+    _compiler = settings.GHC
+    _language = "Haskell"
+    _env = {}
+    _detected_main: str | None = None
 
-
-    def main_module(self, env):
+    def main_module(self, env: CheckerEnvironment) -> str:
         if self._detected_main:
             return self._detected_main
         raise self.NotFoundError("A module Main containing the function main :: IO () could not be found.")
 
-    def libs(self):
-        required_libs = super(HaskellBuilder, self).libs()
-        return [x for l in [["-package", lib] for lib in required_libs] for x in l]
+    def libs(self) -> list[str]:
+        required_libs = super().libs()
+        return [
+            argument for library_flags in [["-package", lib] for lib in required_libs] for argument in library_flags
+        ]
 
-    def flags(self, env):
-        """ Always use -v1, since we grep the output for linked binaries, if any"""
+    def flags(self, env: CheckerEnvironment) -> list[str]:
+        """Always use -v1, since we grep the output for linked binaries, if any"""
         return (self._flags.split(" ") if self._flags else []) + ["-v1"]
 
-    def build_log(self, output, args, filenames):
-        t = get_template('checker/compiler/haskell_builder_report.html')
-        return t.render({'filenames' : filenames, 'output' : output, 'cmdline' : os.path.basename(args[0]) + ' ' +  reduce(lambda parm, ps: parm + ' ' + ps, args[1:], '')})
+    def build_log(self, output: str, args: list[str], filenames: set[str]) -> str:
+        t = get_template("checker/compiler/haskell_builder_report.html")
+        return t.render(
+            {
+                "filenames": filenames,
+                "output": output,
+                "cmdline": os.path.basename(args[0]) + " " + reduce(lambda parm, ps: parm + " " + ps, args[1:], ""),
+            }
+        )
 
-    def run(self, env):
-        """ Build it. """
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
+        """Build it."""
         result = self.create_result(env)
 
         filenames = [name for name in self.get_file_names(env)]
         args = [self.compiler()] + self.flags(env) + filenames + self.libs()
         environ = self.environment()
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        [output, _, _, _, _]  = execute_arglist(args, env.tmpdir(), environ)
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        [output, _, _, _, _] = execute_arglist(args, env.tmpdir(), environ)
 
         has_main = re.search(r"^Linking ([^ ]*) ...$", output, re.MULTILINE)
-        if has_main: self._detected_main = has_main.group(1)
+        if has_main:
+            self._detected_main = has_main.group(1)
 
         output = escape(output)
         output = self.enhance_output(env, output)
 
         # We mustn't have any warnings.
         passed = not self.has_warnings(output)
-        log  = self.build_log(output, args, set(filenames).intersection([solutionfile.path() for solutionfile in env.solution().solutionfile_set.all()]))
+        log = self.build_log(
+            output,
+            args,
+            set(filenames).intersection(
+                [solutionfile.path() for solutionfile in env.solution().solutionfile_set.all()]
+            ),
+        )
 
         # Now that submission was successfully built, try to find the main modules name again
         try:
-            if passed : env.set_program(self.main_module(env))
+            if passed:
+                env.set_program(self.main_module(env))
         except self.NotFoundError as e:
             passed = not self._main_required
             log += "<pre>" + str(e) + "</pre>"
@@ -72,17 +91,23 @@ class HaskellBuilder(Builder):
         result.set_log(log)
         return result
 
-from checker.admin import CheckerInline, AlwaysChangedModelForm
+
+from checker.admin import (  # noqa: E402  # Load after model definitions to avoid circular imports.
+    AlwaysChangedModelForm,
+    CheckerInline,
+)
+
 
 class CheckerForm(AlwaysChangedModelForm):
-    def __init__(self, **args):
-        """ override default values for the model fields """
-        super(CheckerForm, self).__init__(**args)
+    def __init__(self, **args: Any) -> None:
+        """override default values for the model fields"""
+        super().__init__(**args)
         self.fields["_flags"].initial = "-XSafe"
         self.fields["_output_flags"].initial = ""
-        #self.fields["_libs"].initial = ""
+        # self.fields["_libs"].initial = ""
         self.fields["_file_pattern"].initial = r"^.*\.[hH][sS]$"
 
-class HaskellBuilderInline(CheckerInline):
-    model = HaskellBuilder
+
+class HaskellBuilderInline(CheckerInline[HaskellBuilder]):
+    model: type[HaskellBuilder] = HaskellBuilder
     form = CheckerForm

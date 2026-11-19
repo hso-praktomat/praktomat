@@ -1,140 +1,181 @@
 import tempfile
 import zipfile
-
-from django.contrib.auth.decorators import login_required
-from django.contrib.admin.views.decorators import staff_member_required
-from django.shortcuts import render, get_object_or_404
-from django.http import Http404
-from django.http import HttpResponseRedirect, HttpResponse
+from collections.abc import Iterable as _Iterable
 from datetime import datetime
+
+import django.utils.timezone
 from django import forms
-from django.urls import reverse
 from django.conf import settings
 from django.contrib import messages
-import django.utils.timezone
-from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.serializers.base import DeserializationError
+from django.db import IntegrityError
+from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest as _HttpRequest
+from django.shortcuts import get_object_or_404, render
+from django.urls import reverse
 
-from tasks.models import Task
-from solutions.forms import ModelSolutionFormSet
-from solutions.models import Solution, SolutionFile, solution_metadata_json
+from accounts.authentication import require_user
 from accounts.models import User
-from accounts.views import access_denied
-from attestation.models import Attestation
 from attestation.views import user_task_attestation_map
 from configuration import get_settings
+from solutions.forms import ModelSolutionFormSet
+from solutions.models import Solution, solution_metadata_json
+from tasks.models import Task
+
 
 @login_required
-def taskList(request):
+def taskList(request: _HttpRequest) -> HttpResponse:
+    user = require_user(request)
+    request.user = user
     now = django.utils.timezone.now()
-    tasks = Task.objects.filter(publication_date__lte = now).order_by('submission_date', 'title')
-    try:
-        tutors = request.user.tutorial.tutors.all()
-    except:
-        tutors = None
+    tasks = Task.objects.filter(publication_date__lte=now).order_by("submission_date", "title")
+    tutorial = request.user.tutorial
+    tutors = tutorial.tutors.all() if tutorial is not None else None
     trainers = User.objects.filter(groups__name="Trainer")
 
     # we only have a single user here, so the rating_list only contains a single row;
     # this row belongs to the given user
     (_, attestations, threshold, calculated_grade) = user_task_attestation_map([request.user], tasks)[0]
-    attestations = list(map(lambda a, b: (a,)+b, tasks, attestations))
+    attestations = list(map(lambda a, b: (a,) + b, tasks, attestations))
 
-    def tasksWithSolutionsAndDeadlineExtension(tasks):
-        return [{'task': t, 'final_solution': t.final_solution(request.user), 'expired': t.expired_for_user(request.user), 'submission_date': t.submission_date_for_user(request.user)} for t in tasks]
+    def tasksWithSolutionsAndDeadlineExtension(tasks: _Iterable[Task]) -> list[dict[str, object]]:
+        return [
+            {
+                "task": t,
+                "final_solution": t.final_solution(user),
+                "expired": t.expired_for_user(user),
+                "submission_date": t.submission_date_for_user(user),
+            }
+            for t in tasks
+        ]
 
-    return render(request,
-                  'tasks/task_list.html',
-                  {
-                      'tasks': tasksWithSolutionsAndDeadlineExtension(tasks),
-                      'attestations': attestations,
-                      'show_final_grade': get_settings().final_grades_published,
-                      'tutors': tutors,
-                      'trainers': trainers,
-                      'threshold': threshold,
-                      'calculated_grade': calculated_grade,
-                      'user_text': request.user.user_text,
-                      'show_contact_link': settings.SHOW_CONTACT_LINK,
-                  })
+    return render(
+        request,
+        "tasks/task_list.html",
+        {
+            "tasks": tasksWithSolutionsAndDeadlineExtension(tasks),
+            "attestations": attestations,
+            "show_final_grade": get_settings().final_grades_published,
+            "tutors": tutors,
+            "trainers": trainers,
+            "threshold": threshold,
+            "calculated_grade": calculated_grade,
+            "user_text": request.user.user_text,
+            "show_contact_link": settings.SHOW_CONTACT_LINK,
+        },
+    )
+
 
 @login_required
-def taskDetail(request, task_id):
+def taskDetail(request: _HttpRequest, task_id: str) -> HttpResponse:
+    request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
 
     if task.publication_date >= datetime.now() and not request.user.is_trainer:
         raise Http404
 
-    my_solutions = Task.objects.get(pk=task_id).solution_set.filter(author = request.user)
-    return render(request,
-                  'tasks/task_detail.html',
-                  {
-                      'task': task,
-                      'solutions': my_solutions,
-                      'submission_date': task.submission_date_for_user(request.user),
-                  })
+    my_solutions = Task.objects.get(pk=task_id).solution_set.filter(author=request.user)
+    return render(
+        request,
+        "tasks/task_detail.html",
+        {
+            "task": task,
+            "solutions": my_solutions,
+            "submission_date": task.submission_date_for_user(request.user),
+        },
+    )
+
 
 class ImportForm(forms.Form):
-    file = forms.FileField()
-    is_template = forms.BooleanField(initial=True,
-                                     required=False,
-                                     help_text="Enabled if the imported task is just used as template to create another task. If disabled, the publication date and the rating scale are also imported. This means that students might see the task immediately, and rating scales might be duplicated.")
+    file: forms.FileField = forms.FileField()
+    is_template: forms.BooleanField = forms.BooleanField(
+        initial=True,
+        required=False,
+        help_text="Enabled if the imported task is just used as template to create another task. If disabled, the publication date and the rating scale are also imported. This means that students might see the task immediately, and rating scales might be duplicated.",
+    )
+
 
 @staff_member_required
-def import_tasks(request):
-    """ View in the admin """
-    if request.method == 'POST':
+def import_tasks(request: _HttpRequest) -> HttpResponse | HttpResponseRedirect:
+    """View in the admin"""
+    request.user = require_user(request)
+    if request.method == "POST":
         form = ImportForm(request.POST, request.FILES)
         if form.is_valid():
             try:
-                Task.import_Tasks(form.files['file'], request.user, form.cleaned_data['is_template'])
+                Task.import_Tasks(form.cleaned_data["file"], request.user, form.cleaned_data["is_template"])
                 messages.success(request, "The import was successful.")
-                return HttpResponseRedirect(reverse('admin:tasks_task_changelist'))
-            except Exception as e:
-                from django.forms.utils import ErrorList
-                msg = "An Error occurred. The import file was probably malformed: %s" % str(e)
-                form._errors["file"] = ErrorList([msg])
+                return HttpResponseRedirect(reverse("admin:tasks_task_changelist"))
+            except (
+                DeserializationError,
+                IntegrityError,
+                KeyError,
+                ObjectDoesNotExist,
+                OSError,
+                TypeError,
+                UnicodeDecodeError,
+                ValidationError,
+                ValueError,
+                zipfile.BadZipFile,
+            ) as e:
+                msg = f"An Error occurred. The import file was probably malformed: {str(e)}"
+                form.add_error("file", msg)
     else:
         form = ImportForm()
-    return render(request, 'admin/tasks/task/import.html', {'form': form, 'title':"Import Task"  })
+    return render(request, "admin/tasks/task/import.html", {"form": form, "title": "Import Task"})
+
 
 @staff_member_required
-def download_final_solutions(request, task_id):
-    """ download all final solutions of a task from the admin interface """
+def download_final_solutions(request: _HttpRequest, task_id: str) -> HttpResponse:
+    """download all final solutions of a task from the admin interface"""
     zip_file = tempfile.SpooledTemporaryFile()
-    zip = zipfile.ZipFile(zip_file, 'w')
-    for solution in Solution.objects.filter(task_id=task_id, final=True).prefetch_related('solutionfile_set'):
+    zip = zipfile.ZipFile(zip_file, "w")
+    solutions = Solution.objects.filter(task_id=task_id, final=True).prefetch_related("solutionfile_set")
+    for solution in solutions:
         zip.writestr(
-            'praktomat-metadata/solution_%s/metadata.json' % solution.pk,
-            solution_metadata_json(solution))
+            f"praktomat-metadata/solution_{solution.pk}/metadata.json",
+            solution_metadata_json(solution),
+        )
         for solution_file in solution.solutionfile_set.all():
             zip.write(solution_file.file.path, solution_file.file.name)
     zip.close()
     zip_file.seek(0)
     response = HttpResponse(zip_file.read(), content_type="application/zip")
-    response['Content-Disposition'] = 'attachment; filename=FinalSolutions.zip'
+    response["Content-Disposition"] = "attachment; filename=FinalSolutions.zip"
     return response
 
 
 @staff_member_required
-def model_solution(request, task_id):
-    """ View in the admin """
+def model_solution(request: _HttpRequest, task_id: str) -> HttpResponse:
+    """View in the admin"""
+    request.user = require_user(request)
     task = get_object_or_404(Task, pk=task_id)
 
     if request.method == "POST":
-        solution = Solution(task = task, author=request.user)
+        solution = Solution(task=task, author=request.user)
         formset = ModelSolutionFormSet(request.POST, request.FILES, instance=solution)
         if formset.is_valid():
             try:
-                solution.save();
+                solution.save()
                 # no deleting the old solution:
                 # delete will cascade on db level deleting checker results and checker
                 # as this isn't easily prevented just keep the old solution around until the task is deleted
                 formset.save()
                 solution.check_solution(request.session)
-                task.model_solution = solution;
+                task.model_solution = solution
                 task.save()
             except:
-                solution.delete()    # delete files
-                raise                # don't commit db changes
+                solution.delete()  # delete files
+                raise  # don't commit db changes
     else:
         formset = ModelSolutionFormSet()
-    context = {"formset": formset, "task": task, 'title': "Model Solution", 'is_popup': True, }
+    context = {
+        "formset": formset,
+        "task": task,
+        "title": "Model Solution",
+        "is_popup": True,
+    }
     return render(request, "admin/tasks/task/model_solution.html", context)

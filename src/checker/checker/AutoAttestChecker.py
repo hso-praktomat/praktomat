@@ -1,54 +1,74 @@
 """
 AutoAttestChecker (based on code of S.B. (HBRS FB02,2013) updated by Robert Hartmann,HBRS FB02, 2013 - 2016,2020,2022)
 """
-import os, re
-import os.path
 
+from datetime import datetime
+from typing import Any
+
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.translation import gettext_lazy
-from django.utils.html import escape
-#from django.utils.encoding import force_unicode
-from checker.basemodels import Checker, CheckerFileField, CheckerResult, truncated_log
-from django.core.exceptions import ValidationError
-from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
 
 from accounts.models import User
-from attestation.models import RatingScaleItem, Attestation
-from datetime import datetime
+from attestation.models import Attestation
+
+# from django.utils.encoding import force_unicode
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class AutoAttestChecker(Checker):
+    author: "models.ForeignKey[User | None, User | None]" = models.ForeignKey(
+        User,
+        verbose_name="attestation author",
+        limit_choices_to={"groups__name": "Tutor"},
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    public_comment: "models.TextField[str, str]" = models.TextField(
+        blank=True, help_text=gettext_lazy("Comment which is shown to the user.")
+    )
+    private_comment: "models.TextField[str, str]" = models.TextField(
+        blank=True, help_text=gettext_lazy("Comment which is only visible to tutors")
+    )
+    final: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=True, help_text=gettext_lazy("Indicates whether the attestation is ready to be published")
+    )
+    published: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=True, help_text=gettext_lazy("Indicates whether the user can see the attestation.")
+    )
 
-    author = models.ForeignKey(User, verbose_name="attestation author", limit_choices_to = {'groups__name': 'Tutor'}, on_delete=models.SET_NULL, null=True, blank=True)
-    public_comment = models.TextField(blank=True, help_text = gettext_lazy('Comment which is shown to the user.'))
-    private_comment = models.TextField(blank=True, help_text = gettext_lazy('Comment which is only visible to tutors'))
-    final = models.BooleanField(default = True, help_text = gettext_lazy('Indicates whether the attestation is ready to be published'))
-    published = models.BooleanField(default = True, help_text = gettext_lazy('Indicates whether the user can see the attestation.'))
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        for name, default in (
+            ("always", False),
+            ("public", False),
+            ("required", False),
+            ("final", True),
+            ("published", True),
+        ):
+            field = self._meta.get_field(name)
+            if not isinstance(field, models.Field):
+                raise TypeError(f"Expected a model field for {name}")
+            field.default = default
 
-    def __init__(self, *args, **kwargs):
-        super(AutoAttestChecker, self).__init__(*args, **kwargs)
-        self._meta.get_field('always').default = False
-        self._meta.get_field('public').default = False
-        self._meta.get_field('required').default = False
-        self._meta.get_field('final').default = True
-        self._meta.get_field('published').default = True
+    def clean(self) -> None:
+        super().clean()
+        if self.required or self.always or self.public:
+            raise ValidationError("Robert says: AutoAttestChecker have to be non-required, non-always, non-public")
 
-    def clean(self):
-        super(AutoAttestChecker, self).clean()
-        if (self.required or self.always or self.public): raise ValidationError("Robert says: AutoAttestChecker have to be non-required, non-always, non-public")
-
-    def title(self):
-        """ Returns the title for this checker category. """
-        return u"Attestation eintragen, wenn alle bisherigen Checker erfolgreiches Ergebnis hatten."
+    def title(self) -> str:
+        """Returns the title for this checker category."""
+        return "Attestation eintragen, wenn alle bisherigen Checker erfolgreiches Ergebnis hatten."
 
     @staticmethod
-    def description():
-        """ Returns a description for this Checker. """
-        return u"Dies ist keine Prüfung, sondern trägt eine automatische Attestation ein."
+    def description() -> str:
+        """Returns a description for this Checker."""
+        return "Dies ist keine Prüfung, sondern trägt eine automatische Attestation ein."
 
-    def run(self, env):
-        """ Runs tests in a special environment. Here's the actual work.
-        Returning CheckerResult. """
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
+        """Runs tests in a special environment. Here's the actual work.
+        Returning CheckerResult."""
 
         checkers_passed = 0
         checkers_failed = 0
@@ -59,16 +79,15 @@ class AutoAttestChecker(Checker):
                 else:
                     checkers_failed += 1
 
-	#result = CheckerResult(checker=self)
-        result = CheckerResult(checker=self,solution=env.solution())
+        # result = CheckerResult(checker=self)
+        result = CheckerResult(checker=self, solution=env.solution())
         result.set_passed(checkers_failed == 0)
 
-
         if User.objects.filter(id=self.author_id).count() == 0:
-            self.author_id = None    # warum nicht self.author ???
+            self.author_id: int | None = None  # warum nicht self.author ???
             return result
 
-	# delete all old own Attestations for this solution.
+        # delete all old own Attestations for this solution.
         for a in Attestation.objects.filter(solution=env.solution(), author=self.author):
             a.delete()
 
@@ -89,31 +108,45 @@ class AutoAttestChecker(Checker):
             grades = list(self.task.final_grade_rating_scale.ratingscaleitem_set.all())
             if checkers_failed == 0:
                 if checkers_passed > 0:
-                    result.set_log('All %d required checkers passed.' % checkers_passed)
+                    result.set_log(f"All {checkers_passed} required checkers passed.")
                 else:
-                    result.set_log('WARNING: No checkers.')
+                    result.set_log("WARNING: No checkers.")
 
                 new_final_solution = env.solution()
                 if new_final_solution:
                     new_final_solution.final = True
                     new_final_solution.save()
 
-                a = Attestation(solution=env.solution(), author=self.author,
-                                public_comment=self.public_comment, private_comment=self.private_comment,
-                                final=self.final, published=self.published, published_on=datetime.now(),
-                                final_grade=grades[-1])
+                a = Attestation(
+                    solution=env.solution(),
+                    author=self.author,
+                    public_comment=self.public_comment,
+                    private_comment=self.private_comment,
+                    final=self.final,
+                    published=self.published,
+                    published_on=datetime.now(),
+                    final_grade=grades[-1],
+                )
                 a.save()
             else:
-                result.set_log('%d required checkers failed.' % checkers_failed)
-#                result.set_solution_id(env.solution())
-                a = Attestation(solution=env.solution(), author=self.author,
-                                public_comment=self.public_comment, private_comment=self.private_comment,
-                                final=self.final, published=self.published, published_on=datetime.now(),
-                                final_grade=grades[0])
+                result.set_log(f"{checkers_failed} required checkers failed.")
+                #                result.set_solution_id(env.solution())
+                a = Attestation(
+                    solution=env.solution(),
+                    author=self.author,
+                    public_comment=self.public_comment,
+                    private_comment=self.private_comment,
+                    final=self.final,
+                    published=self.published,
+                    published_on=datetime.now(),
+                    final_grade=grades[0],
+                )
                 a.save()
         return result
 
-from checker.admin import    CheckerInline
 
-class AutoAttestInline(CheckerInline):
-    model = AutoAttestChecker
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
+class AutoAttestInline(CheckerInline[AutoAttestChecker]):
+    model: type[AutoAttestChecker] = AutoAttestChecker

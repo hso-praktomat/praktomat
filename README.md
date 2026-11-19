@@ -257,7 +257,7 @@ git clone --recursive git://github.com/KITPraktomatTeam/Praktomat.git
 virtualenv -p python3 --system-site-packages env/
 . env/bin/activate
 pip install -U pip virtualenv setuptools wheel urllib3[secure]
-pip install -r Praktomat/requirements.txt
+pip install -r Praktomat/requirements.txt -r Praktomat/requirements-dev.txt
 ```
 
 The initial database setup follows.
@@ -292,10 +292,14 @@ to run django unit tests
 
 ```bash
 cd Praktomat
-mkdir ../test-data/
-./src/manage-test.py test accounts attestation checker configuration solutions tasks taskstatistics hbrs_tests
+mkdir -p ../test-data/
+./scripts/check
 ```
 
+The development dependencies are listed in `requirements-dev.txt`. Run
+`./scripts/check --full` to include branch coverage and enforce at least 80%
+total and diff coverage. CI tests Python 3.10–3.14 and runs pip-audit as a
+report-only check.
 
 Deployment installation (using Apache and PostgreSQL)
 =======================

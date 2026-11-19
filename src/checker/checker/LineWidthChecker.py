@@ -5,36 +5,55 @@ Line width checker
 import re
 
 from django.db import models
-from django.utils.translation import gettext_lazy
 from django.utils.html import escape
-from checker.basemodels import Checker
+from django.utils.translation import gettext_lazy
+
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class LineWidthChecker(Checker):
+    max_line_length: "models.IntegerField[int, int]" = models.IntegerField(
+        default=80, help_text=gettext_lazy("The maximum length of a line of code.")
+    )
+    tab_width: "models.IntegerField[int, int]" = models.IntegerField(
+        default=4, help_text=gettext_lazy("The amount of characters a tab represents.")
+    )
+    include: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        blank=True,
+        default=".*",
+        help_text=gettext_lazy(
+            "Regular expression describing the filenames to be checked. Case insensitive. Blank: use all files."
+        ),
+    )
+    exclude: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        blank=True,
+        default=r".*\.txt$",
+        help_text=gettext_lazy(
+            "Regular expression describing included filenames, which shall be excluded. Case insensitive. Blank: use all files."
+        ),
+    )
 
-    max_line_length = models.IntegerField(default = 80, help_text=gettext_lazy("The maximum length of a line of code."))
-    tab_width =  models.IntegerField(default = 4, help_text=gettext_lazy("The amount of characters a tab represents."))
-    include = models.CharField(max_length=100, blank = True, default=".*", help_text=gettext_lazy("Regular expression describing the filenames to be checked. Case insensitive. Blank: use all files."))
-    exclude = models.CharField(max_length=100, blank = True, default=r".*\.txt$", help_text=gettext_lazy("Regular expression describing included filenames, which shall be excluded. Case insensitive. Blank: use all files."))
-
-    def title(self):
-        """ Returns the title for this checker category. """
-        return "Maximale Zeilenbreite (%d Zeichen)" % self.max_line_length
+    def title(self) -> str:
+        """Returns the title for this checker category."""
+        return f"Maximale Zeilenbreite ({self.max_line_length} Zeichen)"
 
     @staticmethod
-    def description():
-        """ Returns a description for this Checker. """
+    def description() -> str:
+        """Returns a description for this Checker."""
         s = "Diese Prüfung ist bestanden, wenn keine Zeile des Programmtext breiter als die angegebene Anzahl Zeichen ist."
         return s
 
-    def setup_line(self, line, env):
-        """ This is a helper procedure.     Expand tabs and likewise. """
+    def setup_line(self, line: str, env: CheckerEnvironment) -> str:
+        """This is a helper procedure.     Expand tabs and likewise."""
         line = line.replace("\r", "")
         line = line.expandtabs(self.tab_width)
         return line
 
-    def run(self, env):
-        """ Here's the actual work.     This runs the check in the environment ENV,
-        returning a CheckerResult. """
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
+        """Here's the actual work.     This runs the check in the environment ENV,
+        returning a CheckerResult."""
         result = self.create_result(env)
 
         log = ""
@@ -44,10 +63,12 @@ class LineWidthChecker(Checker):
         exclude_re = re.compile(self.exclude, re.IGNORECASE)
 
         sources = env.string_sources()
-        if self.include: sources = [name_content for name_content in sources if include_re.search(name_content[0])]
-        if self.exclude: sources = [name_content1 for name_content1 in sources if not exclude_re.search(name_content1[0])]
+        if self.include:
+            sources = [name_content for name_content in sources if include_re.search(name_content[0])]
+        if self.exclude:
+            sources = [name_content1 for name_content1 in sources if not exclude_re.search(name_content1[0])]
 
-        for (name, content) in sources:
+        for name, content in sources:
             if not name or not content:
                 continue
 
@@ -57,8 +78,15 @@ class LineWidthChecker(Checker):
                 line = self.setup_line(line, env)
 
                 if len(line) > self.max_line_length:
-                    msg = ( escape(name) + ":" + repr(line_number) +
-                           ": Zeile zu breit (" + repr(len(line)) + " Zeichen)" + "<BR>")
+                    msg = (
+                        escape(name)
+                        + ":"
+                        + repr(line_number)
+                        + ": Zeile zu breit ("
+                        + repr(len(line))
+                        + " Zeichen)"
+                        + "<BR>"
+                    )
                     log = log + msg
                     passed = 0
 
@@ -66,8 +94,7 @@ class LineWidthChecker(Checker):
 
                 line_number = line_number + 1
 
-            msg = (escape(name) + ": Maximale Zeilenbreite: " +
-                   repr(max_line_length) + " Zeichen\n" + "<BR>")
+            msg = escape(name) + ": Maximale Zeilenbreite: " + repr(max_line_length) + " Zeichen\n" + "<BR>"
             log = log + msg
 
         # At the end of each run, be sure to set LOG and PASSED.
@@ -77,6 +104,9 @@ class LineWidthChecker(Checker):
         # That's all!
         return result
 
-from checker.admin import CheckerInline
-class LineWidthCheckerInline(CheckerInline):
-    model = LineWidthChecker
+
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
+class LineWidthCheckerInline(CheckerInline[LineWidthChecker]):
+    model: type[LineWidthChecker] = LineWidthChecker

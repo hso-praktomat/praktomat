@@ -1,89 +1,136 @@
-import os, re, string, sys
+import os
+import re
 import shlex
+import sys
+from typing import TYPE_CHECKING, Any, cast
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.files import File
 from django.db import models
-from django.utils.translation import gettext_lazy
-from django.utils.html import escape
+from django.forms.models import BaseInlineFormSet, ModelForm
+from django.http import HttpRequest
 from django.utils.encoding import force_str
-from checker.basemodels import Checker, CheckerFileField, truncated_log
-from checker.admin import    CheckerInline, AlwaysChangedModelForm
+from django.utils.html import escape
+from django.utils.translation import gettext_lazy
+
+from checker.admin import AlwaysChangedModelForm, CheckerInline
+from checker.basemodels import (
+    Checker,
+    CheckerEnvironment,
+    CheckerFileField,
+    CheckerResult,
+    truncated_log,
+)
+from tasks.models import Task
+from utilities.file_operations import copy_file, require_file_name
 from utilities.safeexec import execute_arglist
-from utilities.file_operations import *
 
 EXIT_CODE_PASSED_WITH_WARNING = 121
 
+
 class ScriptChecker(Checker):
+    name: "models.CharField[str, str]" = models.CharField(
+        max_length=100,
+        default="Externen Tutor ausführen",
+        help_text=gettext_lazy("Name to be displayed on the solution detail page."),
+    )
+    filename: "models.CharField[str, str]" = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text=gettext_lazy(
+            "What the file will be named in the sandbox. If empty, we try to guess the right filename!"
+        ),
+    )
+    shell_script = CheckerFileField(
+        help_text=gettext_lazy(
+            "A script (e.g. a shell script) to run. Its output will be displayed to the user (if public), the checker will succeed if it returns an exit code of 0. The environment will contain the variables JAVA and PROGRAM."
+        )
+    )
+    remove: "models.CharField[str, str]" = models.CharField(
+        max_length=5000,
+        blank=True,
+        help_text=gettext_lazy("Regular expression describing passages to be removed from the output."),
+    )
+    returns_html: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=False,
+        help_text=gettext_lazy("If the script doesn't return HTML it will be enclosed in &lt; pre &gt; tags."),
+    )
+    arguments: "models.CharField[str, str]" = models.CharField(
+        max_length=5000,
+        blank=True,
+        help_text=gettext_lazy(
+            "Additional arguments to pass to the script. Shell-like escaping and quoting is supported."
+        ),
+    )
+    mount_extra_directories: "models.BooleanField[bool, bool]" = models.BooleanField(
+        default=False,
+        verbose_name=gettext_lazy("Mount extra directories"),
+        help_text=gettext_lazy("Mount configured external extra directories into the checker Docker container."),
+    )
 
-    name = models.CharField(max_length=100, default="Externen Tutor ausführen", help_text=gettext_lazy("Name to be displayed on the solution detail page."))
-    filename = models.CharField(max_length=500, blank=True, help_text=gettext_lazy("What the file will be named in the sandbox. If empty, we try to guess the right filename!"))
-    shell_script = CheckerFileField(help_text=gettext_lazy("A script (e.g. a shell script) to run. Its output will be displayed to the user (if public), the checker will succeed if it returns an exit code of 0. The environment will contain the variables JAVA and PROGRAM."))
-    remove = models.CharField(max_length=5000, blank=True, help_text=gettext_lazy("Regular expression describing passages to be removed from the output."))
-    returns_html = models.BooleanField(default= False, help_text=gettext_lazy("If the script doesn't return HTML it will be enclosed in &lt; pre &gt; tags."))
-    arguments = models.CharField(max_length=5000, blank=True, help_text=gettext_lazy("Additional arguments to pass to the script. Shell-like escaping and quoting is supported."))
-    mount_extra_directories = models.BooleanField(default=False, verbose_name=gettext_lazy("Mount extra directories"), help_text=gettext_lazy("Mount configured external extra directories into the checker Docker container."),)
-
-    def title(self):
-        """ Returns the title for this checker category. """
+    def title(self) -> str:
+        """Returns the title for this checker category."""
         return self.name
 
     @staticmethod
-    def description():
-        """ Returns a description for this Checker. """
+    def description() -> str:
+        """Returns a description for this Checker."""
         return "This checker succeeds if the external program doesn't return an error code (exit code is 0). Exit code 121 means that the checker passed with a warning. Everything else means that the checker failed."
 
-
-    def path_relative_to_sandbox(self):
+    def path_relative_to_sandbox(self) -> str:
         filename = self.filename if self.filename else self.shell_script.path
         return os.path.basename(filename)
 
-    def run(self, env):
-        """ Runs tests in a special environment. Here's the actual work.
-        This runs the check in the environment ENV, returning a CheckerResult. """
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
+        """Runs tests in a special environment. Here's the actual work.
+        This runs the check in the environment ENV, returning a CheckerResult."""
 
         # Setup
         filename = self.filename if self.filename else self.shell_script.path
         path = os.path.join(env.tmpdir(), os.path.basename(filename))
         copy_file(self.shell_script.path, path)
-        os.chmod(path, 0o750)
+        os.chmod(path, 0o750)  # noqa: S103  # Group read/execute access is required by the sandbox runner.
 
         # Run the tests -- execute dumped shell script 'script.sh'
 
-        filenames = [name for (name, content) in env.sources()]
+        filenames = [name for (name, _) in env.sources()]
         script_args = shlex.split(self.arguments)
         args = [path] + script_args + filenames
 
-        environ = {}
-        environ['TASK_ID'] = str(env.task().id)
-        environ['TASK_TITLE'] = str(env.task().title).encode(sys.getfilesystemencoding(), 'ignore').decode() # The title may include invalid characters (e.g. umlauts) -> ignore them
-        environ['TASK_ID_CUSTOM'] = env.task().custom_id
-        environ['USER'] = str(env.user().id)
-        environ['USER_MATR'] = str(env.user().mat_number)
-        environ['SOLUTION_ID'] = str(env.solution().id)
-        environ['HOME'] = env.tmpdir()
-        environ['JAVA'] = settings.JVM
-        environ['JAVA_SECURE'] = settings.JVM_SECURE
-        environ['SCALA'] = settings.SCALA
-        environ['POLICY'] = settings.JVM_POLICY
-        environ['PROGRAM'] = env.program() or ''
-        environ['LANG'] = settings.LANG
-        environ['LANGUAGE'] = settings.LANGUAGE
-        environ['ALLOW_LLM_UPLOAD'] = '1' if env.solution().allow_llm_upload else '0'
+        environ: dict[str, str] = {}
+        environ["TASK_ID"] = str(env.task().id)
+        environ["TASK_TITLE"] = (
+            str(env.task().title).encode(sys.getfilesystemencoding(), "ignore").decode()
+        )  # The title may include invalid characters (e.g. umlauts) -> ignore them
+        environ["TASK_ID_CUSTOM"] = env.task().custom_id
+        environ["USER"] = str(env.user().id)
+        environ["USER_MATR"] = str(env.user().mat_number)
+        environ["SOLUTION_ID"] = str(env.solution().id)
+        environ["HOME"] = env.tmpdir()
+        environ["JAVA"] = settings.JVM
+        environ["JAVA_SECURE"] = settings.JVM_SECURE
+        environ["SCALA"] = settings.SCALA
+        environ["POLICY"] = settings.JVM_POLICY
+        environ["PROGRAM"] = env.program() or ""
+        environ["LANG"] = settings.LANG
+        environ["LANGUAGE"] = settings.LANGUAGE
+        environ["ALLOW_LLM_UPLOAD"] = "1" if env.solution().allow_llm_upload else "0"
 
-        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts')
+        script_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts")
 
-        [output, error, exitcode, timed_out, oom_ed] = execute_arglist(
-                            args,
-                            working_directory=env.tmpdir(),
-                            environment_variables=environ,
-                            timeout=settings.TEST_TIMEOUT,
-                            maxmem=settings.TEST_MAXMEM,
-                            fileseeklimit=settings.TEST_MAXFILESIZE,
-                            filenumberlimit=settings.TEST_MAXFILENUMBER,
-                            extradirs = [script_dir],
-                            mount_extra_directories=self.mount_extra_directories,
-
-                            )
-        output = force_str(output, errors='replace')
+        [output, _, exitcode, timed_out, oom_ed] = execute_arglist(
+            args,
+            working_directory=env.tmpdir(),
+            environment_variables=environ,
+            timeout=settings.TEST_TIMEOUT,
+            maxmem=settings.TEST_MAXMEM,
+            fileseeklimit=settings.TEST_MAXFILESIZE,
+            filenumberlimit=settings.TEST_MAXFILENUMBER,
+            extradirs=[script_dir],
+            mount_extra_directories=self.mount_extra_directories,
+        )
+        output = force_str(output, errors="replace")
 
         result = self.create_result(env)
         (output, truncated) = truncated_log(output)
@@ -91,39 +138,40 @@ class ScriptChecker(Checker):
         if self.remove:
             output = re.sub(self.remove, "", output)
         if not self.returns_html or truncated or timed_out or oom_ed:
-            output = '<pre>' + escape(output) + '</pre>'
+            output = "<pre>" + escape(output) + "</pre>"
 
-
-        #TODO this is just a workaround for the deprecation of Java Security Manager (since java 17)
+        # TODO this is just a workaround for the deprecation of Java Security Manager (since java 17)
         # the warnings occure because the java (alis-)script ../scripts/java that is called by Praktomat sets the command line to use java security manager
         # problem is that these warning occure also in the output of the TestFW started by ScriptChecker and irritate the students.
-        output = output.replace("WARNING: A command line option has enabled the Security Manager\n","")
-        output = output.replace("WARNING: The Security Manager is deprecated and will be removed in a future release\n","")
+        output = output.replace("WARNING: A command line option has enabled the Security Manager\n", "")
+        output = output.replace(
+            "WARNING: The Security Manager is deprecated and will be removed in a future release\n", ""
+        )
 
         result.set_log(output, timed_out=timed_out, truncated=truncated, oom_ed=oom_ed)
-
         exitcode_ok = exitcode == 0 or exitcode == EXIT_CODE_PASSED_WITH_WARNING
         result.set_passed(exitcode_ok and not timed_out and not oom_ed)
         result.set_passed_with_warning(result.passed and (exitcode == EXIT_CODE_PASSED_WITH_WARNING or truncated))
 
         return result
 
-from checker.admin import    CheckerInline
-from django import forms
-from django.contrib import messages
-from django.contrib import admin
 
-class WarningScriptCheckerFormSet(forms.BaseInlineFormSet):
+from django.contrib import messages  # noqa: E402  # Keep checker setup ahead of optional admin integration.
+
+
+class WarningScriptCheckerFormSet(
+    BaseInlineFormSet[ScriptChecker, Task, ModelForm[ScriptChecker]] if TYPE_CHECKING else BaseInlineFormSet
+):
     class Meta:
         model = ScriptChecker
         exclude = []
 
-    def __init__(self, *args, **kwargs):
-        self.request = kwargs.pop('request', None)
-        super(WarningScriptCheckerFormSet, self).__init__(*args, **kwargs)
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.request: HttpRequest = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
 
-    def save(self, *args, **kwargs):
-        scriptcheckers = super(WarningScriptCheckerFormSet, self).save(*args, **kwargs)
+    def save(self, *args: Any, **kwargs: Any) -> list[ScriptChecker]:
+        scriptcheckers = super().save(*args, **kwargs)
 
         for checker in scriptcheckers:
             script = checker.shell_script
@@ -134,8 +182,7 @@ class WarningScriptCheckerFormSet(forms.BaseInlineFormSet):
 
             # In universal newline mode, Python will interpret '\r', '\n' and '\r\n' as line endings.
             # Because Djangos FileField.open does not know how to handle a newline parameter, we call open from io directly.
-            from io import open as alias_open
-            script.file = alias_open(script.path,mode="r",newline=None)
+            script.file = open(script.path, newline=None)
 
             # make sure self.newlines is populated
             script.readline()
@@ -143,40 +190,58 @@ class WarningScriptCheckerFormSet(forms.BaseInlineFormSet):
             script.readline()
 
             if (script.newlines is None) or ("\r\n" in script.newlines):
-                messages.add_message(self.request, messages.WARNING, "Script File %s does not appear to use UNIX line-endings. Instead it uses: %s" % (script.name, repr(script.newlines)))
+                messages.add_message(
+                    self.request,
+                    messages.WARNING,
+                    f"Script File {script.name} does not appear to use UNIX line-endings. Instead it uses: {repr(script.newlines)}",
+                )
 
             script.close()
 
         return scriptcheckers
 
-class CopyForm(AlwaysChangedModelForm):
-    def __init__(self, **args):
-        """ override public and required """
-        super(CopyForm, self).__init__(**args)
 
-    def clean_filename(self):
-        filename = self.cleaned_data['filename']
-        if (not filename.strip()):
-            if 'shell_script' in self.cleaned_data:
-                file = self.cleaned_data['shell_script']
-                return (os.path.basename(shell_script.name))
-            else:
-                cleaned = self.cleaned_data
+class CopyForm(AlwaysChangedModelForm):
+    def __init__(self, **args: Any) -> None:
+        """override public and required"""
+        super().__init__(**args)
+
+    def clean_filename(self) -> str:
+        filename: object = self.cleaned_data["filename"]
+        if not isinstance(filename, str):
+            raise ValidationError("Filename must be a string")
+        if not filename.strip():
+            script: object = self.cleaned_data.get("shell_script")
+            if script is None:
                 return ""
+            if not isinstance(script, File):
+                raise ValidationError("A script file is required")
+            return os.path.basename(require_file_name(cast("File[bytes]", script)))
         else:
             return filename
 
-class ScriptCheckerInline(CheckerInline):
-    model = ScriptChecker
+
+class ScriptCheckerInline(CheckerInline[ScriptChecker]):
+    model: type[ScriptChecker] = ScriptChecker
     form = CopyForm
 
     formset = WarningScriptCheckerFormSet
-    def get_formset(self, request, obj=None, **kwargs):
-        AdminFormset = super(ScriptCheckerInline, self).get_formset(request, obj, **kwargs)
+
+    def get_formset(
+        self,
+        request: HttpRequest,
+        obj: Task | None = None,
+        **kwargs: Any,
+    ) -> "type[BaseInlineFormSet[ScriptChecker, Task, ModelForm[ScriptChecker]]]":
+        AdminFormset = super().get_formset(request, obj, **kwargs)
 
         class AdminFormsetWithRequest(AdminFormset):
-            def __new__(cls, *args, **kwargs):
-                kwargs['request'] = request
+            def __new__(
+                cls,
+                *args: Any,
+                **kwargs: Any,
+            ) -> "BaseInlineFormSet[ScriptChecker, Task, ModelForm[ScriptChecker]]":
+                kwargs["request"] = request
                 return AdminFormset(*args, **kwargs)
 
         return AdminFormsetWithRequest

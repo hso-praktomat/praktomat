@@ -1,83 +1,101 @@
-from django.forms.models import ModelForm, inlineformset_factory, BaseInlineFormSet
-from django.forms.formsets import formset_factory
-from django import forms
+from typing import TYPE_CHECKING, Any
 
-from attestation.models import Attestation, AnnotatedSolutionFile, RatingResult, SolutionFile
+from django import forms
+from django.forms.models import BaseInlineFormSet, ModelForm, inlineformset_factory
+
+from attestation.models import AnnotatedSolutionFile, Attestation, RatingResult, SolutionFile
 from configuration.models import Settings
 
 
-class AttestationForm(ModelForm):
+class AttestationForm(ModelForm[Attestation] if TYPE_CHECKING else ModelForm):
     class Meta:
         model = Attestation
-        exclude = ('solution', 'author', 'final', 'published', 'published_on')
+        exclude = ("solution", "author", "final", "published", "published_on")
         widgets = {
-            'public_comment': forms.Textarea(attrs={'cols': 80, 'rows': 10}),
-            'private_comment': forms.Textarea(attrs={'cols': 80, 'rows': 10}),
+            "public_comment": forms.Textarea(attrs={"cols": 80, "rows": 10}),
+            "private_comment": forms.Textarea(attrs={"cols": 80, "rows": 10}),
         }
 
-
-    def __init__(self, *args, **kwargs):
-        super(AttestationForm, self).__init__(*args, **kwargs)
-        final_grade_rating_scale = kwargs['instance'].solution.task.final_grade_rating_scale
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        final_grade_rating_scale = self.instance.solution.task.final_grade_rating_scale
         if final_grade_rating_scale:
-            self.fields['final_grade'].choices = [ (item['id'], item['name']) for item in final_grade_rating_scale.ratingscaleitem_set.values() ]
+            field = self.fields["final_grade"]
+            if not isinstance(field, forms.ModelChoiceField):
+                raise TypeError("Expected a model choice field for final_grade")
+            field.choices = [(item.pk, item.name) for item in final_grade_rating_scale.ratingscaleitem_set.all()]
         else:
-            del self.fields['final_grade']
+            del self.fields["final_grade"]
 
-class AttestationPreviewForm(ModelForm):
+
+class AttestationPreviewForm(ModelForm[Attestation] if TYPE_CHECKING else ModelForm):
     class Meta:
         model = Attestation
-        fields = ('final',)
+        fields = ("final",)
 
-class AnnotatedFileForm(ModelForm):
+
+class AnnotatedFileForm(ModelForm[AnnotatedSolutionFile] if TYPE_CHECKING else ModelForm):
     class Meta:
         model = AnnotatedSolutionFile
-        fields=('content', 'solution_file',)
+        fields = (
+            "content",
+            "solution_file",
+        )
 
-    solution_file = forms.IntegerField(widget=forms.HiddenInput)
+    solution_file: forms.IntegerField = forms.IntegerField(widget=forms.HiddenInput)
 
-    def clean_solution_file(self):
-        solution_file_id = self.cleaned_data.get('solution_file')
+    def clean_solution_file(self) -> SolutionFile:
+        solution_file_id: int = self.cleaned_data["solution_file"]
         try:
-            solution_file  = SolutionFile.objects.get(pk=solution_file_id)
+            solution_file = SolutionFile.objects.get(pk=solution_file_id)
         except SolutionFile.DoesNotExist:
-            raise forms.ValidationError("No Solutionfile exists by id"+solution_file_id)
+            raise forms.ValidationError(f"No Solutionfile exists by id{solution_file_id}") from None
 
         return solution_file
 
 
+AnnotatedFileFormSet = inlineformset_factory(
+    Attestation, AnnotatedSolutionFile, form=AnnotatedFileForm, formset=BaseInlineFormSet, can_delete=False, extra=0
+)
 
-AnnotatedFileFormSet = inlineformset_factory(Attestation, AnnotatedSolutionFile, form=AnnotatedFileForm, formset=BaseInlineFormSet, can_delete=False, extra=0)
 
-
-class RatingResultForm(ModelForm):
-    def __init__(self, *args, **kwargs):
-        super(RatingResultForm, self).__init__(*args, **kwargs)
-        ratingResult = kwargs['instance']
-        self.fields['mark'].label = ratingResult.rating.aspect.name
-        self.fields['mark'].help_text = ratingResult.rating.aspect.description
-        self.fields['mark'].choices = [ (item['id'], item['name']) for item in ratingResult.rating.scale.ratingscaleitem_set.values() ]
+class RatingResultForm(ModelForm[RatingResult] if TYPE_CHECKING else ModelForm):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        ratingResult = self.instance
+        self.fields["mark"].label = ratingResult.rating.aspect.name
+        self.fields["mark"].help_text = ratingResult.rating.aspect.description
+        field = self.fields["mark"]
+        if not isinstance(field, forms.ModelChoiceField):
+            raise TypeError("Expected a model choice field for mark")
+        field.choices = [(item.pk, item.name) for item in ratingResult.rating.scale.ratingscaleitem_set.all()]
 
     class Meta:
         model = RatingResult
-        fields=('mark',)
-
-RatingResultFormSet = inlineformset_factory(Attestation, RatingResult, form=RatingResultForm, formset=BaseInlineFormSet, can_delete=False, extra=0)
+        fields = ("mark",)
 
 
-class PublishFinalGradeForm(ModelForm):
+RatingResultFormSet = inlineformset_factory(
+    Attestation, RatingResult, form=RatingResultForm, formset=BaseInlineFormSet, can_delete=False, extra=0
+)
+
+
+class PublishFinalGradeForm(ModelForm[Settings] if TYPE_CHECKING else ModelForm):
     class Meta:
         model = Settings
-        fields = ('final_grades_published',)
+        fields = ("final_grades_published",)
+
 
 class GenerateRatingScaleForm(forms.Form):
-    name = forms.CharField(max_length=200,  help_text = 'The Name of the rating scale for the aspects. E.g.: "School marks"')
-    start = forms.FloatField(initial=0, help_text="The first RatingScaleItem to generate.")
-    end = forms.FloatField(initial=15, help_text="The last RatingScaleItem to generate.")
-    step = forms.FloatField(initial=1, help_text="The step size between the RatingScaleItems.")
+    name: forms.CharField = forms.CharField(
+        max_length=200, help_text='The Name of the rating scale for the aspects. E.g.: "School marks"'
+    )
+    start: forms.FloatField = forms.FloatField(initial=0, help_text="The first RatingScaleItem to generate.")
+    end: forms.FloatField = forms.FloatField(initial=15, help_text="The last RatingScaleItem to generate.")
+    step: forms.FloatField = forms.FloatField(initial=1, help_text="The step size between the RatingScaleItems.")
 
 
-class FinalGradeOptionForm(ModelForm):
+class FinalGradeOptionForm(ModelForm[Settings] if TYPE_CHECKING else ModelForm):
     class Meta:
         model = Settings
-        fields = ('final_grades_arithmetic_option', 'final_grades_plagiarism_option')
+        fields = ("final_grades_arithmetic_option", "final_grades_plagiarism_option")

@@ -1,6 +1,9 @@
-from django.db import migrations, models
+from django.apps.registry import Apps
+from django.db.backends.base.schema import BaseDatabaseSchemaEditor
+from django.db import migrations
 
-def initial_configuration(apps, schema_editor):
+
+def initial_configuration(apps: Apps, schema_editor: BaseDatabaseSchemaEditor) -> None:
     Settings = apps.get_model("configuration", "Settings")
     conf = Settings.objects.get_or_create()[0]
     conf.save()

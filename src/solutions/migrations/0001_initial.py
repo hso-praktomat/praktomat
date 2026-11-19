@@ -1,5 +1,8 @@
 from django.db import migrations, models
 import solutions.models
+from typing import cast
+
+# Preserve historical byte metadata; current stubs only accept text.
 
 
 class Migration(migrations.Migration):
@@ -20,7 +23,7 @@ class Migration(migrations.Migration):
                 ('warnings', models.BooleanField(default=False, help_text='Indicates whether the solution has at least failed one public and not required tests.')),
                 ('plagiarism', models.BooleanField(default=False, help_text='Indicates whether the solution is a rip-off of another one.')),
                 ('final', models.BooleanField(default=False, help_text='Indicates whether this solution is the last (accepted) of the author.')),
-                ('author', models.ForeignKey(verbose_name=b'solution author', to='accounts.User', on_delete=models.CASCADE)),
+                ('author', models.ForeignKey(verbose_name=cast(str, b'solution author'), to='accounts.User', on_delete=models.CASCADE)),
             ],
         ),
         migrations.CreateModel(

@@ -1,12 +1,13 @@
-import chardet
 import re
 
-def get_unicode(bytestring):
+import chardet
+
+
+def get_unicode(bytestring: str | bytes) -> str:
     if bytestring:
         """ Returns guessed unicode representation of file content. """
         if isinstance(bytestring, str):
             return bytestring
-
 
         # Treat any 8-bit ASCII extension as latin1/western european
         charset = chardet.detect(bytestring)["encoding"]
@@ -23,9 +24,10 @@ def get_unicode(bytestring):
                     pass
                 except LookupError:
                     pass
-        raise UnicodeDecodeError("Unable to detect proper characterset")
+        raise UnicodeDecodeError("unknown", bytestring, 0, len(bytestring), "Unable to detect proper characterset")
     else:
-        return ''
+        return ""
 
-def get_utf8(unicodestring):
+
+def get_utf8(unicodestring: str) -> bytes:
     return unicodestring.encode("utf-8")

@@ -1,4 +1,7 @@
 from django.db import migrations, models
+from typing import cast
+
+# Preserve historical byte metadata; current stubs only accept text.
 
 
 class Migration(migrations.Migration):
@@ -19,7 +22,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='attestation',
             name='author',
-            field=models.ForeignKey(verbose_name=b'attestation author', to='accounts.User', on_delete=models.CASCADE),
+            field=models.ForeignKey(verbose_name=cast(str, b'attestation author'), to='accounts.User', on_delete=models.CASCADE),
         ),
         migrations.AddField(
             model_name='attestation',

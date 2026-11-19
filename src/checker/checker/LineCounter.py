@@ -4,32 +4,33 @@ Generate some simple lexical statistics.
 
 import string
 
-from django.db import models
-from django.utils.translation import gettext
 from django.utils.html import escape
-from checker.basemodels import Checker
+from django.utils.translation import gettext
+
+from checker.basemodels import Checker, CheckerEnvironment, CheckerResult
+
 
 class LineCounter(Checker):
-    """ Lexical Statistics of the sources.
-        This class is not really a checker, as it only gathers some simple
-        lexical statistics of the source code:
-        - number of files
-        - lines, lines of code and lines of comment """
+    """Lexical Statistics of the sources.
+    This class is not really a checker, as it only gathers some simple
+    lexical statistics of the source code:
+    - number of files
+    - lines, lines of code and lines of comment"""
 
-    def title(self):
-        """ Returns the title for this checker category. """
+    def title(self) -> str:
+        """Returns the title for this checker category."""
         # _de("Lexikalische Statistik")
         return gettext("Lexical statistics")
 
     @staticmethod
-    def description():
-        """ Returns a description for this Checker. """
+    def description() -> str:
+        """Returns a description for this Checker."""
         # _de(u"Diese Prüfung wird immer bestanden.")
         return gettext("This check is always passed.")
 
-    def run(self, env):
-        """ Here's the actual work.     This runs the check in the environment ENV,
-        returning a CheckerResult. """
+    def run(self, env: CheckerEnvironment) -> CheckerResult:
+        """Here's the actual work.     This runs the check in the environment ENV,
+        returning a CheckerResult."""
 
         log = ""
         passed = 1
@@ -43,7 +44,7 @@ class LineCounter(Checker):
         in_long_comment = 0
 
         # Here's how to access the sources.
-        for (name, content) in env.string_sources():
+        for name, content in env.string_sources():
             assert not in_long_comment
             in_short_comment = 0
 
@@ -60,11 +61,11 @@ class LineCounter(Checker):
             for i in range(len(content)):
                 # sets both lookaheads (if available)
                 la1 = content[i]
-                la2 = '\0'
-                if i+1 < len(content):
-                    la2 = content[i+1]
+                la2 = "\0"
+                if i + 1 < len(content):
+                    la2 = content[i + 1]
 
-                if la1 == '\n':
+                if la1 == "\n":
                     # new line
                     lines_in_file = lines_in_file + 1
                     if line_has_comment:
@@ -79,12 +80,12 @@ class LineCounter(Checker):
                     in_short_comment = 0
                     continue
 
-                if in_long_comment and la1 == '*' and la2 == "/":
+                if in_long_comment and la1 == "*" and la2 == "/":
                     in_long_comment = 0
                     continue
 
                 if in_long_comment or in_short_comment:
-                    if    la1 in string.digits or la1 in string.ascii_letters:
+                    if la1 in string.digits or la1 in string.ascii_letters:
                         line_has_comment = 1
                 else:
                     if la1 in string.digits or la1 in string.ascii_letters:
@@ -109,21 +110,26 @@ class LineCounter(Checker):
                 #              + `comment_lines_in_file*100 / lines_in_file` + "%), "
                 #              + `coco_lines_in_file` + " beides ("
                 #              + `coco_lines_in_file*100 / lines_in_file` + "%).<br>\n")
-                l = gettext(
-                    "{0} lines, including {1} code lines ({2}%), {3} comment lines ({4}%), {5} both ({6}%)."
-                    .format(lines_in_file,
+                description = gettext(
+                    "{0} lines, including {1} code lines ({2}%), {3} comment lines ({4}%), {5} both ({6}%).".format(  # noqa: UP030  # Keep placeholders reorderable in translations.
+                        lines_in_file,
                         code_lines_in_file,
-                        code_lines_in_file*100 / lines_in_file,
+                        code_lines_in_file * 100 / lines_in_file,
                         comment_lines_in_file,
-                        comment_lines_in_file*100 / lines_in_file,
+                        comment_lines_in_file * 100 / lines_in_file,
                         coco_lines_in_file,
-                        coco_lines_in_file*100 / lines_in_file))
-                log = log + (    escape(name) + ": " + l + "<br>\n")
+                        coco_lines_in_file * 100 / lines_in_file,
+                    )
+                )
+                log = log + (escape(name) + ": " + description + "<br>\n")
 
             except ZeroDivisionError:
                 # FIXME
-                log = log + "Line Width Checker (l 178): ZeroDivisionError " + \
-                      " (no comment / code / coco lines in file!)"
+                log = (
+                    log
+                    + "Line Width Checker (l 178): ZeroDivisionError "
+                    + " (no comment / code / coco lines in file!)"
+                )
 
             lines = lines + lines_in_file
             comment_lines = comment_lines + comment_lines_in_file
@@ -141,23 +147,23 @@ class LineCounter(Checker):
             #              + `comment_lines * 100 / lines` + "%), "
             #              + `coco_lines` + " beides ("
             #              + `coco_lines * 100 / lines` + "%).\n")
-            l = gettext(
-                "{0} files, {1} lines, including {2} code lines ({3}%), {4} comment lines ({5}%), {6} both ({7}%)."
-                .format(files,
+            description = gettext(
+                "{0} files, {1} lines, including {2} code lines ({3}%), {4} comment lines ({5}%), {6} both ({7}%).".format(  # noqa: UP030  # Keep placeholders reorderable in translations.
+                    files,
                     lines,
                     code_lines,
                     code_lines * 100 / lines,
                     comment_lines,
                     comment_lines * 100 / lines,
                     coco_lines,
-                    coco_lines * 100 / lines)
+                    coco_lines * 100 / lines,
                 )
-            log = log + ("<br>" + l + "\n")
+            )
+            log = log + ("<br>" + description + "\n")
 
         except ZeroDivisionError:
             # FIXME
-            log = log + "Line Width Checker (l 197): ZeroDivisionError " + \
-                  " (no comment / code / coco lines in file!)"
+            log = log + "Line Width Checker (l 197): ZeroDivisionError " + " (no comment / code / coco lines in file!)"
 
         # Generate the result.
         result = self.create_result(env)
@@ -166,6 +172,9 @@ class LineCounter(Checker):
         # That's all!
         return result
 
-from checker.admin import CheckerInline
-class LineCounterInline(CheckerInline):
-    model = LineCounter
+
+from checker.admin import CheckerInline  # noqa: E402  # Load after model definitions to avoid circular imports.
+
+
+class LineCounterInline(CheckerInline[LineCounter]):
+    model: type[LineCounter] = LineCounter

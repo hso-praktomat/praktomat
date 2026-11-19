@@ -1,4 +1,7 @@
 from django.db import migrations, models
+from typing import cast
+
+# Preserve historical byte metadata; current stubs only accept text.
 
 
 class Migration(migrations.Migration):
@@ -11,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='settings',
             name='jplag_setting',
-            field=models.CharField(default='Java', help_text=b'Default settings for jPlag', max_length=200),
+            field=models.CharField(default='Java', help_text=cast(str, b'Default settings for jPlag'), max_length=200),
         ),
     ]
