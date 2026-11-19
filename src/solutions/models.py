@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -344,6 +345,19 @@ def get_solutions_zip(
         return zip_file
 
 
+def solution_metadata_json(solution: Solution) -> str:
+    return (
+        json.dumps(
+            {
+                "solution_id": solution.pk,
+                "allow_llm_upload": solution.allow_llm_upload,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+
+
 def _write_solutions_zip(
     zip: zipfile.ZipFile,
     solutions: "list[Solution] | models.QuerySet[Solution, Solution]",
@@ -410,6 +424,8 @@ def _write_solutions_zip(
         # We need to pass unicode strings to ZipInfo to ensure that it sets bit
         # 11 appropriately if the filename contains non-ascii characters.
         assert isinstance(base_name, str)
+
+        zip.writestr(base_name + "metadata.json", solution_metadata_json(solution))
 
         checkstyle_checker_files: list[tuple[str, str]] = []
         script_checker_files: list[tuple[str, str]] = []

@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta
 from io import BytesIO
 from os.path import dirname, join
@@ -16,7 +17,7 @@ from accounts.models import Tutorial, User
 from attestation.models import RatingScale, RatingScaleItem
 from checker.checker.ScriptChecker import ScriptChecker, ScriptCheckerInline
 from checker.checker.TextChecker import TextChecker, TextCheckerInline
-from solutions.models import Solution
+from solutions.models import Solution, SolutionFile
 from tasks.admin import TaskAdmin
 from tasks.models import DeadlineExtension, MediaFile, SubmissionBlacklistEntry, Task
 from utilities.TestSuite import TestCase
@@ -258,6 +259,38 @@ class TestStaffViews(TestCase):
                 follow=True,
             )
         self.assertRedirectsToView(response, "changelist_view")
+
+    def test_final_solution_download_includes_metadata(self) -> None:
+        solution = self.task.solution_set.first()
+        assert solution is not None
+        solution.final = True
+        solution.save()
+        source = SolutionFile(solution=solution)
+        source.file.save("metadata.json", ContentFile(b'{"student_file": true}'))
+        draft = Solution.objects.create(task=self.task, author=solution.author)
+        metadata_path = f"praktomat-metadata/solution_{solution.pk}/metadata.json"
+        for consent in (True, False):
+            with self.subTest(consent=consent):
+                solution.allow_llm_upload = consent
+                solution.save()
+                response = self.client.get(reverse("download_final_solutions", args=[self.task.pk]))
+                self.assertEqual(response.status_code, 200)
+                with ZipFile(BytesIO(response.content)) as archive:
+                    self.assertEqual(
+                        json.loads(archive.read(metadata_path)),
+                        {
+                            "solution_id": solution.pk,
+                            "allow_llm_upload": consent,
+                        },
+                    )
+                    self.assertNotIn(
+                        f"praktomat-metadata/solution_{draft.pk}/metadata.json",
+                        archive.namelist(),
+                    )
+                    for source in solution.solutionfile_set.all():
+                        assert source.file.name is not None
+                        with source.file.open("rb") as original:
+                            self.assertEqual(archive.read(source.file.name), original.read())
 
     def test_get_model_solution(self) -> None:
         response = self.client.get(reverse("model_solution", args=[self.task.id]))
